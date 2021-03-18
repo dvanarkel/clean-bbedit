@@ -1,12 +1,11 @@
 # Design
 ## Linter Library
-The linter library will be designed as a standalone library that can be included in a small wrapper to produce an
-application to produce errors an warnings. Additionally, this library can be used to create a language server
-implementing the language server protocol.
+The linter library will be designed as a library that can be used in a small wrapper to produce errors/warnings to
+stdout or be used to produce a language server.
 
 ### Library Interface
 In general, the interface of the library we will be designed to be as compatible with the LSP protocol as possible
-within a certain limit.
+within a reasonable limit.
 
 Given a `String` containing the uri of a file and `Configuration`, the library will output a `[Diagnostic]` with:
 ```Clean
@@ -70,10 +69,10 @@ parsing and one containing the AST after lexing.
 
 Assuming only the first representation, passes shall have the form:
 ```Clean
-pass :: !LineRange !{Their configuration type} ![String] -> [Diagnostic]
+... :: !LineRange !{Their configuration type} ![String] -> [Diagnostic]
 ```
 
-A pass shall be defined in their own module, including their documentation.
+A pass shall be defined in their own module, including their configuration.
 
 ## Linter Binary
 The linter binary shall wrap the library. It will be responsible for parsing the configuration file and print the
