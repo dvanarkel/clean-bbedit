@@ -96,4 +96,14 @@ RETURN:
 	The linter returns 0 if no errors were found, 1 otherwise.
 ```
 
+## Language Server
+The language server shall wrap the library to produce diagnostics. The language
+server itself shall be written in a language for which a LSP SDK is available.
+Communication with the library shall happen through a foreign function
+interface[^1] or through some process of IPC.
+
+[^1]: Calling Clean functions from a binary not started by the Clean RTS
+  cannot currently be done. This is to be considered when the final design for
+  the LSP is realized.
+
 [lsp-specification]: https://microsoft.github.io/language-server-protocol/specifications/specification-current
