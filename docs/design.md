@@ -11,7 +11,7 @@ Given a `String` containing the uri of a file and `Configuration`, the library w
 ```Clean
 :: Diagnostic =
 	{ range :: Range
-	, severity :: ?DiagnosticSeverity
+	, severity :: DiagnosticSeverity
 	, message :: String
 	}
 
@@ -92,9 +92,19 @@ OPTION:
 		Load the configuration file. Defaults to .clean-lint.json if not specified.
 	-Werror
 		Lifts all warning diagnostics to errors.
+	--output-format=FORMAT
+		Changes the output format to the specified standard. Defaults to lsp is not specified.
+FORMAT:
+	code-climate
+		Output error formats compatible with the Code Climate specification.
+	lsp
+		Output error formats compatible with the language server protocol.
+
 RETURN:
 	The linter returns 0 if no errors were found, 1 otherwise.
 ```
+For the `--output-format=code-climate` flag, the binary wrapper shall be responsible for mapping the lsp severity to
+the code-climate format.
 
 ## Language Server
 The language server shall wrap the library to produce diagnostics. The language
