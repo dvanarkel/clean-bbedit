@@ -10,15 +10,17 @@ within a reasonable limit.
 Given a `String` containing the uri of a file and `Configuration`, the library will output a `[Diagnostic]` with:
 ```Clean
 :: Diagnostic =
-	{ range :: Range
+	{ range :: CharacterRange
 	, severity :: DiagnosticSeverity
 	, message :: String
 	}
 
-:: Range =
-	{ start :: Position
-	, end :: Position
+:: Range t =
+	{ start :: t
+	, end :: t
 	}
+
+:: CharacterRange :== Range Position
 
 :: Position =
 	{ line :: Int
@@ -34,10 +36,7 @@ Given a `String` containing the uri of a file and `Configuration`, the library w
 	...
 	}
 
-:: LineRange =
-	{ start :: ?Int
-	, end :: ?Int
-	}
+:: LineRange :== Range ?Int
 
 :: IndentationConfiguration =
 	{ severity :: ?DiagnosticSeverity
