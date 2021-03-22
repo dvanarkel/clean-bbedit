@@ -12,6 +12,11 @@ Given a `String` containing the uri of a file and `Configuration`, the library w
 :: Diagnostic =
 	{ range :: CharacterRange
 	, severity :: DiagnosticSeverity
+	// An incremental number that forms a unique identifier in combination with the source
+	, code :: Int
+	// A lowercase human readable name for the pass that created the diagnosic
+	, source :: String
+	// A human readable string describing the issue
 	, message :: String
 	}
 
