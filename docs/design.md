@@ -5,7 +5,9 @@ stdout or be used to produce a language server.
 
 ### Library Interface
 In general, the interface of the library we will be designed to be as compatible with the LSP protocol as possible
-within a reasonable limit.
+within a reasonable limit. The language server wrapper around the library is responsible for making it 100% compatible.
+This is done because we do not want to be limited by the design of the LSP for features we want to have in the linter
+wrapper.
 
 Given a `String` containing the uri of a file and `Configuration`, the library will output a `[Diagnostic]` with:
 ```Clean
