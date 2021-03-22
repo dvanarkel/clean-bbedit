@@ -31,10 +31,13 @@ Given a `String` containing the uri of a file and `Configuration`, the library w
 
 :: Configuration =
 	{ lineRange :: ?LineRange
-	, indentation :: ?IdentationConfiguration
-	, trailingWhitespace :: ?TrailingWhitespaceConfiguration
-	...
+	, passes :: [PassConfiguration]
 	}
+
+:: PassConfiguration
+	= IdentationConfiguration IdentationConfiguration
+	| TrailingWhitespaceConfiguration TrailingWhitespaceConfiguration
+	...
 
 :: LineRange :== Range ?Int
 
@@ -59,8 +62,8 @@ introduced in the future and the conversions between them.
 The `Configuration` type of the library contains an optional range, this range bounds the part of the program that
 is to be analyzed. A `?None` indicates that this side of the range is unbounded. The `Configuration` type also
 contains the parameters for all passes. It is up to the passes to determine if they should return any diagnostics based
-on their parameters and what their defaults are. If a field in the `Configuration` type is `?None`, that pass is
-considered to be disabled.
+on their parameters and what their defaults are. If a pass is not present in the list, that pass is considered to be
+disabled.
 
 ### Library internals
 The library takes the uri and produces several representations. For now there shall be one, `[String]`, where lines are
