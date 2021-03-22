@@ -30,7 +30,7 @@ Given a `String` containing the uri of a file and `Configuration`, the library w
 :: DiagnosticSeverity = Error | Warning | Information | Hint
 
 :: Configuration =
-	{ lineRange :: ?LineRange
+	{ lineRange :: [LineRange]
 	, passes :: [PassConfiguration]
 	}
 
@@ -59,11 +59,11 @@ fields defined by the LSP specification can be added. While there is technically
 compatible with the interface specified by the LSP protocol, it reduces the number of types that might have to be
 introduced in the future and the conversions between them.
 
-The `Configuration` type of the library contains an optional range, this range bounds the part of the program that
-is to be analyzed. A `?None` indicates that this side of the range is unbounded. The `Configuration` type also
-contains the parameters for all passes. It is up to the passes to determine if they should return any diagnostics based
-on their parameters and what their defaults are. If a pass is not present in the list, that pass is considered to be
-disabled.
+The `Configuration` type of the library contains an optional list of line range, these ranges bounds the part of the
+program that is to be analyzed. A `?None` indicates that this side of the range is unbounded. The `Configuration` type
+also contains the parameters for all passes. It is up to the passes to determine if they should return any diagnostics
+based on their parameters and what their defaults are. If a pass is not present in the list, that pass is considered to
+be disabled.
 
 ### Library internals
 The library takes the uri and produces several representations. For now there shall be one, `[String]`, where lines are
@@ -72,7 +72,7 @@ parsing and one containing the AST after lexing.
 
 Assuming only the first representation, passes shall have the form:
 ```Clean
-... :: !LineRange !{Their configuration type} ![String] -> [Diagnostic]
+... :: ![LineRange] !{Their configuration type} ![String] -> [Diagnostic]
 ```
 
 A pass shall be defined in their own module, including their configuration.
@@ -85,12 +85,10 @@ by the generic JSON parser to the `Configuration` type. The command line argumen
 ```
 usage :: ... [OPTION]
 OPTION:
-	-start=Int
-		Specifies the starting line for the linter, only diagnostics found after this line are output. Defaults
-		to 0 if not specified.
-	-end=Int
-		Specifies the end line for the linter, only diagnostics found before this line are output. Defaults to
-		the end of the file if not spcified.
+	-lines
+		A comma seperated list of ranges in the form 0,1-5,99-. Overlapping ranges are undefined. Leaving out the
+		beginning or end of the range (-10,100-) considers all starting from the beginning or end of the file
+		respectively.
 	-c FILENAME
 		Load the configuration file. Defaults to .clean-lint.json if not specified.
 	-Werror
