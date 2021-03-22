@@ -41,9 +41,10 @@ Given a `String` containing the uri of a file and `Configuration`, the library w
 :: IndentationConfiguration =
 	{ severity :: ?DiagnosticSeverity
 	, type :: IndentationType
+	, tabstop :: ?Int // Argument only used if the type is Spaces
 	}
 
-:: IndentationType = Tabs | Spaces Int
+:: IndentationType = Tabs | Spaces
 
 :: TrailingWhitespaceConfiguration =
 	{ severity :: ?DiagnosticSeverity
