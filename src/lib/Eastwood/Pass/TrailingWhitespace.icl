@@ -8,16 +8,20 @@ from Data.Maybe import fromMaybe, class Maybe
 import Eastwood.Configuration
 import Eastwood.Diagnostic
 
-//TODO: Consider LineRange
 runPass :: ![LineRange] !TrailingWhitespaceConfiguration ![String] -> [Diagnostic]
-runPass _ configuration contents = runPass` contents 1 0
+runPass lineRanges configuration contents = runPass` lineRanges contents 1 0
 where
-	runPass` :: ![String] !Int !Int -> [Diagnostic]
-	runPass` [] _ _ = []
-	runPass` [l:ls] lineNumber diagnosticCounter
-		| finalCharacterIsWhitespace l =
-			[newDiagnostic l lineNumber diagnosticCounter : runPass` ls (lineNumber + 1) (diagnosticCounter + 1)]
-		| otherwise = runPass` ls (lineNumber + 1) diagnosticCounter
+	runPass` :: ![LineRange] ![String] !Int !Int -> [Diagnostic]
+	runPass` _ [] _ _ = []
+	runPass` [] _ _ _ = []
+	runPass` lrx=:[lr:lrs] lx=:[l:ls] lineNumber diagnosticCounter
+		// If we are in a line range and it is a whitespace, produce error continue with next line
+		| inLineRange lr lineNumber && finalCharacterIsWhitespace l =
+			[newDiagnostic l lineNumber diagnosticCounter : runPass` lrx ls (lineNumber + 1) (diagnosticCounter + 1)]
+		// If we are past the current line range, go to the next one, stay on current line
+		| afterLineRange lr lineNumber = runPass` lrs lx lineNumber diagnosticCounter
+		// Otherwise, go to next line
+		| otherwise = runPass` lrx ls (lineNumber + 1) diagnosticCounter
 
 	finalCharacterIsWhitespace :: !String -> Bool
 	finalCharacterIsWhitespace "" = False

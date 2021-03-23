@@ -15,12 +15,6 @@ import Eastwood.Range
 	}
 
 /**
- * From where to where should passes analyze the code. A ?None indicates that that side of the range is unbounded (i.e.
- * the start or the end of the entire file).
- */
-:: LineRange :== Range (?Int)
-
-/**
  * Should be extened for every additional pass. Configuration of the passes should be defined in their specific module.
  */
 :: PassConfiguration

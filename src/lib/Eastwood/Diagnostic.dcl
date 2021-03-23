@@ -1,6 +1,6 @@
 definition module Eastwood.Diagnostic
 
-from Eastwood.Range import :: Range
+from Eastwood.Range import :: CharacterRange, :: Position, :: Range
 
 /**
  * Represents the warnings, errors, etc found by the passes. This type attempts to be as compatible with the LSP
@@ -19,19 +19,6 @@ from Eastwood.Range import :: Range
 	, message :: !String
 	//* A human readable string describing the issue. This field should not specify the range or severity of the issue.
 	//* These shall be handled by the linter or the language server.
-	}
-
-/**
- * A range as defined by the LSP specification
- */
-:: CharacterRange :== Range Position
-
-/**
- * The position as defined by the LSP specification
- */
-:: Position =
-	{ line :: !Int
-	, character :: !Int
 	}
 
 /**
