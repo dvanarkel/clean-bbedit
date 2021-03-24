@@ -56,7 +56,7 @@ where
 
 instance toString Position
 where
-	toString { Position | line, character } = concat3 (toString line) ":" (toString character)
+	toString { Position | line, character } = concat3 (toString line) "," (toString character)
 
 
 Start :: !*World -> *World
