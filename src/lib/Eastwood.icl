@@ -16,8 +16,8 @@ runPassesFile :: !Configuration !FilePath !*World -> (MaybeError FileError [Diag
 runPassesFile configuration filePath world
 	#! (mberror, world) = readFile filePath world
 	= case mberror of
-		(Error s) -> (Error s, world)
-		(Ok contents) -> (Ok $ runPassesString configuration contents, world)
+		Error s -> (Error s, world)
+		Ok contents -> (Ok $ runPassesString configuration contents, world)
 
 runPassesString :: !Configuration !String -> [Diagnostic]
 runPassesString configuration contents = runPassesLines configuration (split "\n" contents)
