@@ -9,7 +9,7 @@ from System.FilePath import :: FilePath
 from Text import class Text(split), instance Text String
 
 import Eastwood.Configuration
-from Eastwood.Diagnostic import :: Diagnostic
+from Eastwood.Diagnostic import :: Diagnostic(..)
 import qualified Eastwood.Pass.TrailingWhitespace
 
 runPassesFile :: !Configuration !FilePath !*World -> (MaybeError FileError [Diagnostic], !*World)
@@ -25,7 +25,18 @@ runPassesString configuration contents = runPassesLines configuration (split "\n
 // Function is not exported because future passes might not work for this format. Unintended behavior might occur when
 // assuming the strings can be concatenated. This is thus best left to the user of the library.
 runPassesLines :: !Configuration ![String] -> [Diagnostic]
-runPassesLines {lineRanges, passes} contents = runPassesLines` passes
+runPassesLines {lineRanges, passes} contents
+	# diagnostics = map runPassesLines` passes
+	= flatten $ map (filterDiagnostics lineRanges) diagnostics
 where
-	runPassesLines` [TrailingWhitespaceConfiguration passConfig] =
-		'Eastwood.Pass.TrailingWhitespace'.runPass lineRanges passConfig contents
+	runPassesLines` :: !PassConfiguration -> [Diagnostic]
+	runPassesLines` (TrailingWhitespaceConfiguration passConfig) =
+		'Eastwood.Pass.TrailingWhitespace'.runPass passConfig contents
+
+	filterDiagnostics :: ![LineRange] ![Diagnostic] -> [Diagnostic]
+	filterDiagnostics _ [] = []
+	filterDiagnostics [] _ = []
+	filterDiagnostics lrx=:[lr:lrs] dsx=:[d=:{range}:ds]
+		| inLineRange lr range = [d:filterDiagnostics lrx ds]
+		| afterLineRange lr range = filterDiagnostics lrs dsx
+		| otherwise = filterDiagnostics lrx dsx

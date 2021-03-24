@@ -19,4 +19,4 @@ from Eastwood.Range import :: Range
 /**
  * Runs the whitespace checking pass.
  */
-runPass :: ![LineRange] !TrailingWhitespaceConfiguration ![String] -> [Diagnostic]
+runPass :: !TrailingWhitespaceConfiguration ![String] -> [Diagnostic]

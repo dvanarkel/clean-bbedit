@@ -33,19 +33,19 @@ definition module Eastwood.Range
 :: LineRange :== Range (?Int)
 
 /**
- * Checks if the provided line range contains the provided line number. Handles ?None bounds.
+ * Checks if the provided line range partially encapsulates the character range. Handles ?None bounds.
  *
  * @param The line range
- * @param The line number
- * @result True if the number falls inside of the range, False otherwise
+ * @param The CharacterRange
+ * @result True if the number falls partially or fully inside of the range, False otherwise
  */
-inLineRange :: !LineRange !Int -> Bool
+inLineRange :: !LineRange !CharacterRange -> Bool
 
 /**
- * Checks if the provided line number falls beyond the provided line range. Handles ?None bounds.
+ * Checks if the provided character range falls entirely beyond the provided line range. Handles ?None bounds.
  *
  * @param The line range
  * @param The line number
  * @result True if the line number is greater than the end bound of the line range, False otherwise
  */
-afterLineRange :: !LineRange !Int -> Bool
+afterLineRange :: !LineRange !CharacterRange -> Bool
