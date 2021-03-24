@@ -12,8 +12,7 @@ from Eastwood.Range import :: CharacterRange, :: Position, :: Range
 	, severity :: !DiagnosticSeverity
 	//* The severity of the diagnosic
 	, dCode :: !Int
-	//* An incremental number that forms a unique identifier in combination with the source. `d` because `code` is a
-	//* reserved name
+	//* A code that uniquely identifies the class of error. `d` because `code` is a reserved name
 	, source :: !String
 	//* A lowercase human readable name for the pass that created the diagnosic
 	, message :: !String
