@@ -6,7 +6,7 @@ definition module Eastwood.Range
 
 /**
  * A parameterized range with a lower an upperbound. Can be instantiated, e.g. for the LSP protocol, this range is
- * instantiated with Position, for the configuration with the line numbers.
+ * instantiated with Position, for the configuration with the line numbers. The first line of a file is line 1.
  */
 :: Range t =
 	{ start :: !t

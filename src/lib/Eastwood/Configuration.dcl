@@ -8,8 +8,7 @@ import Eastwood.Range
  */
 :: Configuration =
 	{ lineRanges :: ![LineRange]
-	//* What lines of the given file should be considered. LineRanges are considered to be ordered and non-overlapping.
-	//* The first line of a file in line 1
+	//* What lines of the given file should be considered. LineRanges are assumed to be ordered and non-overlapping.
 	, passes :: ![PassConfiguration]
 	//* What passes should be performed, and what should their configuration be
 	}
