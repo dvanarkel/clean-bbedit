@@ -52,13 +52,7 @@ where
 
 instance toString (Range t) | toString t
 where
-	toString { Range | start, end } = concat
-		[ "["
-		, toString start
-		, "] to ["
-		, toString end
-		, "]"
-		]
+	toString { Range | start, end } = concat3 (toString start) "-" (toString end)
 
 instance toString Position
 where

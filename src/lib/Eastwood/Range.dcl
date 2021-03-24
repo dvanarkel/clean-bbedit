@@ -9,8 +9,8 @@ definition module Eastwood.Range
  * instantiated with Position, for the configuration with the line numbers.
  */
 :: Range t =
-	{ start :: t
-	, end :: t
+	{ start :: !t
+	, end :: !t
 	}
 
 /**
