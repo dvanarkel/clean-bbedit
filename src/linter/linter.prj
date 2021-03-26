@@ -154,6 +154,19 @@ ProjectModules
 					ReuseUniqueNodes:	True
 					Fusion:	False
 			Module
+				Name:	Control.GenBimap
+				Compiler
+					NeverMemoryProfile:	False
+					NeverTimeProfile:	False
+					StrictnessAnalysis:	True
+					ListTypes:	StrictExportTypes
+					ListAttributes:	True
+					Warnings:	True
+					Verbose:	True
+					ReadableABC:	False
+					ReuseUniqueNodes:	True
+					Fusion:	False
+			Module
 				Name:	Control.Monad
 				Compiler
 					NeverMemoryProfile:	False
@@ -271,6 +284,19 @@ ProjectModules
 					ReuseUniqueNodes:	True
 					Fusion:	False
 			Module
+				Name:	Data.GenDefault
+				Compiler
+					NeverMemoryProfile:	False
+					NeverTimeProfile:	False
+					StrictnessAnalysis:	True
+					ListTypes:	StrictExportTypes
+					ListAttributes:	True
+					Warnings:	True
+					Verbose:	True
+					ReadableABC:	False
+					ReuseUniqueNodes:	True
+					Fusion:	False
+			Module
 				Name:	Data.GenEq
 				Compiler
 					NeverMemoryProfile:	False
@@ -349,6 +375,19 @@ ProjectModules
 					ReuseUniqueNodes:	True
 					Fusion:	False
 			Module
+				Name:	System.CommandLine
+				Compiler
+					NeverMemoryProfile:	False
+					NeverTimeProfile:	False
+					StrictnessAnalysis:	True
+					ListTypes:	StrictExportTypes
+					ListAttributes:	True
+					Warnings:	True
+					Verbose:	True
+					ReadableABC:	False
+					ReuseUniqueNodes:	True
+					Fusion:	False
+			Module
 				Name:	System.File
 				Compiler
 					NeverMemoryProfile:	False
@@ -402,6 +441,19 @@ ProjectModules
 					Fusion:	False
 			Module
 				Name:	System.OSError
+				Compiler
+					NeverMemoryProfile:	False
+					NeverTimeProfile:	False
+					StrictnessAnalysis:	True
+					ListTypes:	StrictExportTypes
+					ListAttributes:	True
+					Warnings:	True
+					Verbose:	True
+					ReadableABC:	False
+					ReuseUniqueNodes:	True
+					Fusion:	False
+			Module
+				Name:	System.Options
 				Compiler
 					NeverMemoryProfile:	False
 					NeverTimeProfile:	False
@@ -556,11 +608,8 @@ ProjectModules
 					ReadableABC:	False
 					ReuseUniqueNodes:	True
 					Fusion:	False
-	DirModules
-		Dir:	{Application}*lib*ArgEnv
-		Modules
 			Module
-				Name:	ArgEnv
+				Name:	Text.GenParse
 				Compiler
 					NeverMemoryProfile:	False
 					NeverTimeProfile:	False
@@ -572,8 +621,6 @@ ProjectModules
 					ReadableABC:	False
 					ReuseUniqueNodes:	True
 					Fusion:	False
-				NeededObjFiles
-					ObjectFile:	ArgEnvC.o
 	DirModules
 		Dir:	{Application}*lib*StdEnv
 		Modules

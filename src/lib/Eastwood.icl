@@ -39,7 +39,7 @@ where
 	filterDiagnostics lrx=:[lr:lrs] dsx=:[d=:{range}:ds]
 		| inLineRange lr range = [d:filterDiagnostics lrx ds]
 		| afterLineRange lr range = filterDiagnostics lrs dsx
-		| otherwise = filterDiagnostics lrx dsx
+		| otherwise = filterDiagnostics lrx ds
 
 splitLines :: !String -> [String]
 splitLines string = splitLines` string 0
