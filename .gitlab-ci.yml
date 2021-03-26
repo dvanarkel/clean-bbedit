@@ -1,0 +1,15 @@
+image: 'camilstaps/clean:nightly'
+
+test:
+  before_script:
+    - install_clean_nightly.sh base lib-platform test
+    - apt-get update -qq
+    - apt-get install make
+  script:
+    - make -C test runTest
+  artifacts:
+    when: always
+    paths:
+      - test/junit.xml
+    reports:
+      junit: test/junit.xml
