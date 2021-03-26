@@ -4,7 +4,7 @@ import StdEnv
 import StdMaybe
 
 from Control.Applicative import class <*>, class Applicative, class pure
-from Control.Monad import >>=, >>|, class Monad(bind), mapM
+from Control.Monad import >>=, >>|, class Monad(bind), mapM, mapM_
 from Data.Error import instance <*> (MaybeError a), instance Functor (MaybeError a), instance Monad (MaybeError a)
 from Data.Error import instance pure (MaybeError a)
 import qualified Data.Error
@@ -145,9 +145,11 @@ startIO opts=:{file = ?Just file}
 	= putStrLn file >>| withWorld (runPassesFile (createConfiguration opts) file) >>= showResult opts
 
 showResult :: !Options !('Data.Error'.MaybeError FileError [Diagnostic]) -> IO ()
-showResult _ ('Data.Error'.Error fileError) = putStrLn $ toString fileError
+showResult _ ('Data.Error'.Error fileError) =
+	putStrLn (toString fileError) >>|
+	withWorld (\w -> ((), setReturnCode 1 w))
 showResult {color} ('Data.Error'.Ok diagnostics) =
-	putStrLn o concat o intersperse "\n" $ map (showDiagnostic color) diagnostics
+	mapM_ (putStrLn o showDiagnostic color) diagnostics
 
 createConfiguration :: !Options -> Configuration
 createConfiguration {lines} =
