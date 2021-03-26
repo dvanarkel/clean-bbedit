@@ -1,6 +1,7 @@
 module linter
 
 import StdEnv
+import StdMaybe
 
 from Control.Applicative import class <*>, class Applicative, class pure
 from Control.Monad import >>=, >>|, class Monad(bind), mapM
@@ -28,7 +29,7 @@ import Eastwood.Range
 :: Options =
 	{ color :: !Bool
 	, lines :: ![LineRange]
-	, file :: !FilePath
+	, file :: !?FilePath
 	}
 derive gDefault ?, Range
 
@@ -36,8 +37,14 @@ gDefault{|Options|} =
 	{ Options
 	| color = True
 	, lines = defaultConfiguration.lineRanges
-	, file = ""
+	, file = ?None
 	}
+
+invalidOptions :: !Options -> Bool
+invalidOptions opts = isNone opts.file
+
+usage :: String
+usage = " [options] FILE"
 
 optionDesciption :: Option Options
 optionDesciption = WithHelp True $ Options
@@ -50,7 +57,7 @@ optionDesciption = WithHelp True $ Options
 		"LINE_RANGES"
 		"Line ranges that should be considered (e.g. \"1-2,5-\")"
 	, Operand True
-		(\fp opts -> ?Just $ 'Data.Error'.Ok {opts & file = fp})
+		(\fp opts -> ?Just $ 'Data.Error'.Ok {opts & file = ?Just fp})
 		"FILE"
 		"The file on which the linter should be ran"
 	]
@@ -126,14 +133,16 @@ Start world
 	| 'Data.Error'.isError opts
 		= exit (join "\n" $ 'Data.Error'.fromError opts) world
 	# opts = 'Data.Error'.fromOk opts
+	| invalidOptions opts
+		= exit (concat5 "Usage: " prog usage "\n\n" (showHelpText (helpText optionDesciption))) world
 	= execIO (startIO opts) world
 where
 	exit :: String *World -> *World
 	exit error w = snd $ fclose (stderr <<< error <<< "\n") $ setReturnCode 1 w
 
 startIO :: !Options -> IO ()
-startIO opts
-	= putStrLn opts.file >>| withWorld (runPassesFile (createConfiguration opts) opts.file) >>= showResult opts
+startIO opts=:{file = ?Just file}
+	= putStrLn file >>| withWorld (runPassesFile (createConfiguration opts) file) >>= showResult opts
 
 showResult :: !Options !('Data.Error'.MaybeError FileError [Diagnostic]) -> IO ()
 showResult _ ('Data.Error'.Error fileError) = putStrLn $ toString fileError
