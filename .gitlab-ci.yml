@@ -1,8 +1,7 @@
-image: 'camilstaps/clean:nightly'
-
 test:
+  image: 'camilstaps/clean:nightly'
   before_script:
-    - install_clean_nightly.sh base lib-platform test
+    - install_clean_nightly.sh bundle-complete
     - apt-get update -qq
     - apt-get install make
   script:
@@ -13,3 +12,16 @@ test:
       - test/junit.xml
     reports:
       junit: test/junit.xml
+
+linux-x64:
+  image: 'camilstaps/clean:nightly'
+  before_script:
+    - install_clean_nightly.sh base lib-platform test
+    - apt-get update -qq
+    - apt-get install make
+  script:
+    - make -C src/linter linter
+  artifacts:
+    when: always
+    paths:
+      - src/linter/linter
