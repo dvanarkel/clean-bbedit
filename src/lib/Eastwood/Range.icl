@@ -2,6 +2,21 @@ implementation module Eastwood.Range
 
 import StdEnv
 
+newSingleLineRange :: !Int !Int !Int -> CharacterRange
+newSingleLineRange lineNumber startColumn endColumn =
+	{ Range
+	| start =
+		{ Position
+		| line = lineNumber
+		, character = startColumn
+		}
+	, end =
+		{ Position
+		| line = lineNumber
+		, character = endColumn
+		}
+	}
+
 inLineRange :: !LineRange !CharacterRange -> Bool
 inLineRange { start = ?None, end = ?None } _ = True
 inLineRange { start = ?Just start, end = ?None } cr = cr.start.line >= start

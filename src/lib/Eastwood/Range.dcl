@@ -37,6 +37,16 @@ definition module Eastwood.Range
 :: LineRange :== Range (?Int)
 
 /**
+ * Creates a character range for the characters on a single line.
+ *
+ * @param The line number
+ * @param The start column number
+ * @param The end column number
+ * @result The range
+ */
+newSingleLineRange :: !Int !Int !Int -> CharacterRange
+
+/**
  * Checks if the provided line range partially encapsulates the character range. Handles ?None bounds.
  *
  * @param The line range
