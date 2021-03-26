@@ -10,12 +10,12 @@ from Eastwood.Diagnostic import :: Diagnostic, :: DiagnosticSeverity, :: Diagnos
 from Eastwood.Range import :: Range
 
 /**
- * Add or source to the list of diagnosic sources. See Eastwood.Diagnostic for more information.
+ * Add our source to the list of diagnostic sources. See Eastwood.Diagnostic for more information.
  */
 :: DiagnosticSource | TrailingWhitespacePass
 
 /**
- * The configuration for the TrailingWhitespace pass. Diagnostic are generated with the specified severity.
+ * The configuration for the TrailingWhitespace pass. Diagnostics are generated with the specified severity.
  */
 :: TrailingWhitespaceConfiguration =
 	{ severity :: !?DiagnosticSeverity
