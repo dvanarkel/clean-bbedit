@@ -1,5 +1,5 @@
 eastwoodTests: .FORCE
-	cpm project eastwoodTests.prj.default eastwoodTests.prj build
+	cp eastwoodTests.prj.default eastwoodTests.prj
 	cpm project eastwoodTests.prj build
 
 runTest: eastwoodTests .FORCE
