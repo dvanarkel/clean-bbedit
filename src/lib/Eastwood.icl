@@ -20,7 +20,7 @@ runPassesFile configuration filePath world
 		Ok contents -> (Ok $ runPassesString configuration contents, world)
 
 runPassesString :: !Configuration !String -> [Diagnostic]
-runPassesString configuration contents = runPassesLines configuration (split "\n" contents)
+runPassesString configuration contents = runPassesLines configuration (splitLines contents)
 
 // Function is not exported because future passes might not work for this format. Unintended behavior might occur when
 // assuming the strings can be concatenated. This is thus best left to the user of the library.
@@ -40,3 +40,21 @@ where
 		| inLineRange lr range = [d:filterDiagnostics lrx ds]
 		| afterLineRange lr range = filterDiagnostics lrs dsx
 		| otherwise = filterDiagnostics lrx dsx
+
+splitLines :: !String -> [String]
+splitLines string = splitLines` string 0
+where
+	splitLines` :: !String !Int -> [String]
+	splitLines` string i = case findNewLine string i of
+		?None = []
+		?Just (start, end) = [string % (i, start - 1) : splitLines` string (end + 1)]
+	where
+		// Results in the index of the first newline character and the index of the last newline character
+		// For \n these will always be the same, for \r\n these will be different by 1
+		findNewLine :: !String !Int -> ?(Int, Int)
+		findNewLine str i
+			| i >= size str = ?None
+			| str.[i] == '\n' = ?Just (i, i)
+			| i >= (size str) - 1 = ?None
+			| str.[i] == '\r' && str.[i + 1] == '\n' = ?Just (i, i + 1)
+			| otherwise = findNewLine str (i + 1)
