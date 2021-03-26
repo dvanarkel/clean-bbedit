@@ -4,7 +4,7 @@ from ArgEnv import getCommandLine
 import StdEnv
 
 from Control.Monad import class <*>, class Applicative, class pure
-from Control.Monad import >>=, class Monad(bind)
+from Control.Monad import >>=, >>|, class Monad(bind)
 import qualified Data.Error
 from Data.Func import $
 from Data.Functor import class Functor
@@ -17,6 +17,7 @@ from Text import concat3, class Text(concat), instance Text String
 import Eastwood
 import Eastwood.Configuration
 import Eastwood.Diagnostic
+import Eastwood.Pass.TrailingWhitespace
 
 instance toString Diagnostic
 where
@@ -24,7 +25,7 @@ where
 		[ colorCode d.Diagnostic.severity
 		, toString d.Diagnostic.severity
 		, ": "
-		, d.source
+		, toString d.source
 		, "."
 		, toString d.dCode
 		, ": "
@@ -50,6 +51,11 @@ where
 	toString Information = "Info"
 	toString Hint = "Hint"
 
+instance toString DiagnosticSource
+where
+	toString TrailingWhitespacePass = "whitespace"
+	toString _ = "MISSING_TO_STRING_FOR_SOURCE"
+
 instance toString (Range t) | toString t
 where
 	toString { Range | start, end } = concat3 (toString start) "-" (toString end)
@@ -66,7 +72,7 @@ startIO :: IO ()
 startIO
 	#! args = getCommandLine
 	#! filePath = args.[1]
-	= withWorld (runPassesFile defaultConfiguration filePath) >>= showResult
+	= putStrLn filePath >>| withWorld (runPassesFile defaultConfiguration filePath) >>= showResult
 
 showResult :: ('Data.Error'.MaybeError FileError [Diagnostic]) -> IO ()
 showResult ('Data.Error'.Error fileError) = putStrLn $ toString fileError

@@ -12,8 +12,9 @@ from Eastwood.Range import :: CharacterRange, :: Position, :: Range
 	, severity :: !DiagnosticSeverity
 	//* The severity of the diagnosic
 	, dCode :: !Int
-	//* A code that uniquely identifies the class of error. `d` because `code` is a reserved name
-	, source :: !String
+	//* An incremental number that forms a unique identifier in combination with the source. `d` because `code` is a
+	//* reserved name
+	, source :: !DiagnosticSource
 	//* A lowercase human readable name for the pass that created the diagnosic
 	, message :: !String
 	//* A human readable string describing the issue. This field should not specify the range or severity of the issue.
@@ -24,3 +25,10 @@ from Eastwood.Range import :: CharacterRange, :: Position, :: Range
  * As defined by the LSP specification
  */
 :: DiagnosticSeverity = Error | Warning | Information | Hint
+
+/**
+ * A EADT defining all possible sources. We define this as an EADT because we dont want this module to contain
+ * information about the passes. Every pass should extend this EADT with its own type, with the linter being
+ * responsible for the toString instantiation.
+ */
+:: DiagnosticSource = ..

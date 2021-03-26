@@ -6,11 +6,16 @@ definition module Eastwood.Pass.TrailingWhitespace
  */
 
 from Eastwood.Configuration import :: LineRange
-from Eastwood.Diagnostic import :: Diagnostic, :: DiagnosticSeverity
+from Eastwood.Diagnostic import :: Diagnostic, :: DiagnosticSeverity, :: DiagnosticSource
 from Eastwood.Range import :: Range
 
 /**
- * The configuration for the TrailingWhitespace pass. Diagnostics are generated with the specified severity.
+ * Add or source to the list of diagnosic sources. See Eastwood.Diagnostic for more information.
+ */
+:: DiagnosticSource | TrailingWhitespacePass
+
+/**
+ * The configuration for the TrailingWhitespace pass. Diagnostic are generated with the specified severity.
  */
 :: TrailingWhitespaceConfiguration =
 	{ severity :: !?DiagnosticSeverity

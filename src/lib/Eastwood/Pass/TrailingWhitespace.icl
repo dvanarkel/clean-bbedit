@@ -30,7 +30,7 @@ where
 		| range = findCharacterRange line lineNumber
 		, severity = fromMaybe Warning configuration.TrailingWhitespaceConfiguration.severity
 		, dCode = WHITESPACE_CODE
-		, source = "whitespace"
+		, source = TrailingWhitespacePass
 		, message = "Found trailing whitespace"
 		}
 
