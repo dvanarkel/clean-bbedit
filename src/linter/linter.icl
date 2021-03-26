@@ -25,6 +25,7 @@ where
 		[ colorCode d.Diagnostic.severity
 		, toString d.Diagnostic.severity
 		, ": "
+		, clearColorCode
 		, toString d.source
 		, "."
 		, toString d.dCode
@@ -32,7 +33,6 @@ where
 		, toString d.range
 		, ": "
 		, toString d.message
-		, clearColorCode
 		]
 	where
 		colorCode :: !DiagnosticSeverity -> String
