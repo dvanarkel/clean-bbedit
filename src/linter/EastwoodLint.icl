@@ -65,22 +65,22 @@ optionDesciption = WithHelp True $ Options
 where
 	parseLineRange :: String -> 'Data.Error'.MaybeError [String] LineRange
 	parseLineRange str = case split "-" str of
-		[] -> 'Data.Error'.Error ["No linerange given"]
-		[_] -> 'Data.Error'.Error ["No \"-\" found in linerange \"" <+ str <+ "\""]
+		[] -> 'Data.Error'.Error ["No line range given"]
+		[_] -> 'Data.Error'.Error ["No \"-\" found in line range \"" <+ str <+ "\""]
 		[start, end] -> parseLineRange` start end
-		_ -> 'Data.Error'.Error ["Multiple \"-\" found in linerange \"" <+ str <+ "\""]
+		_ -> 'Data.Error'.Error ["Multiple \"-\" found in line range \"" <+ str <+ "\""]
 	where
 		parseLineRange` :: !String !String -> 'Data.Error'.MaybeError [String] LineRange
 		parseLineRange` "" "" = 'Data.Error'.Ok { Range | start = ?None, end = ?None }
 		parseLineRange` "" end = case parseString end of
-			?None -> 'Data.Error'.Error ["Could not parse \"" <+ end <+ "\" in linerange"]
+			?None -> 'Data.Error'.Error ["Could not parse \"" <+ end <+ "\" in line range"]
 			?Just end -> 'Data.Error'.Ok { Range | start = ?None, end = ?Just end }
 		parseLineRange` start "" = case parseString start of
-			?None -> 'Data.Error'.Error ["Could not parse \"" <+ start <+ "\" in linerange"]
+			?None -> 'Data.Error'.Error ["Could not parse \"" <+ start <+ "\" in line range"]
 			?Just start -> 'Data.Error'.Ok { Range | start = ?Just start, end = ?None }
 		parseLineRange` start end = case (parseString start, parseString end) of
-			(?None, _) -> 'Data.Error'.Error ["Could not parse \"" <+ start <+ "\" in linerange"]
-			(_, ?None) -> 'Data.Error'.Error ["Could not parse \"" <+ end <+ "\" in linerange"]
+			(?None, _) -> 'Data.Error'.Error ["Could not parse \"" <+ start <+ "\" in line range"]
+			(_, ?None) -> 'Data.Error'.Error ["Could not parse \"" <+ end <+ "\" in line range"]
 			(?Just start, ?Just end) -> 'Data.Error'.Ok { Range | start = ?Just start, end = ?Just end }
 
 showDiagnostic :: !Options !Diagnostic -> String
