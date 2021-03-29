@@ -27,6 +27,12 @@ import Eastwood.Diagnostic
 import Eastwood.Pass.TrailingWhitespace
 import Eastwood.Range
 
+RED :== "\x1b[31m"
+YELLOW :== "\x1b[33m"
+BLUE :== "\x1b[34m"
+CYAN :== "\x1b[36m"
+CLEAR :== "\x1b[0m"
+
 :: Options =
 	{ color :: !Bool
 	, lines :: ![LineRange]
@@ -90,7 +96,7 @@ showDiagnostic {color, file} d
 		[ if color (colorCode d.Diagnostic.severity) ""
 		, toString d.Diagnostic.severity
 		, ": "
-		, if color clearColorCode ""
+		, if color CLEAR ""
 		, toString d.source
 		, "."
 		, toString d.dCode
@@ -102,13 +108,10 @@ showDiagnostic {color, file} d
 		]
 where
 	colorCode :: !DiagnosticSeverity -> String
-	colorCode Error = "\x1b[31m" // Red
-	colorCode Warning = "\x1b[33m" // Yellow
-	colorCode Information = "\x1b[34m" // Blue
-	colorCode Hint = "\x1b[36m" // Cyan
-
-	clearColorCode :: String
-	clearColorCode = "\x1b[0m" // Reset all attributes
+	colorCode Error = RED
+	colorCode Warning = YELLOW
+	colorCode Information = BLUE
+	colorCode Hint = CYAN
 
 instance toString DiagnosticSeverity
 where
