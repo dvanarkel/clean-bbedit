@@ -12,9 +12,10 @@ from Data.Func import $
 from Data.Functor import <$>, class Functor(fmap)
 import Data.GenDefault
 from Data.List import intersperse
+from Data.Maybe import maybe
 from System.CommandLine import getCommandLine, setReturnCode
 from System.File import :: FileError, instance toString FileError
-from System.FilePath import :: FilePath
+from System.FilePath import dropDirectory, :: FilePath
 import System.IO
 import System.Options
 import Text
@@ -82,20 +83,23 @@ where
 			(_, ?None) -> 'Data.Error'.Error ["Could not parse \"" <+ end <+ "\" in linerange"]
 			(?Just start, ?Just end) -> 'Data.Error'.Ok { Range | start = ?Just start, end = ?Just end }
 
-showDiagnostic :: !Bool !Diagnostic -> String
-showDiagnostic c d = concat
-	[ if c (colorCode d.Diagnostic.severity) ""
-	, toString d.Diagnostic.severity
-	, ": "
-	, if c clearColorCode ""
-	, toString d.source
-	, "."
-	, toString d.dCode
-	, ": "
-	, toString d.range
-	, ": "
-	, toString d.message
-	]
+showDiagnostic :: !Options !Diagnostic -> String
+showDiagnostic {color, file} d
+	# file = maybe "" (\f -> dropDirectory f +++ ":") file
+	= concat
+		[ if color (colorCode d.Diagnostic.severity) ""
+		, toString d.Diagnostic.severity
+		, ": "
+		, if color clearColorCode ""
+		, toString d.source
+		, "."
+		, toString d.dCode
+		, ": "
+		, file
+		, toString d.range
+		, ": "
+		, toString d.message
+		]
 where
 	colorCode :: !DiagnosticSeverity -> String
 	colorCode Error = "\x1b[31m" // Red
@@ -142,14 +146,14 @@ where
 
 startIO :: !Options -> IO ()
 startIO opts=:{file = ?Just file}
-	= putStrLn file >>| withWorld (runPassesFile (createConfiguration opts) file) >>= showResult opts
+	= withWorld (runPassesFile (createConfiguration opts) file) >>= showResult opts
 
 showResult :: !Options !('Data.Error'.MaybeError FileError [Diagnostic]) -> IO ()
 showResult _ ('Data.Error'.Error fileError) =
 	putStrLn (toString fileError) >>|
 	withWorld (\w -> ((), setReturnCode 1 w))
-showResult {color} ('Data.Error'.Ok diagnostics) =
-	mapM_ (putStrLn o showDiagnostic color) diagnostics
+showResult opts ('Data.Error'.Ok diagnostics) =
+	mapM_ (putStrLn o showDiagnostic opts) diagnostics
 
 createConfiguration :: !Options -> Configuration
 createConfiguration {lines} =
