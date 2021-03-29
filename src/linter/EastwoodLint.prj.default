@@ -2,8 +2,8 @@ Version: 1.5
 Global
 	ProjectRoot:	.
 	Target:	StdEnv
-	Exec:	{Project}/linter
-	ByteCode:	{Project}/linter.bc
+	Exec:	{Project}/eastwood-lint
+	ByteCode:	{Project}/eastwood-lint.bc
 	CodeGen
 		CheckStacks:	False
 		CheckIndexes:	True
@@ -54,7 +54,7 @@ Global
 	Precompile:	
 	Postlink:	
 MainModule
-	Name:	linter
+	Name:	EastwoodLint
 	Dir:	{Project}
 	Compiler
 		NeverMemoryProfile:	False

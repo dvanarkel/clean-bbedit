@@ -1,4 +1,4 @@
-module linter
+module EastwoodLint
 
 import StdEnv
 import StdMaybe

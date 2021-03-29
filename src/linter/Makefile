@@ -1,6 +1,6 @@
-linter: .FORCE
-	cp linter.prj.default linter.prj
-	cpm project linter.prj build
+eastwood-lint: .FORCE
+	cp EastwoodLint.prj.default EastwoodLint.prj
+	cpm project EastwoodLint.prj build
 
 .FORCE:
 
