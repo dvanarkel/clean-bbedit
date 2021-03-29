@@ -60,7 +60,7 @@ optionDesciption = WithHelp True $ Options
 	, Operand True
 		(\fp opts -> ?Just $ 'Data.Error'.Ok {opts & file = ?Just fp})
 		"FILE"
-		"The file on which the linter should be ran"
+		"The file on which the linter should be run"
 	]
 where
 	parseLineRange :: String -> 'Data.Error'.MaybeError [String] LineRange
