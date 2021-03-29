@@ -15,7 +15,7 @@ runPass configuration contents = runPass` contents 1
 where
 	runPass` :: ![String] !Int -> [Diagnostic]
 	runPass` [] _ = []
-	runPass` lx=:[l:ls] lineNumber
+	runPass` [l:ls] lineNumber
 		| finalCharacterIsWhitespace l =
 			[newDiagnostic l lineNumber : runPass` ls (lineNumber + 1)]
 		| otherwise = runPass` ls (lineNumber + 1)
