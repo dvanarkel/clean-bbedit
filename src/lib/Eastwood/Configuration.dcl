@@ -14,7 +14,7 @@ import Eastwood.Range
 	}
 
 /**
- * Should be extened for every additional pass. Configuration of the passes should be defined in their specific module.
+ * Should be extended for every additional pass. Configuration of the passes should be defined in their specific module.
  */
 :: PassConfiguration
 	= TrailingWhitespaceConfiguration TrailingWhitespaceConfiguration
