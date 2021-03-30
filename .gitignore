@@ -1,0 +1,7 @@
+Clean System Files/
+*.prj
+
+src/linter/eastwood-lint
+
+test/eastwoodTests
+test/junit.xml
