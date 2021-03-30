@@ -39,4 +39,4 @@ where
 		#! numberOfWhitespaceCharacters = foldlArr (\counter char -> if (isSpace char) (counter + 1) 0) 0 line
 		#! endColumn = size line
 		#! startColumn = endColumn - numberOfWhitespaceCharacters
-		= newSingleLineRange lineNumber startColumn endColumn
+		= singleLineRange lineNumber startColumn endColumn

@@ -44,7 +44,7 @@ definition module Eastwood.Range
  * @param The end column number
  * @result The range
  */
-newSingleLineRange :: !Int !Int !Int -> CharacterRange
+singleLineRange :: !Int !Int !Int -> CharacterRange
 
 /**
  * Checks if the provided line range partially encapsulates the character range. Handles ?None bounds.

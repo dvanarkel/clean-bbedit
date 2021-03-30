@@ -2,8 +2,8 @@ implementation module Eastwood.Range
 
 import StdEnv
 
-newSingleLineRange :: !Int !Int !Int -> CharacterRange
-newSingleLineRange lineNumber startColumn endColumn =
+singleLineRange :: !Int !Int !Int -> CharacterRange
+singleLineRange lineNumber startColumn endColumn =
 	{ Range
 	| start =
 		{ Position
