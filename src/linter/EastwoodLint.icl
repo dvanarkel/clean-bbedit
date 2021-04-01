@@ -3,7 +3,7 @@ module EastwoodLint
 import StdEnv
 import StdMaybe
 
-from Control.Applicative import class <*>, class Applicative, class pure
+import Control.Applicative
 from Control.Monad import >>=, >>|, class Monad(bind), mapM, mapM_
 from Data.Error import instance <*> (MaybeError a), instance Functor (MaybeError a), instance Monad (MaybeError a)
 from Data.Error import instance pure (MaybeError a)
@@ -35,6 +35,7 @@ CLEAR :== "\x1b[0m"
 
 :: Options =
 	{ color :: !Bool
+	, werror :: !Bool
 	, lines :: ![LineRange]
 	, file :: !?FilePath
 	}
@@ -43,6 +44,7 @@ derive gDefault ?, Range
 gDefault{|Options|} =
 	{ Options
 	| color = True
+	, werror = False
 	, lines = defaultConfiguration.lineRanges
 	, file = ?None
 	}
@@ -58,6 +60,9 @@ optionDesciption = WithHelp True $ Options
 	[ Flag "--no-color"
 		(\opts -> 'Data.Error'.Ok {opts & color = False})
 		"Do not use ANSI escape codes for colored output"
+	, Flag "--Werror"
+		(\opts -> 'Data.Error'.Ok {opts & werror = True})
+		"Treat all warnings as errors"
 	, Shorthand "-l" "--lines" $ Option
 		"--lines"
 		(\ls opts -> (\ls -> {opts & lines = ls}) <$> (mapM parseLineRange $ split "," ls))
@@ -149,13 +154,33 @@ where
 
 startIO :: !Options -> IO ()
 startIO opts=:{file = ?Just file}
-	= withWorld (runPassesFile (createConfiguration opts) file) >>= showResult opts
+	= withWorld (runPassesFile (createConfiguration opts) file)
+	>>= \diagnostics -> case diagnostics of
+		'Data.Error'.Error fileError -> putStrLn (toString fileError) >>| withWorld (\w -> ((), setReturnCode 1 w))
+		'Data.Error'.Ok diagnostics
+			#! diagnostics = handleWError opts.werror diagnostics
+			-> showDiagnostics opts diagnostics
+			>>| returnCode diagnostics
+where
+	handleWError :: !Bool ![Diagnostic] -> [Diagnostic]
+	handleWError False ds = ds
+	handleWError True ds = map asError ds
+	where
+		asError :: !Diagnostic -> Diagnostic
+		asError d = {Diagnostic | d & severity = Error}
 
-showResult :: !Options !('Data.Error'.MaybeError FileError [Diagnostic]) -> IO ()
-showResult _ ('Data.Error'.Error fileError) =
-	putStrLn (toString fileError) >>|
-	withWorld (\w -> ((), setReturnCode 1 w))
-showResult opts ('Data.Error'.Ok diagnostics) =
+	returnCode :: [Diagnostic] -> IO ()
+	returnCode ds = if (any isError ds) setErrorCode (pure ())
+	where
+		setErrorCode :: IO ()
+		setErrorCode = withWorld (\w -> ((), setReturnCode 1 w))
+
+		isError :: !Diagnostic -> Bool
+		isError {Diagnostic | severity = Error} = True
+		isError _ = False
+
+showDiagnostics :: !Options ![Diagnostic] -> IO ()
+showDiagnostics opts diagnostics =
 	mapM_ (putStrLn o showDiagnostic opts) diagnostics
 
 createConfiguration :: !Options -> Configuration
