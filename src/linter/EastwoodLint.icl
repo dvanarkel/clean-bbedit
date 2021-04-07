@@ -24,7 +24,7 @@ import Text.GenParse
 import Eastwood
 import Eastwood.Configuration
 import Eastwood.Diagnostic
-import Eastwood.Pass.TrailingWhitespace
+from Eastwood.Pass.TrailingWhitespace import :: TrailingWhitespaceConfiguration{..}, TrailingWhitespacePass
 import Eastwood.Range
 
 RED :== "\x1b[31m"
@@ -193,7 +193,9 @@ defaultConfiguration :: Configuration
 defaultConfiguration =
 	{ Configuration
 	| lineRanges = [{ Range | start = ?None, end = ?None }]
-	, passes = [ TrailingWhitespaceConfiguration defaultTrailingWhitespaceConfiguration ]
+	, passes =
+		[ TrailingWhitespaceConfiguration defaultTrailingWhitespaceConfiguration
+		]
 	}
 where
 	defaultTrailingWhitespaceConfiguration :: TrailingWhitespaceConfiguration

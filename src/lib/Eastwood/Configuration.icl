@@ -1,4 +1,4 @@
 implementation module Eastwood.Configuration
 
-import Eastwood.Pass.TrailingWhitespace
+from Eastwood.Pass.TrailingWhitespace import :: TrailingWhitespaceConfiguration
 import Eastwood.Range

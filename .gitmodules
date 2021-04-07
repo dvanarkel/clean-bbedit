@@ -1,0 +1,4 @@
+[submodule "src/lib/compiler"]
+	path = src/lib/compiler
+	url = https://gitlab.science.ru.nl/clean-compiler-and-rts/compiler.git
+	ignore = untracked

@@ -50,6 +50,8 @@ Global
 	Paths
 		Path:	{Project}
 		Path:	{Project}*..*lib
+		Path:	{Project}*..*lib*compiler*frontend
+		Path:	{Project}*..*lib*compiler*main*Windows
 		Path:	{Application}*Libraries*Platform
 	Precompile:	
 	Postlink:	

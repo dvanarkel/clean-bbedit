@@ -1,3 +1,6 @@
+variables:
+  GIT_SUBMODULE_STRATEGY: recursive
+
 stages:
   - build
   - test
@@ -11,6 +14,7 @@ linux-x64:
     - apt-get update -qq
     - apt-get install make
   script:
+    - make -C src/lib compiler
     - make -C src/linter eastwood-lint
   artifacts:
     when: always
