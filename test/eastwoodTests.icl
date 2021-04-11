@@ -15,7 +15,8 @@ import Gast.CommandLine
 import Eastwood
 import Eastwood.Configuration
 import Eastwood.Diagnostic
-import Eastwood.Pass.TrailingWhitespace
+from Eastwood.Pass.BasicValueCAFs import :: BasicValueCAFsConfiguration{..}, BasicValueCAFsPass
+from Eastwood.Pass.TrailingWhitespace import :: TrailingWhitespaceConfiguration{..}, TrailingWhitespacePass
 import Eastwood.Range
 
 TMP_PATH :== "/tmp/eastwood-test"
@@ -28,18 +29,30 @@ instance == Diagnostic
 where
 	(==) d1 d2 = d1 === d2
 
+gEq{|DiagnosticSource|} BasicValueCAFsPass BasicValueCAFsPass = True
 gEq{|DiagnosticSource|} TrailingWhitespacePass TrailingWhitespacePass = True
 gEq{|DiagnosticSource|} _ _ = False
+genShow{|DiagnosticSource|} _ _ BasicValueCAFsPass rest = ["BasicValueCAFsPass": rest]
 genShow{|DiagnosticSource|} _ _ TrailingWhitespacePass rest = ["TrailingWhitespacePass": rest]
+gPrint{|DiagnosticSource|} BasicValueCAFsPass st = gPrint{|*|} "BasicValueCAFsPass" st
 gPrint{|DiagnosticSource|} TrailingWhitespacePass st = gPrint{|*|} "TrailingWhitespacePass" st
 
 defaultConfiguration :: Configuration
 defaultConfiguration =
 	{ Configuration
 	| lineRanges = [{ Range | start = ?None, end = ?None }]
-	, passes = [ TrailingWhitespaceConfiguration defaultTrailingWhitespaceConfiguration ]
+	, passes =
+		[ BasicValueCAFsConfiguration defaultBasicValueCAFsConfiguration
+		, TrailingWhitespaceConfiguration defaultTrailingWhitespaceConfiguration
+		]
 	}
 where
+	defaultBasicValueCAFsConfiguration :: BasicValueCAFsConfiguration
+	defaultBasicValueCAFsConfiguration =
+		{ BasicValueCAFsConfiguration
+		| severity = ?None
+		}
+
 	defaultTrailingWhitespaceConfiguration :: TrailingWhitespaceConfiguration
 	defaultTrailingWhitespaceConfiguration =
 		{ TrailingWhitespaceConfiguration
@@ -53,6 +66,7 @@ properties :: [Property]
 properties =:
 	[ helloWorld as "hello world"
 	, helloWorldTrailingWhitespace as "hello world trailing whitespace"
+	, basicValueCAFs as "CAFs with and without basic values"
 	]
 
 diagnostics :: !Configuration !String !String -> [Diagnostic]
@@ -107,3 +121,24 @@ where
 			, message = "Found trailing whitespace"
 			}
 		]
+
+basicValueCAFs :: Property
+basicValueCAFs =
+	run "x = 5" =.= [] /\ /* normal function with basic value */
+	run "x =: [5]" =.= [] /\ /* CAF with non-basic value */
+	run "x =: 5" =.= /* CAF with basic value */
+		[
+			{ Diagnostic
+			| range =
+				{ Range
+				| start = { Position | line = 2, character = 1 }
+				, end = { Position | line = 2, character = 6 }
+				}
+			, severity = Warning
+			, dCode = 0
+			, source = BasicValueCAFsPass
+			, message = "CAF 'x' with a basic value '5' would be faster as a normal function or macro"
+			}
+		]
+where
+	run def = diagnostics defaultConfiguration "test" ("module test\n" +++ def)
