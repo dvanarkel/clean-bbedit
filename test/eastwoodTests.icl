@@ -29,9 +29,8 @@ instance == Diagnostic
 where
 	(==) d1 d2 = d1 === d2
 
-gEq{|DiagnosticSource|} BasicValueCAFsPass BasicValueCAFsPass = True
-gEq{|DiagnosticSource|} TrailingWhitespacePass TrailingWhitespacePass = True
-gEq{|DiagnosticSource|} _ _ = False
+gEq{|DiagnosticSource|} BasicValueCAFsPass x = x=:BasicValueCAFsPass
+gEq{|DiagnosticSource|} TrailingWhitespacePass x = x=:TrailingWhitespacePass
 genShow{|DiagnosticSource|} _ _ BasicValueCAFsPass rest = ["BasicValueCAFsPass": rest]
 genShow{|DiagnosticSource|} _ _ TrailingWhitespacePass rest = ["TrailingWhitespacePass": rest]
 gPrint{|DiagnosticSource|} BasicValueCAFsPass st = gPrint{|*|} "BasicValueCAFsPass" st
