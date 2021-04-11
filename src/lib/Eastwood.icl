@@ -46,7 +46,7 @@ splitLines string = splitLines` string 0
 where
 	splitLines` :: !String !Int -> [String]
 	splitLines` string i = case findNewLine string i of
-		?None = []
+		?None = if (size string == i) [] [string % (i, size string - 1)]
 		?Just (start, end) = [string % (i, start - 1) : splitLines` string (end + 1)]
 	where
 		// Results in the index of the first newline character and the index of the last newline character
