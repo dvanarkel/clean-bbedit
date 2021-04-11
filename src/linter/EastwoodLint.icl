@@ -24,6 +24,7 @@ import Text.GenParse
 import Eastwood
 import Eastwood.Configuration
 import Eastwood.Diagnostic
+from Eastwood.Pass.BasicValueCAFs import :: BasicValueCAFsConfiguration{..}, BasicValueCAFsPass
 from Eastwood.Pass.TrailingWhitespace import :: TrailingWhitespaceConfiguration{..}, TrailingWhitespacePass
 import Eastwood.Range
 
@@ -127,6 +128,7 @@ where
 
 instance toString DiagnosticSource
 where
+	toString BasicValueCAFsPass = "basic-value-caf"
 	toString TrailingWhitespacePass = "whitespace"
 	toString _ = "MISSING_TO_STRING_FOR_SOURCE"
 
@@ -194,10 +196,17 @@ defaultConfiguration =
 	{ Configuration
 	| lineRanges = [{ Range | start = ?None, end = ?None }]
 	, passes =
-		[ TrailingWhitespaceConfiguration defaultTrailingWhitespaceConfiguration
+		[ BasicValueCAFsConfiguration defaultBasicValueCAFsConfiguration
+		, TrailingWhitespaceConfiguration defaultTrailingWhitespaceConfiguration
 		]
 	}
 where
+	defaultBasicValueCAFsConfiguration :: BasicValueCAFsConfiguration
+	defaultBasicValueCAFsConfiguration =
+		{ BasicValueCAFsConfiguration
+		| severity = ?None
+		}
+
 	defaultTrailingWhitespaceConfiguration :: TrailingWhitespaceConfiguration
 	defaultTrailingWhitespaceConfiguration =
 		{ TrailingWhitespaceConfiguration

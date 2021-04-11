@@ -13,6 +13,7 @@ from Text import class Text(split), instance Text String
 
 import Eastwood.Configuration
 from Eastwood.Diagnostic import :: Diagnostic(..), :: DiagnosticSource, :: DiagnosticSeverity
+import qualified Eastwood.Pass.BasicValueCAFs
 import qualified Eastwood.Pass.TrailingWhitespace
 
 runPassesFile :: !Configuration !FilePath !*World -> (MaybeError String [Diagnostic], !*World)
@@ -38,11 +39,14 @@ runPasses {lineRanges, passes} contents mbParsedModule
 	= flatten $ map (filterDiagnostics lineRanges) diagnostics
 where
 	runPasses` :: !PassConfiguration -> [Diagnostic]
+	runPasses` (BasicValueCAFsConfiguration passConfig) =
+		withParsedModule 'Eastwood.Pass.BasicValueCAFs'.runPass passConfig
 	runPasses` (TrailingWhitespaceConfiguration passConfig) =
 		withLines 'Eastwood.Pass.TrailingWhitespace'.runPass passConfig
 
 	// helper functions for runPasses`
 	withLines run config = run config contents
+	withParsedModule run config = fromMaybe [] $ uncurry (run config contents) <$> mbParsedModule
 
 	filterDiagnostics :: ![LineRange] ![Diagnostic] -> [Diagnostic]
 	filterDiagnostics _ [] = []
