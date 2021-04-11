@@ -1,6 +1,14 @@
 module eastwoodTests
 
 import StdEnv
+import StdMisc
+
+from Data.Error import fromError, fromOk, isError
+import System.Directory
+import System.File
+from System.FilePath import </>
+import System._Unsafe
+
 import Gast
 import Gast.CommandLine
 
@@ -10,7 +18,7 @@ import Eastwood.Diagnostic
 import Eastwood.Pass.TrailingWhitespace
 import Eastwood.Range
 
-import StdMisc
+TMP_PATH :== "/tmp/eastwood-test"
 
 derive gEq Diagnostic, DiagnosticSeverity, Position, Range
 derive genShow Diagnostic, DiagnosticSeverity, Position, Range
@@ -47,17 +55,31 @@ properties =:
 	, helloWorldTrailingWhitespace as "hello world trailing whitespace"
 	]
 
+diagnostics :: !Configuration !String !String -> [Diagnostic]
+diagnostics configuration moduleName moduleContents = accUnsafe run
+where
+	run w
+		# (mbErr,w) = ensureDirectoryExists TMP_PATH w
+		| isError mbErr = abort ("Error while creating temporary directory: " +++ snd (fromError mbErr) +++ "\n")
+		# (mbErr,w) = writeFile file moduleContents w
+		| isError mbErr = abort ("Error while creating temporary module: " +++ toString (fromError mbErr) +++ "\n")
+		# (mbDiagnostics,w) = runPassesFile configuration file w
+		| isError mbErr = abort ("Error while running linter: " +++ fromError mbDiagnostics +++ "\n")
+		| otherwise = (fromOk mbDiagnostics, w)
+	where
+		file = TMP_PATH </> moduleName +++ ".icl"
+
 helloWorld :: Property
 helloWorld = output =.= expectedOutput
 where
-	output = runPassesString defaultConfiguration input
+	output = diagnostics defaultConfiguration "test" input
 	input = "module test\nStart = \"Hello, World\"\n"
 	expectedOutput = []
 
 helloWorldTrailingWhitespace :: Property
 helloWorldTrailingWhitespace = output =.= expectedOutput
 where
-	output = runPassesString defaultConfiguration input
+	output = diagnostics defaultConfiguration "test" input
 	input = "module test\t\n \nStart = \"Hello, World\"\n"
 	expectedOutput =
 		[
