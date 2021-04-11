@@ -3,9 +3,10 @@ implementation module Eastwood.Pass.BasicValueCAFs
 import StdEnv
 
 import Clean.Parse
+import Clean.PrettyPrint
 from Data.Func import $
 import Data.Maybe
-from Text import concat3
+from Text import concat5
 
 import qualified syntax
 from syntax import qualified :: ExprWithLocalDefs{..}, :: Ident{..}, :: Rhs{..}
@@ -30,7 +31,7 @@ where
 	check :: !ParsedDefinition -> ?Diagnostic
 	check ('syntax'.PD_Function pos id _ _ {'syntax'.rhs_alts='syntax'.UnGuardedExpr expr} 'syntax'.FK_Caf) =
 		case expr.'syntax'.ewl_expr of
-			'syntax'.PE_Basic _ ->
+			expr=:('syntax'.PE_Basic _) ->
 				?Just
 					{ range =
 						{ start =
@@ -45,7 +46,10 @@ where
 					, severity = severity
 					, dCode = BASIC_VALUE_CAF_CODE
 					, source = BasicValueCAFsPass
-					, message = concat3 "CAF " id.'syntax'.id_name " with a basic value would be faster as a normal expression"
+					, message = concat5
+						"CAF '" id.'syntax'.id_name
+						"' with a basic value '" (cpp expr)
+						"' would be faster as a normal function or macro"
 					}
 			_ ->
 				?None
