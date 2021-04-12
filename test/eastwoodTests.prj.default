@@ -50,6 +50,8 @@ Global
 	Paths
 		Path:	{Project}
 		Path:	{Project}*..*src*lib
+		Path:	{Project}*..*src*lib*compiler*frontend
+		Path:	{Project}*..*src*lib*compiler*main*Unix
 	Precompile:	
 	Postlink:	
 MainModule

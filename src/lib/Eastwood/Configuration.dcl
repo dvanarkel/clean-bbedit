@@ -1,6 +1,7 @@
 definition module Eastwood.Configuration
 
-import Eastwood.Pass.TrailingWhitespace
+from Eastwood.Pass.BasicValueCAFs import :: BasicValueCAFsConfiguration
+from Eastwood.Pass.TrailingWhitespace import :: TrailingWhitespaceConfiguration
 import Eastwood.Range
 
 /**
@@ -17,4 +18,5 @@ import Eastwood.Range
  * Should be extended for every additional pass. Configuration of the passes should be defined in their specific module.
  */
 :: PassConfiguration
-	= TrailingWhitespaceConfiguration TrailingWhitespaceConfiguration
+	= BasicValueCAFsConfiguration BasicValueCAFsConfiguration
+	| TrailingWhitespaceConfiguration TrailingWhitespaceConfiguration

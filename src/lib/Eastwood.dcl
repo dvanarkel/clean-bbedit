@@ -21,10 +21,14 @@ from Eastwood.Diagnostic import :: Diagnostic
  * @result The Diagnostics or an error string in case reading the file went wrong
  * @result The world
  */
-runPassesFile :: !Configuration !FilePath !*World -> (MaybeError FileError [Diagnostic], !*World)
+runPassesFile :: !Configuration !FilePath !*World -> (MaybeError String [Diagnostic], !*World)
 
 /**
- * Runs Eastwood on the given Clean code
+ * Runs Eastwood on the given Clean code.
+ *
+ * This function only runs passes for which the Clean compiler is not needed
+ * (because the compiler needs to read from a file). Other passes are silently
+ * ignored.
  *
  * @param The Eastwood configuration
  * @param The piece of Clean code for which Eastwood should generate Diagnostics
