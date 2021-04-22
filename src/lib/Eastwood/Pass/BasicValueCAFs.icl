@@ -55,7 +55,6 @@ where
 				?None
 	where
 		line = case pos of
-			'syntax'.FunPos _ line _ -> line
 			'syntax'.LinePos _ line -> line
 			_ -> abort "BasicValueCAFs: unexpected Position\n"
 	check _ =
