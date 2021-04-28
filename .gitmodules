@@ -4,5 +4,5 @@
 	ignore = untracked
 [submodule "src/lib/clean-platform"]
 	path = src/lib/clean-platform
-	url = https://gitlab.science.ru.nl/clean-and-itasks/clean-platform.git
+	url = https://gitlab.com/clean-and-itasks/clean-platform.git
 	ignore = untracked
