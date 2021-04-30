@@ -52,7 +52,6 @@ Global
 		Path:	{Project}*..*lib
 		Path:	{Project}*..*lib*compiler*frontend
 		Path:	{Project}*..*lib*compiler*main*Unix
-		Path:	{Project}*..*lib*clean-platform*src*libraries*OS-Independent
 		Path:	{Application}*lib*Platform
 	Precompile:	
 	Postlink:	
