@@ -52,7 +52,7 @@ Global
 		Path:	{Project}*..*lib
 		Path:	{Project}*..*lib*compiler*frontend
 		Path:	{Project}*..*lib*compiler*main*Windows
-		Path:	{Application}*lib*Platform
+		Path:	{Application}*Libraries*Platform
 	Precompile:	
 	Postlink:	
 MainModule
