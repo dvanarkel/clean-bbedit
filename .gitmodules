@@ -2,7 +2,3 @@
 	path = src/lib/compiler
 	url = https://gitlab.science.ru.nl/clean-compiler-and-rts/compiler.git
 	ignore = untracked
-[submodule "src/lib/clean-platform"]
-	path = src/lib/clean-platform
-	url = https://gitlab.com/clean-and-itasks/clean-platform.git
-	ignore = untracked
