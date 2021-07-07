@@ -16,10 +16,12 @@ linux-x64:
   script:
     - make -C src/lib compiler
     - make -C src/linter eastwood-lint
+    - make -C src/languageServer eastwood-cls
   artifacts:
     when: always
     paths:
       - src/linter/eastwood-lint
+      - src/languageServer/eastwood-cls
 
 test:
   image: 'camilstaps/clean:nightly'

@@ -2,8 +2,8 @@ Version: 1.5
 Global
 	ProjectRoot:	.
 	Target:	StdEnv
-	Exec:	{Project}/eastwood-lint
-	ByteCode:	{Project}/eastwood-lint.bc
+	Exec:	{Project}/eastwood-cls
+	ByteCode:	{Project}/eastwood-cls.bc
 	CodeGen
 		CheckStacks:	False
 		CheckIndexes:	True
@@ -50,13 +50,14 @@ Global
 	Paths
 		Path:	{Project}
 		Path:	{Project}*..*lib
+		Path:	{Project}*..*lib*clean-lsp*src
 		Path:	{Project}*..*lib*compiler*frontend
 		Path:	{Project}*..*lib*compiler*main*Unix
 		Path:	{Application}*lib*Platform
 	Precompile:	
 	Postlink:	
 MainModule
-	Name:	EastwoodLint
+	Name:	EastwoodCleanLanguageServer
 	Dir:	{Project}
 	Compiler
 		NeverMemoryProfile:	False
