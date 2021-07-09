@@ -6,8 +6,8 @@ definition module Eastwood.Pass.TrailingWhitespace
  */
 
 from Eastwood.Configuration import :: LineRange
-from Eastwood.Diagnostic import :: Diagnostic, :: DiagnosticSeverity, :: DiagnosticSource
-from Eastwood.Range import :: Range
+from Eastwood.Diagnostic import :: EastwoodDiagnostic, :: EastwoodDiagnosticSeverity, :: DiagnosticSource
+from Eastwood.Range import :: EastwoodRange
 
 /**
  * Add our source to the list of diagnostic sources. See Eastwood.Diagnostic for more information.
@@ -18,10 +18,10 @@ from Eastwood.Range import :: Range
  * The configuration for the TrailingWhitespace pass. Diagnostics are generated with the specified severity.
  */
 :: TrailingWhitespaceConfiguration =
-	{ severity :: !?DiagnosticSeverity
+	{ severity :: !?EastwoodDiagnosticSeverity
 	}
 
 /**
  * Runs the whitespace checking pass.
  */
-runPass :: !TrailingWhitespaceConfiguration ![String] -> [Diagnostic]
+runPass :: !TrailingWhitespaceConfiguration ![String] -> [EastwoodDiagnostic]

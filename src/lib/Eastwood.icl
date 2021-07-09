@@ -12,11 +12,11 @@ from System.FilePath import :: FilePath
 from Text import class Text(split), instance Text String
 
 import Eastwood.Configuration
-from Eastwood.Diagnostic import :: Diagnostic(..), :: DiagnosticSource, :: DiagnosticSeverity
+from Eastwood.Diagnostic import :: EastwoodDiagnostic(..), :: DiagnosticSource, :: EastwoodDiagnosticSeverity
 import qualified Eastwood.Pass.BasicValueCAFs
 import qualified Eastwood.Pass.TrailingWhitespace
 
-runPassesFile :: !Configuration !FilePath !*World -> (MaybeError String [Diagnostic], !*World)
+runPassesFile :: !Configuration !FilePath !*World -> (MaybeError String [EastwoodDiagnostic], !*World)
 runPassesFile configuration filePath world
 	#! (mbContents, world) = readFile filePath world
 	| isError mbContents = (Error (toString (fromError mbContents)), world)
@@ -25,7 +25,7 @@ runPassesFile configuration filePath world
 		= (liftError mbParsedModule, world)
 		= (Ok $ runPasses configuration (splitLines (fromOk mbContents)) (error2mb mbParsedModule), world)
 
-runPassesString :: !Configuration !String -> [Diagnostic]
+runPassesString :: !Configuration !String -> [EastwoodDiagnostic]
 runPassesString configuration contents = runPasses configuration (splitLines contents) ?None
 
 /**
@@ -33,12 +33,12 @@ runPassesString configuration contents = runPasses configuration (splitLines con
  * @param The lines of the file.
  * @param Optionally, the parsed syntax tree. When not given, some passes in the configuration may be ignored.
  */
-runPasses :: !Configuration ![String] !(?(ParsedModule, HashTable)) -> [Diagnostic]
+runPasses :: !Configuration ![String] !(?(ParsedModule, HashTable)) -> [EastwoodDiagnostic]
 runPasses {lineRanges, passes} contents mbParsedModule
 	# diagnostics = map runPasses` passes
 	= flatten $ map (filterDiagnostics lineRanges) diagnostics
 where
-	runPasses` :: !PassConfiguration -> [Diagnostic]
+	runPasses` :: !PassConfiguration -> [EastwoodDiagnostic]
 	runPasses` (BasicValueCAFsConfiguration passConfig) =
 		withParsedModule 'Eastwood.Pass.BasicValueCAFs'.runPass passConfig
 	runPasses` (TrailingWhitespaceConfiguration passConfig) =
@@ -48,7 +48,7 @@ where
 	withLines run config = run config contents
 	withParsedModule run config = fromMaybe [] $ uncurry (run config contents) <$> mbParsedModule
 
-	filterDiagnostics :: ![LineRange] ![Diagnostic] -> [Diagnostic]
+	filterDiagnostics :: ![LineRange] ![EastwoodDiagnostic] -> [EastwoodDiagnostic]
 	filterDiagnostics _ [] = []
 	filterDiagnostics [] _ = []
 	filterDiagnostics lrx=:[lr:lrs] dsx=:[d=:{range}:ds]

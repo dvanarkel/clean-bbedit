@@ -6,7 +6,7 @@ definition module Eastwood.Pass.BasicValueCAFs
 
 from Clean.Parse import :: HashTable, :: Module, :: ParsedDefinition, :: ParsedModule
 
-from Eastwood.Diagnostic import :: Diagnostic, :: DiagnosticSeverity, :: DiagnosticSource
+from Eastwood.Diagnostic import :: EastwoodDiagnostic, :: EastwoodDiagnosticSeverity, :: DiagnosticSource
 
 /**
  * Add our source to the list of diagnostic sources. See Eastwood.Diagnostic for more information.
@@ -17,10 +17,10 @@ from Eastwood.Diagnostic import :: Diagnostic, :: DiagnosticSeverity, :: Diagnos
  * The configuration for the SyntaxChoices pass.
  */
 :: BasicValueCAFsConfiguration =
-	{ severity :: !?DiagnosticSeverity //* The severity to generate diagnostics with.
+	{ severity :: !?EastwoodDiagnosticSeverity //* The severity to generate diagnostics with.
 	}
 
 /**
  * Runs the syntax choices pass.
  */
-runPass :: !BasicValueCAFsConfiguration ![String] !ParsedModule HashTable -> [Diagnostic]
+runPass :: !BasicValueCAFsConfiguration ![String] !ParsedModule HashTable -> [EastwoodDiagnostic]
