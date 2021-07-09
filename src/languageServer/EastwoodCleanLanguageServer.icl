@@ -1,12 +1,19 @@
 module EastwoodCleanLanguageServer
 
-import StdEnv
+import StdEnv, StdDebug, StdOverloadedList
 import Data.Either, Data.Func, Data.Maybe
-import Text, Text.GenJSON
+from Data.Error import fromOk
+import Text, Text.GenJSON, Text.URI
 import LSP, LSP.ResponseMessage, LSP.RequestMessage, LSP.NotificationMessage, LSP.ServerCapabilities
 import LSP.DidSaveTextDocumentParams, LSP.TextDocumentIdentifier, LSP.PublishDiagnosticsParams, LSP.Diagnostic
 import LSP.Range, LSP.Position, LSP.BasicTypes
 import LSP.Internal.Serialize
+from Eastwood.Diagnostic import
+	:: EastwoodDiagnostic {..}, :: DiagnosticSource, :: EastwoodDiagnosticSeverity
+import qualified Eastwood.Diagnostic as Diagnostic
+from Eastwood.Range import
+	:: EastwoodRange {..}, :: EastwoodPosition {..}, :: CharacterRange
+import Compiler
 
 Start :: !*World -> *World
 Start w = serve capabilities cleanLanguageServer w
@@ -19,9 +26,9 @@ capabilities =
 
 cleanLanguageServer :: LanguageServer ()
 cleanLanguageServer = {initialState = (), onRequest = onRequest, onNotification = onNotification}
-import StdDebug
-onRequest :: !RequestMessage !() -> (!ResponseMessage, !())
-onRequest {RequestMessage | id} st = (errorResponse id, st)
+
+onRequest :: !RequestMessage !() !*World -> (!ResponseMessage, !(), !*World)
+onRequest {RequestMessage | id} st world = (errorResponse id, st, world)
 where
 	errorResponse :: !RequestId -> ResponseMessage
 	errorResponse id =
@@ -36,29 +43,44 @@ where
 			}
 		}
 
-onNotification :: !NotificationMessage !() -> (![!NotificationMessage], !())
-onNotification {NotificationMessage| method, params} st =
+onNotification :: !NotificationMessage !() !*World -> (![!NotificationMessage], !(), !*World)
+onNotification {NotificationMessage| method, params} st world =
 	case method of
 		"textDocument/didSave"
-			| isNothing params = ([!], trace_n "Missing argument for 'textDocument/didSave'." st)
-			=	(	[! notificationMessage
-						"textDocument/publishDiagnostics" (?Just $ diagnosticsFor $ deserialize $ fromJust params)
-					]
-				, st
-				)
+			| isNothing params = ([!], st, trace_n "Missing argument for 'textDocument/didSave'." world)
+			# (diag, world) = diagnosticsFor (deserialize $ fromJust params) world
+			= ([!notificationMessage "textDocument/publishDiagnostics" (?Just diag)], st, world)
 		_
-			= ([!], trace_n (concat3 "Unknown notification '" method "'.") st)
+			= ([!], st, trace_n (concat3 "Unknown notification '" method "'.") world)
 
-diagnosticsFor :: !DidSaveTextDocumentParams -> PublishDiagnosticsParams
-diagnosticsFor {textDocument = {TextDocumentIdentifier| uri}} = {uri = uri, diagnostics = [!diagnostic]}
+diagnosticsFor :: !DidSaveTextDocumentParams !*World -> (!?PublishDiagnosticsParams, !*World)
+diagnosticsFor {textDocument = {TextDocumentIdentifier| uri}} world
+	# (diagnostics, world) = runCompiler uri.uriPath world
+	// TODO: error handling for `diagnostics`
+	= (?Just {uri = uri, diagnostics = Map lspDiagnosticFor $ fromOk diagnostics}, world)
 where
-	diagnostic =
-		{ range = {start = {line = uint 2, character = uint 0}, end = {line = uint 2, character = uint 10}}
-		, severity = ?None
+	lspDiagnosticFor :: !EastwoodDiagnostic -> Diagnostic
+	lspDiagnosticFor {EastwoodDiagnostic| range, message, severity}  =
+		{ range = rangeCorrespondingTo range
+		, severity = ?Just $ severityCorrespondingTo severity
 		, codeDescription = ?None
 		, source = ?None
-		, message = "test error message"
+		, message = message
 		, tags = [!]
 		, relatedInformation = [!]
 		, data = JSONNull
 		}
+
+rangeCorrespondingTo :: !CharacterRange -> Range
+rangeCorrespondingTo {EastwoodRange| start, end} =
+	{Range| start = positionCorrespondingTo start, end = positionCorrespondingTo end}
+where
+	positionCorrespondingTo :: !EastwoodPosition -> Position
+	positionCorrespondingTo {EastwoodPosition| line, character} =
+		{Position| line = uint line, character = uint character}
+
+severityCorrespondingTo :: !EastwoodDiagnosticSeverity -> DiagnosticSeverity
+severityCorrespondingTo 'Diagnostic'.Error       = Error
+severityCorrespondingTo 'Diagnostic'.Warning     = Warning
+severityCorrespondingTo 'Diagnostic'.Hint        = Hint
+severityCorrespondingTo 'Diagnostic'.Information = Information
