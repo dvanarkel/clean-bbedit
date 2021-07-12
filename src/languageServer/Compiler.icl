@@ -8,10 +8,14 @@ import System.Environment, System.File, System.FilePath, System.Process
 from Eastwood.Diagnostic import
 	:: EastwoodDiagnostic {..}, :: DiagnosticSource, :: EastwoodDiagnosticSeverity, :: CharacterRange, :: EastwoodRange,
 	:: EastwoodPosition
-import qualified Eastwood.Diagnostic as Diagnostic
+import qualified Eastwood.Diagnostic
 import Eastwood.Range
 
 :: SearchPaths :== [FilePath]
+
+CLEAN_HOME_ENV_VAR :== "CLEAN_HOME"
+COCL_RELATIVE_PATH :== "/lib/exe/cocl"
+WARNING :== "warning"
 
 // TODO: Lifterror or something
 // TODO: Monad?
@@ -32,20 +36,22 @@ runCompiler fp world
 callCocl :: !FilePath ![FilePath] !*World -> (!MaybeError String String, !*World)
 callCocl fp searchPaths world
 	// Get CLEAN_HOME
-	# (mbCleanHome, world) = getEnvironmentVariable "CLEAN_HOME" world
-	| isNone mbCleanHome = (Error "Could not get CLEAN_HOME environment variable", world)
+	# (mbCleanHome, world) = getEnvironmentVariable CLEAN_HOME_ENV_VAR world
+	| isNone mbCleanHome = (Error (concat3 "Could not get " CLEAN_HOME_ENV_VAR " environment variable"), world)
 	# cleanHome = fromJust mbCleanHome
-	# coclPath = cleanHome +++ "/lib/exe/cocl"
+	# coclPath = cleanHome +++ COCL_RELATIVE_PATH
 	# searchPaths = concatPaths [takeDirectory fp: searchPaths]
 	// TODO: Don't write file
 	# (mbHandle, world) = runProcessIO coclPath ["-P", searchPaths, dropExtension $ takeFileName fp] ?None world
 	| isError mbHandle = (Error o snd $ fromError mbHandle, world)
 	# (handle, io) = fromOk mbHandle
-	// TODO: Check
-	# (_, world) = waitForProcess handle world
-	# (output, world) = readPipeBlocking io.stdErr world
-	# (_, world) = closeProcessIO io world
-	= (Ok $ fromOk output, world)
+	# (mbOsError, world) = waitForProcess handle world
+	| isError mbOsError = (Error o snd $ fromError mbOsError, world)
+	# (mbOutput, world) = readPipeBlocking io.stdErr world
+	| isError mbOutput = (Error o snd $ fromError mbOutput, world)
+	# (mbOsError, world) = closeProcessIO io world
+	| isError mbOsError = (Error o snd $ fromError mbOsError, world)
+	= (Ok $ fromOk mbOutput, world)
 where
 	concatPaths :: ![FilePath] -> String
 	concatPaths paths = join ":" paths
@@ -84,7 +90,7 @@ diagnosticFor lineNr line =
 	{ range =
 		// Line number of the Clean compiler are 1-based, but we need 0-based line numbers.
 		{start = {line = lineNr - 1, character = 0}, end = {line = lineNr, character = 0}}
-	, severity = if (indexOf "warning" line == -1) 'Diagnostic'.Error 'Diagnostic'.Warning
+	, severity = if (indexOf WARNING line == -1) 'Eastwood.Diagnostic'.Error 'Eastwood.Diagnostic'.Warning
 	, dCode    = 0
 	, source   = Compiler
 	, message  = line

@@ -10,7 +10,7 @@ import LSP.Range, LSP.Position, LSP.BasicTypes
 import LSP.Internal.Serialize
 from Eastwood.Diagnostic import
 	:: EastwoodDiagnostic {..}, :: DiagnosticSource, :: EastwoodDiagnosticSeverity
-import qualified Eastwood.Diagnostic as Diagnostic
+import qualified Eastwood.Diagnostic
 from Eastwood.Range import
 	:: EastwoodRange {..}, :: EastwoodPosition {..}, :: CharacterRange
 import Compiler
@@ -43,6 +43,7 @@ where
 			}
 		}
 
+//TODO: can we implement errors cases as MaybeError instead of trace_n?
 onNotification :: !NotificationMessage !() !*World -> (![!NotificationMessage], !(), !*World)
 onNotification {NotificationMessage| method, params} st world =
 	case method of
@@ -80,7 +81,7 @@ where
 		{Position| line = uint line, character = uint character}
 
 severityCorrespondingTo :: !EastwoodDiagnosticSeverity -> DiagnosticSeverity
-severityCorrespondingTo 'Diagnostic'.Error       = Error
-severityCorrespondingTo 'Diagnostic'.Warning     = Warning
-severityCorrespondingTo 'Diagnostic'.Hint        = Hint
-severityCorrespondingTo 'Diagnostic'.Information = Information
+severityCorrespondingTo 'Eastwood.Diagnostic'.Error       = Error
+severityCorrespondingTo 'Eastwood.Diagnostic'.Warning     = Warning
+severityCorrespondingTo 'Eastwood.Diagnostic'.Hint        = Hint
+severityCorrespondingTo 'Eastwood.Diagnostic'.Information = Information
