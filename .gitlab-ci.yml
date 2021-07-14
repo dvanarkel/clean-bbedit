@@ -26,7 +26,6 @@ linux-x64:
 test:
   image: 'camilstaps/clean:nightly'
   stage: test
-  needs: []
   before_script:
     - install_clean_nightly.sh bundle-complete
     - apt-get update -qq
