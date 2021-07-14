@@ -48,7 +48,7 @@ where
     # (mbString, world) = readPipeBlocking pipe world
     | isError mbString = abort "Error reading language server response"
     # messageSoFar = acc +++ fromOk mbString
-    | isCompleteMessage $ messageSoFar = (messageSoFar, world)
+    | isCompleteMessage messageSoFar = (messageSoFar, world)
     = readMessage` pipe messageSoFar world
 
     isCompleteMessage :: !String -> Bool
