@@ -40,7 +40,7 @@ CLEAR :== "\x1b[0m"
 	, lines :: ![LineRange]
 	, file :: !?FilePath
 	}
-derive gDefault ?, EastwoodRange
+derive gDefault ?, Range
 
 gDefault{|Options|} =
 	{ Options
@@ -83,24 +83,24 @@ where
 		_ -> 'Data.Error'.Error ["Multiple \"-\" found in line range \"" <+ str <+ "\""]
 	where
 		parseLineRange` :: !String !String -> 'Data.Error'.MaybeError [String] LineRange
-		parseLineRange` "" "" = 'Data.Error'.Ok { EastwoodRange | start = ?None, end = ?None }
+		parseLineRange` "" "" = 'Data.Error'.Ok { Range | start = ?None, end = ?None }
 		parseLineRange` "" end = case parseString end of
 			?None -> 'Data.Error'.Error ["Could not parse \"" <+ end <+ "\" in line range"]
-			?Just end -> 'Data.Error'.Ok { EastwoodRange | start = ?None, end = ?Just end }
+			?Just end -> 'Data.Error'.Ok { Range | start = ?None, end = ?Just end }
 		parseLineRange` start "" = case parseString start of
 			?None -> 'Data.Error'.Error ["Could not parse \"" <+ start <+ "\" in line range"]
-			?Just start -> 'Data.Error'.Ok { EastwoodRange | start = ?Just start, end = ?None }
+			?Just start -> 'Data.Error'.Ok { Range | start = ?Just start, end = ?None }
 		parseLineRange` start end = case (parseString start, parseString end) of
 			(?None, _) -> 'Data.Error'.Error ["Could not parse \"" <+ start <+ "\" in line range"]
 			(_, ?None) -> 'Data.Error'.Error ["Could not parse \"" <+ end <+ "\" in line range"]
-			(?Just start, ?Just end) -> 'Data.Error'.Ok { EastwoodRange | start = ?Just start, end = ?Just end }
+			(?Just start, ?Just end) -> 'Data.Error'.Ok { Range | start = ?Just start, end = ?Just end }
 
-showEastwoodDiagnostic :: !Options !EastwoodDiagnostic -> String
+showEastwoodDiagnostic :: !Options !Diagnostic -> String
 showEastwoodDiagnostic {color, file} d
 	# file = maybe "" (\f -> dropDirectory f +++ ":") file
 	= concat
-		[ if color (colorCode d.EastwoodDiagnostic.severity) ""
-		, toString d.EastwoodDiagnostic.severity
+		[ if color (colorCode d.Diagnostic.severity) ""
+		, toString d.Diagnostic.severity
 		, ": "
 		, if color CLEAR ""
 		, toString d.source
@@ -113,13 +113,13 @@ showEastwoodDiagnostic {color, file} d
 		, toString d.message
 		]
 where
-	colorCode :: !EastwoodDiagnosticSeverity -> String
+	colorCode :: !DiagnosticSeverity -> String
 	colorCode Error = RED
 	colorCode Warning = YELLOW
 	colorCode Information = BLUE
 	colorCode Hint = CYAN
 
-instance toString EastwoodDiagnosticSeverity
+instance toString DiagnosticSeverity
 where
 	toString Error = "Error"
 	toString Warning = "Warning"
@@ -132,13 +132,13 @@ where
 	toString TrailingWhitespacePass = "whitespace"
 	toString _ = "MISSING_TO_STRING_FOR_SOURCE"
 
-instance toString (EastwoodRange t) | toString t
+instance toString (Range t) | toString t
 where
-	toString { EastwoodRange | start, end } = concat3 (toString start) "-" (toString end)
+	toString { Range | start, end } = concat3 (toString start) "-" (toString end)
 
-instance toString EastwoodPosition
+instance toString Position
 where
-	toString { EastwoodPosition | line, character } = concat3 (toString line) "," (toString character)
+	toString { Position | line, character } = concat3 (toString line) "," (toString character)
 
 Start :: !*World -> *World
 Start world
@@ -164,24 +164,24 @@ startIO opts=:{file = ?Just file}
 			-> showEastwoodDiagnostics opts diagnostics
 			>>| returnCode diagnostics
 where
-	handleWError :: !Bool ![EastwoodDiagnostic] -> [EastwoodDiagnostic]
+	handleWError :: !Bool ![Diagnostic] -> [Diagnostic]
 	handleWError False ds = ds
 	handleWError True ds = map asError ds
 	where
-		asError :: !EastwoodDiagnostic -> EastwoodDiagnostic
-		asError d = {EastwoodDiagnostic | d & severity = Error}
+		asError :: !Diagnostic -> Diagnostic
+		asError d = {Diagnostic | d & severity = Error}
 
-	returnCode :: [EastwoodDiagnostic] -> IO ()
+	returnCode :: [Diagnostic] -> IO ()
 	returnCode ds = if (any isError ds) setErrorCode (pure ())
 	where
 		setErrorCode :: IO ()
 		setErrorCode = withWorld (\w -> ((), setReturnCode 1 w))
 
-		isError :: !EastwoodDiagnostic -> Bool
-		isError {EastwoodDiagnostic | severity = Error} = True
+		isError :: !Diagnostic -> Bool
+		isError {Diagnostic | severity = Error} = True
 		isError _ = False
 
-showEastwoodDiagnostics :: !Options ![EastwoodDiagnostic] -> IO ()
+showEastwoodDiagnostics :: !Options ![Diagnostic] -> IO ()
 showEastwoodDiagnostics opts diagnostics =
 	mapM_ (putStrLn o showEastwoodDiagnostic opts) diagnostics
 
@@ -194,7 +194,7 @@ createConfiguration {lines} =
 defaultConfiguration :: Configuration
 defaultConfiguration =
 	{ Configuration
-	| lineRanges = [{ EastwoodRange | start = ?None, end = ?None }]
+	| lineRanges = [{ Range | start = ?None, end = ?None }]
 	, passes =
 		[ BasicValueCAFsConfiguration defaultBasicValueCAFsConfiguration
 		, TrailingWhitespaceConfiguration defaultTrailingWhitespaceConfiguration

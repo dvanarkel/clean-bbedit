@@ -12,7 +12,7 @@ definition module Eastwood.Range
  *
  * The first line of a file is line 1; the first column of a line is column 1.
  */
-:: EastwoodRange t =
+:: Range t =
 	{ start :: !t
 	, end :: !t
 	}
@@ -20,12 +20,12 @@ definition module Eastwood.Range
 /**
  * A range as defined by the LSP specification
  */
-:: CharacterRange :== EastwoodRange EastwoodPosition
+:: CharacterRange :== Range Position
 
 /**
  * The position as defined by the LSP specification
  */
-:: EastwoodPosition =
+:: Position =
 	{ line :: !Int
 	, character :: !Int
 	}
@@ -34,7 +34,7 @@ definition module Eastwood.Range
  * From where to where should passes analyze the code. A ?None indicates that that side of the range is unbounded (i.e.
  * the start or the end of the entire file).
  */
-:: LineRange :== EastwoodRange (?Int)
+:: LineRange :== Range (?Int)
 
 /**
  * Creates a character range for the characters on a single line.

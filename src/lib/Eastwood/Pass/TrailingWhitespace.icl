@@ -10,10 +10,10 @@ import Eastwood.Diagnostic
 
 WHITESPACE_CODE :== 0
 
-runPass :: !TrailingWhitespaceConfiguration ![String] -> [EastwoodDiagnostic]
+runPass :: !TrailingWhitespaceConfiguration ![String] -> [Diagnostic]
 runPass configuration contents = runPass` contents 1
 where
-	runPass` :: ![String] !Int -> [EastwoodDiagnostic]
+	runPass` :: ![String] !Int -> [Diagnostic]
 	runPass` [] _ = []
 	runPass` [l:ls] lineNumber
 		| finalCharacterIsWhitespace l =
@@ -24,9 +24,9 @@ where
 	finalCharacterIsWhitespace "" = False
 	finalCharacterIsWhitespace line = isSpace line.[size line - 1]
 
-	newDiagnostic :: !String !Int -> EastwoodDiagnostic
+	newDiagnostic :: !String !Int -> Diagnostic
 	newDiagnostic line lineNumber =
-		{ EastwoodDiagnostic
+		{ Diagnostic
 		| range = findCharacterRange line lineNumber
 		, severity = fromMaybe Warning configuration.TrailingWhitespaceConfiguration.severity
 		, dCode = WHITESPACE_CODE

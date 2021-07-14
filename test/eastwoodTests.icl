@@ -21,11 +21,11 @@ import Eastwood.Range
 
 TMP_PATH :== "/tmp/eastwood-test"
 
-derive gEq EastwoodDiagnostic, EastwoodDiagnosticSeverity, EastwoodPosition, EastwoodRange
-derive genShow EastwoodDiagnostic, EastwoodDiagnosticSeverity, EastwoodPosition, EastwoodRange
-derive gPrint EastwoodDiagnostic, EastwoodDiagnosticSeverity, EastwoodPosition, EastwoodRange
+derive gEq Diagnostic, DiagnosticSeverity, Position, Range
+derive genShow Diagnostic, DiagnosticSeverity, Position, Range
+derive gPrint Diagnostic, DiagnosticSeverity, Position, Range
 
-instance == EastwoodDiagnostic
+instance == Diagnostic
 where
 	(==) d1 d2 = d1 === d2
 
@@ -39,7 +39,7 @@ gPrint{|DiagnosticSource|} TrailingWhitespacePass st = gPrint{|*|} "TrailingWhit
 defaultConfiguration :: Configuration
 defaultConfiguration =
 	{ Configuration
-	| lineRanges = [{ EastwoodRange | start = ?None, end = ?None }]
+	| lineRanges = [{ Range | start = ?None, end = ?None }]
 	, passes =
 		[ BasicValueCAFsConfiguration defaultBasicValueCAFsConfiguration
 		, TrailingWhitespaceConfiguration defaultTrailingWhitespaceConfiguration
@@ -68,7 +68,7 @@ properties =:
 	, basicValueCAFs as "CAFs with and without basic values"
 	]
 
-diagnostics :: !Configuration !String !String -> [EastwoodDiagnostic]
+diagnostics :: !Configuration !String !String -> [Diagnostic]
 diagnostics configuration moduleName moduleContents = accUnsafe run
 where
 	run w
@@ -96,11 +96,11 @@ where
 	input = "module test\t\n \nStart = \"Hello, World\"\n"
 	expectedOutput =
 		[
-			{ EastwoodDiagnostic
+			{ Diagnostic
 			| range =
-				{ EastwoodRange
-				| start = { EastwoodPosition | line = 1, character = 11 }
-				, end = { EastwoodPosition | line = 1, character = 12 }
+				{ Range
+				| start = { Position | line = 1, character = 11 }
+				, end = { Position | line = 1, character = 12 }
 				}
 			, severity = Warning
 			, dCode = 0
@@ -108,11 +108,11 @@ where
 			, message = "Found trailing whitespace"
 			}
 		,
-			{ EastwoodDiagnostic
+			{ Diagnostic
 			| range =
-				{ EastwoodRange
-				| start = { EastwoodPosition | line = 2, character = 0 }
-				, end = { EastwoodPosition | line = 2, character = 1 }
+				{ Range
+				| start = { Position | line = 2, character = 0 }
+				, end = { Position | line = 2, character = 1 }
 				}
 			, severity = Warning
 			, dCode = 0
@@ -127,11 +127,11 @@ basicValueCAFs =
 	run "x =: [5]" =.= [] /\ /* CAF with non-basic value */
 	run "x =: 5" =.= /* CAF with basic value */
 		[
-			{ EastwoodDiagnostic
+			{ Diagnostic
 			| range =
-				{ EastwoodRange
-				| start = { EastwoodPosition | line = 2, character = 1 }
-				, end = { EastwoodPosition | line = 2, character = 6 }
+				{ Range
+				| start = { Position | line = 2, character = 1 }
+				, end = { Position | line = 2, character = 6 }
 				}
 			, severity = Warning
 			, dCode = 0

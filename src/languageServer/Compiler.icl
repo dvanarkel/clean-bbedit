@@ -1,13 +1,17 @@
 implementation module Compiler
 
 import StdEnv
-import Data.Error, Data.Maybe, Data.Func, Data.Functor, Data.List
+import Data.Error
+import Data.Maybe
+import Data.Func
+import Data.Functor
+import Data.List
 import Text
 //import Text.YAML
 import System.Environment, System.File, System.FilePath, System.Process
 from Eastwood.Diagnostic import
-	:: EastwoodDiagnostic {..}, :: DiagnosticSource, :: EastwoodDiagnosticSeverity, :: CharacterRange, :: EastwoodRange,
-	:: EastwoodPosition
+	:: Diagnostic {..}, :: DiagnosticSource, :: DiagnosticSeverity, :: CharacterRange,
+	:: Position
 import qualified Eastwood.Diagnostic
 import Eastwood.Range
 
@@ -20,7 +24,7 @@ WARNING :== "warning"
 // TODO: Lifterror or something
 // TODO: Monad?
 
-runCompiler :: !FilePath !*World -> (!MaybeError String [EastwoodDiagnostic], !*World)
+runCompiler :: !FilePath !*World -> (!MaybeError String [Diagnostic], !*World)
 runCompiler fp world
 	//# (mbConfig, world) = readFile "Eastwood.yml" world
 	// Check if we could parse the yml file
@@ -41,7 +45,6 @@ callCocl fp searchPaths world
 	# cleanHome = fromJust mbCleanHome
 	# coclPath = cleanHome +++ COCL_RELATIVE_PATH
 	# searchPaths = concatPaths [takeDirectory fp: searchPaths]
-	// TODO: Don't write file
 	# (mbHandle, world) = runProcessIO coclPath ["-P", searchPaths, dropExtension $ takeFileName fp] ?None world
 	| isError mbHandle = (Error o snd $ fromError mbHandle, world)
 	# (handle, io) = fromOk mbHandle
@@ -58,20 +61,19 @@ where
 
 :: DiagnosticSource | Compiler
 
-diagnosticsFor :: !String !String -> [EastwoodDiagnostic]
+diagnosticsFor :: !String !String -> [Diagnostic]
 diagnosticsFor fileName output = diagnosticsForAccum 0 ?None []
 where
-	diagnosticsForAccum :: !Int !(?(Int, Int)) ![EastwoodDiagnostic] -> [EastwoodDiagnostic]
+	diagnosticsForAccum :: !Int !(?(Int, Int)) ![Diagnostic] -> [Diagnostic]
 	diagnosticsForAccum idx previousStart acc
 		| locationBlockIdx == -1 = acc`
 		| otherwise = diagnosticsForAccum (inc locationBlockIdx) (?Just (lineNr, newlineBeforeLocBlock + 1)) acc`
 	where
-		acc` =
-			case previousStart of
-				?Just (lineNr, startIdx) = [diagnosticFor lineNr $ output % (startIdx, previousStartIdx): acc]
-				?None                  = acc
+		acc` = case previousStart of
+			?Just (lineNr, startIdx) = [diagnosticFor lineNr $ output % (startIdx, previousStartIdx): acc]
+			?None                    = acc
 
-		lineNr                = toInt $ (output % (lineNrStartIdx, lastDigitAfter lineNrStartIdx))
+		lineNr                = toInt (output % (lineNrStartIdx, lastDigitAfter lineNrStartIdx))
 		lineNrStartIdx        = locationBlockIdx + size locationBlockStart
 		newlineBeforeLocBlock = indexOfNewlineBefore locationBlockIdx
 		previousStartIdx      = if (locationBlockIdx == -1) (size output - 1) (newlineBeforeLocBlock - 1)
@@ -85,7 +87,7 @@ where
 		lastDigitAfter :: !Int -> Int
 		lastDigitAfter idx = if (isDigit output.[idx]) (lastDigitAfter $ inc idx) (idx - 1)
 
-diagnosticFor :: !Int !String -> EastwoodDiagnostic
+diagnosticFor :: !Int !String -> Diagnostic
 diagnosticFor lineNr line =
 	{ range =
 		// Line number of the Clean compiler are 1-based, but we need 0-based line numbers.

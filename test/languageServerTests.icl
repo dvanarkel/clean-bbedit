@@ -13,7 +13,7 @@ Start world = exposeProperties [OutputTestEvents] [Bent] properties world
 //TODO: only good weather scenarios have been tested thus far
 properties :: [Property]
 properties =:
-	[ initializesCorrectly as "language server initializes correctly"
+    [ initializesCorrectly as "language server initializes correctly"
     , didSaveNotificationCorrectlyHandled as "language server handles didSave notification correctly"
     ]
 

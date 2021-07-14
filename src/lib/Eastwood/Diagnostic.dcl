@@ -1,15 +1,15 @@
 definition module Eastwood.Diagnostic
 
-from Eastwood.Range import :: CharacterRange, :: EastwoodPosition, :: EastwoodRange
+from Eastwood.Range import :: CharacterRange, :: Position, :: Range
 
 /**
  * Represents the warnings, errors, etc found by the passes. This type attempts to be as compatible with the LSP
  * specification as possible.
  */
-:: EastwoodDiagnostic =
+:: Diagnostic =
 	{ range :: !CharacterRange
 	//* Where the Diagnostic was found/the subject of the diagnostic
-	, severity :: !EastwoodDiagnosticSeverity
+	, severity :: !DiagnosticSeverity
 	//* The severity of the diagnostic
 	, dCode :: !Int
 	//* An incremental number that forms a unique identifier in combination with the source. `d` because `code` is a
@@ -24,7 +24,7 @@ from Eastwood.Range import :: CharacterRange, :: EastwoodPosition, :: EastwoodRa
 /**
  * As defined by the LSP specification
  */
-:: EastwoodDiagnosticSeverity = Error | Warning | Information | Hint
+:: DiagnosticSeverity = Error | Warning | Information | Hint
 
 /**
  * A EADT defining all possible sources. We define this as an EADT because we don't want this module to contain

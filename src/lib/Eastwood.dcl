@@ -10,7 +10,7 @@ from System.File import :: FileError
 from System.FilePath import :: FilePath
 
 from Eastwood.Configuration import :: Configuration
-from Eastwood.Diagnostic import :: EastwoodDiagnostic
+from Eastwood.Diagnostic import :: Diagnostic
 
 /**
  * Runs Eastwood on the contents of the specific FilePath.
@@ -21,7 +21,7 @@ from Eastwood.Diagnostic import :: EastwoodDiagnostic
  * @result The Diagnostics or an error string in case reading the file went wrong
  * @result The world
  */
-runPassesFile :: !Configuration !FilePath !*World -> (MaybeError String [EastwoodDiagnostic], !*World)
+runPassesFile :: !Configuration !FilePath !*World -> (MaybeError String [Diagnostic], !*World)
 
 /**
  * Runs Eastwood on the given Clean code.
@@ -34,4 +34,4 @@ runPassesFile :: !Configuration !FilePath !*World -> (MaybeError String [Eastwoo
  * @param The piece of Clean code for which Eastwood should generate Diagnostics
  * @result The Diagnostics
  */
-runPassesString :: !Configuration !String -> [EastwoodDiagnostic]
+runPassesString :: !Configuration !String -> [Diagnostic]

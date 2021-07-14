@@ -19,16 +19,16 @@ DEFAULT_SEVERITY :== Warning
 
 BASIC_VALUE_CAF_CODE :== 0
 
-runPass :: !BasicValueCAFsConfiguration ![String] !ParsedModule HashTable -> [EastwoodDiagnostic]
+runPass :: !BasicValueCAFsConfiguration ![String] !ParsedModule HashTable -> [Diagnostic]
 runPass config lines mod _ =
 	diagnostics severity lines mod
 where
 	severity = fromMaybe DEFAULT_SEVERITY config.BasicValueCAFsConfiguration.severity
 
-diagnostics :: !EastwoodDiagnosticSeverity ![String] !ParsedModule -> [EastwoodDiagnostic]
+diagnostics :: !DiagnosticSeverity ![String] !ParsedModule -> [Diagnostic]
 diagnostics severity lines mod = catMaybes $ map check $ allDefinitions mod
 where
-	check :: !ParsedDefinition -> ?EastwoodDiagnostic
+	check :: !ParsedDefinition -> ?Diagnostic
 	check ('syntax'.PD_Function pos id _ _ {'syntax'.rhs_alts='syntax'.UnGuardedExpr expr} 'syntax'.FK_Caf) =
 		case expr.'syntax'.ewl_expr of
 			expr=:('syntax'.PE_Basic _) ->

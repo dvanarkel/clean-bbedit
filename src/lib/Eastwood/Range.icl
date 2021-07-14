@@ -4,14 +4,14 @@ import StdEnv
 
 singleLineRange :: !Int !Int !Int -> CharacterRange
 singleLineRange lineNumber startColumn endColumn =
-	{ EastwoodRange
+	{ Range
 	| start =
-		{ EastwoodPosition
+		{ Position
 		| line = lineNumber
 		, character = startColumn
 		}
 	, end =
-		{ EastwoodPosition
+		{ Position
 		| line = lineNumber
 		, character = endColumn
 		}
