@@ -32,10 +32,10 @@ test:
     - apt-get update -qq
     - apt-get install make
   script:
-    - make -C test runTest
+    - make -C test runTests
   artifacts:
     when: always
     paths:
-      - test/junit.xml
+      - test/junit_*.xml
     reports:
-      junit: test/junit.xml
+      junit: test/junit_*.xml
