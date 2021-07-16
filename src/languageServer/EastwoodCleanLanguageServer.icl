@@ -1,9 +1,8 @@
 module EastwoodCleanLanguageServer
 
-import StdDebug
 import StdEnv
 import StdOverloadedList
-import Data.Either
+
 from Data.Error import fromOk
 import Data.Func
 import Data.Maybe
@@ -11,29 +10,30 @@ import Text
 import Text.GenJSON
 import Text.URI
 
+from LSP.Diagnostic import qualified :: Diagnostic {..}, :: DiagnosticSeverity {..}
+from LSP.Position import qualified :: Position {..}
+from LSP.PublishDiagnosticsParams import qualified :: PublishDiagnosticsParams {..}
+from LSP.Range import qualified :: Range {..}
 import LSP
 import LSP.BasicTypes
 import LSP.DidSaveTextDocumentParams
 import LSP.Internal.Serialize
+import LSP.LogMessageParams
 import LSP.NotificationMessage
-import qualified LSP.PublishDiagnosticsParams
-from LSP.PublishDiagnosticsParams import qualified :: PublishDiagnosticsParams {..}
-import LSP.ResponseMessage
 import LSP.RequestMessage
+import LSP.ResponseMessage
 import LSP.ServerCapabilities
 import LSP.TextDocumentIdentifier
-from LSP.Diagnostic import qualified :: Diagnostic {..}, :: DiagnosticSeverity {..}
-import qualified LSP.Range
-from LSP.Range import qualified :: Range {..}
 import qualified LSP.Position
-from LSP.Position import qualified :: Position {..}
+import qualified LSP.PublishDiagnosticsParams
+import qualified LSP.Range
 
-import qualified Eastwood.Diagnostic
 from Eastwood.Diagnostic import :: DiagnosticSource
 from Eastwood.Diagnostic import qualified :: Diagnostic {..}, :: DiagnosticSeverity
-import qualified Eastwood.Range
 from Eastwood.Range import :: Range {..}, :: CharacterRange
 from Eastwood.Range import qualified :: Position {..}
+import qualified Eastwood.Diagnostic
+import qualified Eastwood.Range
 
 import Compiler
 
@@ -65,16 +65,23 @@ where
 			}
 		}
 
-//TODO: can we implement errors cases as MaybeError instead of trace_n?
 onNotification :: !NotificationMessage !() !*World -> (![!NotificationMessage], !(), !*World)
 onNotification {NotificationMessage| method, params} st world =
 	case method of
 		"textDocument/didSave"
-			| isNothing params = ([!], st, trace_n "Missing argument for 'textDocument/didSave'." world)
+			| isNothing params
+				= ([!errorLogMessage "Missing argument for 'textDocument/didSave'."] , st, world)
 			# (diag, world) = diagnosticsFor (deserialize $ fromJust params) world
 			= ([!notificationMessage "textDocument/publishDiagnostics" (?Just diag)], st, world)
 		_
-			= ([!], st, trace_n (concat3 "Unknown notification '" method "'.") world)
+			= ([!errorLogMessage $ concat3 "Unknown notification '" method "'."], st, world)
+where
+	errorLogMessage :: !String -> NotificationMessage
+	errorLogMessage message = logMessage
+		{ LogMessageParams
+		| type = Error
+		, message = message
+		}
 
 diagnosticsFor :: !DidSaveTextDocumentParams !*World -> (!?'LSP.PublishDiagnosticsParams'.PublishDiagnosticsParams, !*World)
 diagnosticsFor params world
