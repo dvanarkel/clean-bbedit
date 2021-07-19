@@ -35,9 +35,15 @@ runCompiler fp world
 	//| isError mbYAML = (Error o toString $ fromError mbYAML, world)
 	# searchPaths = []//fromOk mbYML
 	# (mbOutput, world) = callCocl fp searchPaths world
-	= (Ok $ diagnosticsFor (takeFileName fp) $ fromOk mbOutput, world)
+	# (retCode, output) = fromOk mbOutput
+	# diagnostics = diagnosticsFor (takeFileName fp) output
+	// If the return code is not 0, either problems have been detected in the file or the file could not be processed.
+	// In the later case (no diagnostics could be extracted from the output)
+	// we generate an error instead of diagnostics.
+	| retCode <> 0 && isEmpty diagnostics = (Error output, world)
+	= (Ok diagnostics , world)
 
-callCocl :: !FilePath ![FilePath] !*World -> (!MaybeError String String, !*World)
+callCocl :: !FilePath ![FilePath] !*World -> (!MaybeError String (Int, String), !*World)
 callCocl fp searchPaths world
 	// Get CLEAN_HOME
 	# (mbCleanHome, world) = getEnvironmentVariable CLEAN_HOME_ENV_VAR world
@@ -48,13 +54,13 @@ callCocl fp searchPaths world
 	# (mbHandle, world) = runProcessIO coclPath ["-P", searchPaths, dropExtension $ takeFileName fp] ?None world
 	| isError mbHandle = (Error o snd $ fromError mbHandle, world)
 	# (handle, io) = fromOk mbHandle
-	# (mbOsError, world) = waitForProcess handle world
-	| isError mbOsError = (Error o snd $ fromError mbOsError, world)
+	# (retCode, world) = waitForProcess handle world
+	| isError retCode = (Error o snd $ fromError retCode, world)
 	# (mbOutput, world) = readPipeBlocking io.stdErr world
 	| isError mbOutput = (Error o snd $ fromError mbOutput, world)
 	# (mbOsError, world) = closeProcessIO io world
 	| isError mbOsError = (Error o snd $ fromError mbOsError, world)
-	= (Ok $ fromOk mbOutput, world)
+	= (Ok (fromOk retCode, fromOk mbOutput), world)
 where
 	concatPaths :: ![FilePath] -> String
 	concatPaths paths = join ":" paths
