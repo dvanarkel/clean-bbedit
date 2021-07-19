@@ -69,7 +69,7 @@ Further documentation can be found [here](https://gitlab.com/top-software/eastwo
 
 Eastwood is copyright &copy; 2021 TOP Software Technology B.V.
 
-This software is licensed under BSD 2-Clause License. For details, see the
+This software is licensed under the GPL 3.0 or later license. For details, see the
 [LICENSE](/LICENSE) file.
 
 [Clean]: http://clean.cs.ru.nl/
