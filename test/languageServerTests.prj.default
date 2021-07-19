@@ -1,17 +1,17 @@
 Version: 1.5
 Global
 	ProjectRoot:	.
-	Target:	StdEnv
-	Exec:	{Project}/eastwood-lint
-	ByteCode:	{Project}/eastwood-lint.bc
+	Target:	Gast
+	Exec:	{Project}/languageServerTests
+	ByteCode:	
 	CodeGen
 		CheckStacks:	False
 		CheckIndexes:	True
 		OptimiseABC:	False
 		GenerateByteCode:	False
 	Application
-		HeapSize:	2097152
-		StackSize:	512000
+		HeapSize:	209715200
+		StackSize:	2097152
 		ExtraMemory:	8192
 		IntialHeapSize:	204800
 		HeapSizeMultiplier:	4096
@@ -28,8 +28,8 @@ Global
 			Callgraph:	False
 			Stack:	False
 			Dynamics:	False
-			GenericFusion:	True
-			DescExL:	False
+			GenericFusion:	False
+			DescExL:	True
 		Output
 			Output:	NoReturnType
 			Font:	Monaco
@@ -49,14 +49,14 @@ Global
 		PrelinkByteCode:	False
 	Paths
 		Path:	{Project}
-		Path:	{Project}*..*lib
-		Path:	{Project}*..*lib*compiler*frontend
-		Path:	{Project}*..*lib*compiler*main*Unix
-		Path:	{Application}*lib*Platform
+		Path:	{Project}*..*src*lib
+		Path:	{Project}*..*src*lib*compiler*frontend
+		Path:	{Project}*..*src*lib*compiler*main*Unix
+		Path:	{Project}*..*src*lib*clean-platform*src*libraries*OS-Independent
 	Precompile:	
 	Postlink:	
 MainModule
-	Name:	EastwoodLint
+	Name:	languageServerTests
 	Dir:	{Project}
 	Compiler
 		NeverMemoryProfile:	False

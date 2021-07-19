@@ -95,8 +95,8 @@ where
 			(_, ?None) -> 'Data.Error'.Error ["Could not parse \"" <+ end <+ "\" in line range"]
 			(?Just start, ?Just end) -> 'Data.Error'.Ok { Range | start = ?Just start, end = ?Just end }
 
-showDiagnostic :: !Options !Diagnostic -> String
-showDiagnostic {color, file} d
+showEastwoodDiagnostic :: !Options !Diagnostic -> String
+showEastwoodDiagnostic {color, file} d
 	# file = maybe "" (\f -> dropDirectory f +++ ":") file
 	= concat
 		[ if color (colorCode d.Diagnostic.severity) ""
@@ -161,7 +161,7 @@ startIO opts=:{file = ?Just file}
 		'Data.Error'.Error fileError -> putStrLn (toString fileError) >>| withWorld (\w -> ((), setReturnCode 1 w))
 		'Data.Error'.Ok diagnostics
 			#! diagnostics = handleWError opts.werror diagnostics
-			-> showDiagnostics opts diagnostics
+			-> showEastwoodDiagnostics opts diagnostics
 			>>| returnCode diagnostics
 where
 	handleWError :: !Bool ![Diagnostic] -> [Diagnostic]
@@ -181,9 +181,9 @@ where
 		isError {Diagnostic | severity = Error} = True
 		isError _ = False
 
-showDiagnostics :: !Options ![Diagnostic] -> IO ()
-showDiagnostics opts diagnostics =
-	mapM_ (putStrLn o showDiagnostic opts) diagnostics
+showEastwoodDiagnostics :: !Options ![Diagnostic] -> IO ()
+showEastwoodDiagnostics opts diagnostics =
+	mapM_ (putStrLn o showEastwoodDiagnostic opts) diagnostics
 
 createConfiguration :: !Options -> Configuration
 createConfiguration {lines} =

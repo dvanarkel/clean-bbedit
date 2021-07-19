@@ -16,24 +16,25 @@ linux-x64:
   script:
     - make -C src/lib compiler
     - make -C src/linter eastwood-lint
+    - make -C src/languageServer eastwood-cls
   artifacts:
     when: always
     paths:
       - src/linter/eastwood-lint
+      - src/languageServer/eastwood-cls
 
 test:
   image: 'camilstaps/clean:nightly'
   stage: test
-  needs: []
   before_script:
     - install_clean_nightly.sh bundle-complete
     - apt-get update -qq
     - apt-get install make
   script:
-    - make -C test runTest
+    - make -C test runTests
   artifacts:
     when: always
     paths:
-      - test/junit.xml
+      - test/junit_*.xml
     reports:
-      junit: test/junit.xml
+      junit: test/junit_*.xml
