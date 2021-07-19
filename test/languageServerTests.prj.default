@@ -28,8 +28,8 @@ Global
 			Callgraph:	False
 			Stack:	False
 			Dynamics:	False
-			GenericFusion:	False
-			DescExL:	True
+			GenericFusion:	True
+			DescExL:	False
 		Output
 			Output:	NoReturnType
 			Font:	Monaco
