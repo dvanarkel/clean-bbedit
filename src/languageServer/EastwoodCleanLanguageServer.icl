@@ -4,6 +4,7 @@ import StdEnv
 import StdOverloadedList
 
 from Data.Error import fromOk
+import qualified Data.Error
 import Data.Func
 import Data.Maybe
 import Text
@@ -72,7 +73,13 @@ onNotification {NotificationMessage| method, params} st world =
 			| isNothing params
 				= ([!errorLogMessage "Missing argument for 'textDocument/didSave'."] , st, world)
 			# (diag, world) = diagnosticsFor (deserialize $ fromJust params) world
-			= ([!notificationMessage "textDocument/publishDiagnostics" (?Just diag)], st, world)
+			= case diag of
+				?None =
+					([!], st, world)
+				?Just ('Data.Error'.Ok diag) =
+					([!notificationMessage "textDocument/publishDiagnostics" (?Just diag)], st, world)
+				?Just ('Data.Error'.Error err) =
+					([!errorLogMessage err], st, world)
 		_
 			= ([!errorLogMessage $ concat3 "Unknown notification '" method "'."], st, world)
 where
@@ -83,14 +90,18 @@ where
 		, message = message
 		}
 
-diagnosticsFor :: !DidSaveTextDocumentParams !*World -> (!?'LSP.PublishDiagnosticsParams'.PublishDiagnosticsParams, !*World)
+diagnosticsFor ::
+	!DidSaveTextDocumentParams !*World
+	-> (!?(MaybeError String 'LSP.PublishDiagnosticsParams'.PublishDiagnosticsParams), !*World)
 diagnosticsFor params world
 	# (diagnostics, world) = runCompiler params.textDocument.TextDocumentIdentifier.uri.uriPath world
-	// TODO: error handling for `diagnostics`
 	= (?Just
-		{ 'LSP.PublishDiagnosticsParams'.uri = params.textDocument.TextDocumentIdentifier.uri
-		, 'LSP.PublishDiagnosticsParams'.diagnostics = Map lspDiagnosticFor $ fromOk diagnostics
-		}
+		case diagnostics of
+			'Data.Error'.Ok diagnostics =
+				'Data.Error'.Ok { 'LSP.PublishDiagnosticsParams'.uri = params.textDocument.TextDocumentIdentifier.uri
+				, 'LSP.PublishDiagnosticsParams'.diagnostics = Map lspDiagnosticFor diagnostics
+				}
+			error = 'Data.Error'.liftError error
 		, world)
 where
 	lspDiagnosticFor :: !'Eastwood.Diagnostic'.Diagnostic -> 'LSP.Diagnostic'.Diagnostic
