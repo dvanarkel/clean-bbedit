@@ -53,6 +53,7 @@ Global
 		Path:	{Project}*..*lib*clean-lsp*src
 		Path:	{Project}*..*lib*compiler*frontend
 		Path:	{Project}*..*lib*compiler*main*Unix
+		Path:	{Project}*..*lib*yaml*src
 		Path:	{Application}*lib*Platform
 	Precompile:	
 	Postlink:	

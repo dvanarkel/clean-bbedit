@@ -7,34 +7,46 @@ import Data.Func
 import Data.Functor
 import Data.List
 import Text
-//import Text.YAML
-import System.Environment, System.File, System.FilePath, System.Process
+import Text.YAML
+import System.Environment, System.File, System.FilePath, System.Process, System.Directory
 from Eastwood.Diagnostic import
 	:: Diagnostic {..}, :: DiagnosticSource, :: DiagnosticSeverity, :: CharacterRange,
 	:: Position
 import qualified Eastwood.Diagnostic
 import Eastwood.Range
 
-:: SearchPaths :== [FilePath]
-
 CLEAN_HOME_ENV_VAR :== "CLEAN_HOME"
-COCL_RELATIVE_PATH :== "/lib/exe/cocl"
+EXE_PATH :== "lib/exe"
+LIBS_PATH :== "lib"
 WARNING :== "warning"
+PROJECT_FILENAME :== "Eastwood.yml"
 
-// TODO: Lifterror or something
-// TODO: Monad?
+//* This represents the compiler settings which are provided by the project file.
+:: CompilerSettings =
+	{ compiler :: !FilePath
+		//* compiler's executable name (e.g. `cocl`, `cocl-itasks`), supposed to be found in `CLEAN_HOME/EXE_PATH`.
+	, libraries :: ![String] //* libraries of which modules are included (located in `CLEAN_HOME/LIB_PATH`)
+	, paths     :: ![FilePath] //* additional paths to search for modules
+	}
+
+derive gConstructFromYAML CompilerSettings
 
 runCompiler :: !FilePath !*World -> (!MaybeError String [Diagnostic], !*World)
 runCompiler fp world
-	//# (mbConfig, world) = readFile "Eastwood.yml" world
+	# (mbConfig, world) = readFile PROJECT_FILENAME world
 	// Check if we could parse the yml file
-	//| isError mbConfig = (Error o toString $ fromError mbConfig, world)
-	//# config = fromOk config
+	| isError mbConfig =
+		( Error (concat4 "Cannot get project settings from " PROJECT_FILENAME ": " (toString $ fromError mbConfig))
+		, world
+		)
+	# config = fromOk mbConfig
 	// Parse the YAML, ignore warnings
-	//# mbYML = loadYAML coreSchema config
-	//| isError mbYAML = (Error o toString $ fromError mbYAML, world)
-	# searchPaths = []//fromOk mbYML
-	# (mbOutput, world) = callCocl fp searchPaths world
+	# mbYML = loadYAML coreSchema config
+	| isError mbYML =
+		(Error $ concat4 "Invalid format of project file " PROJECT_FILENAME ": " (toString $ fromError mbYML), world)
+	# config = fst $ fromOk mbYML
+	# (mbOutput, world) = callCocl fp config world
+	| isError mbOutput = (liftError mbOutput, world)
 	# (retCode, output) = fromOk mbOutput
 	# diagnostics = diagnosticsFor (takeFileName fp) output
 	// If the return code is not 0, either problems have been detected in the file or the file could not be processed.
@@ -43,14 +55,17 @@ runCompiler fp world
 	| retCode <> 0 && isEmpty diagnostics = (Error output, world)
 	= (Ok diagnostics , world)
 
-callCocl :: !FilePath ![FilePath] !*World -> (!MaybeError String (Int, String), !*World)
-callCocl fp searchPaths world
+callCocl :: !FilePath !CompilerSettings !*World -> (!MaybeError String (Int, String), !*World)
+callCocl fp {compiler, paths, libraries} world
 	// Get CLEAN_HOME
 	# (mbCleanHome, world) = getEnvironmentVariable CLEAN_HOME_ENV_VAR world
 	| isNone mbCleanHome = (Error (concat3 "Could not get " CLEAN_HOME_ENV_VAR " environment variable"), world)
 	# cleanHome = fromJust mbCleanHome
-	# coclPath = cleanHome +++ COCL_RELATIVE_PATH
-	# searchPaths = concatPaths [takeDirectory fp: searchPaths]
+	# (curDir, world) = getCurrentDirectory world
+	| isError curDir = (Error $ snd $ fromError curDir, world)
+	# curDir = fromOk curDir
+	# coclPath = cleanHome </> EXE_PATH </> compiler
+	# searchPaths = concatPaths [takeDirectory fp: (libPathFor cleanHome <$> libraries) ++ paths]
 	# (mbHandle, world) = runProcessIO coclPath ["-P", searchPaths, dropExtension $ takeFileName fp] ?None world
 	| isError mbHandle = (Error o snd $ fromError mbHandle, world)
 	# (handle, io) = fromOk mbHandle
@@ -64,6 +79,9 @@ callCocl fp searchPaths world
 where
 	concatPaths :: ![FilePath] -> String
 	concatPaths paths = join ":" paths
+
+	libPathFor :: !FilePath !FilePath -> FilePath
+	libPathFor cleanHome lib = cleanHome </> LIBS_PATH </> lib
 
 :: DiagnosticSource | Compiler
 
