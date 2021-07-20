@@ -2,12 +2,14 @@ module languageServerTests
 
 import StdEnv
 import Data.Func, Data.Error
-import Text
+import Text, Text.GenPrint
 import System.Directory
 import System.FilePath
 import System._Unsafe
 from System.Process import :: ProcessIO {..}
-import Gast => qualified <.>
+from Gast import
+	:: Property, :: Testoption (Bent), =.=, generic genShow, as, name, :: PrintOption (OutputTestEvents),
+	instance Testable Property
 import Gast.CommandLine
 import Common
 
