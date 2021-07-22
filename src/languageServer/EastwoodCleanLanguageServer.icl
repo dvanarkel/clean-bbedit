@@ -74,11 +74,9 @@ onNotification {NotificationMessage| method, params} st world =
 				= ([!errorLogMessage "Missing argument for 'textDocument/didSave'."] , st, world)
 			# (diag, world) = diagnosticsFor (deserialize $ fromJust params) world
 			= case diag of
-				?None =
-					([!], st, world)
-				?Just ('Data.Error'.Ok diag) =
+				'Data.Error'.Ok diag =
 					([!notificationMessage "textDocument/publishDiagnostics" (?Just diag)], st, world)
-				?Just ('Data.Error'.Error err) =
+				'Data.Error'.Error err =
 					([!errorLogMessage err], st, world)
 		_
 			= ([!errorLogMessage $ concat3 "Unknown notification '" method "'."], st, world)
@@ -92,11 +90,10 @@ where
 
 diagnosticsFor ::
 	!DidSaveTextDocumentParams !*World
-	-> (!?(MaybeError String 'LSP.PublishDiagnosticsParams'.PublishDiagnosticsParams), !*World)
+	-> (!(MaybeError String 'LSP.PublishDiagnosticsParams'.PublishDiagnosticsParams), !*World)
 diagnosticsFor params world
 	# (diagnostics, world) = runCompiler params.textDocument.TextDocumentIdentifier.uri.uriPath world
-	= (?Just
-		case diagnostics of
+	= ( case diagnostics of
 			'Data.Error'.Ok diagnostics =
 				'Data.Error'.Ok { 'LSP.PublishDiagnosticsParams'.uri = params.textDocument.TextDocumentIdentifier.uri
 				, 'LSP.PublishDiagnosticsParams'.diagnostics = Map lspDiagnosticFor diagnostics
