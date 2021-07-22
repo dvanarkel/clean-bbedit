@@ -55,22 +55,29 @@ runCompiler fp world
 	| retCode <> 0 && isEmpty diagnostics = (Error output, world)
 	= (Ok diagnostics , world)
 
+/**
+ * Executes the cocl on the given files and results in the resulting output.
+ * @param The file cocl has to be called on
+ * @param The settings for the compiler, contains mostly the search path
+ * @result Either an error or cocl's output
+ */
 callCocl :: !FilePath !CompilerSettings !*World -> (!MaybeError String (Int, String), !*World)
 callCocl fp {compiler, paths, libraries} world
 	// Get CLEAN_HOME
 	# (mbCleanHome, world) = getEnvironmentVariable CLEAN_HOME_ENV_VAR world
 	| isNone mbCleanHome = (Error (concat3 "Could not get " CLEAN_HOME_ENV_VAR " environment variable"), world)
 	# cleanHome = fromJust mbCleanHome
-	# (curDir, world) = getCurrentDirectory world
-	| isError curDir = (Error $ snd $ fromError curDir, world)
-	# curDir = fromOk curDir
+	// Find the compiler executable
 	# coclPath = cleanHome </> EXE_PATH </> compiler
+	// Get the searchpaths from the CompilerSettings
 	# searchPaths = concatPaths [takeDirectory fp: (libPathFor cleanHome <$> libraries) ++ paths]
+	// Call cocl
 	# (mbHandle, world) = runProcessIO coclPath ["-P", searchPaths, dropExtension $ takeFileName fp] ?None world
 	| isError mbHandle = (Error o snd $ fromError mbHandle, world)
 	# (handle, io) = fromOk mbHandle
 	# (retCode, world) = waitForProcess handle world
 	| isError retCode = (Error o snd $ fromError retCode, world)
+	// Read cocl's output and return code.
 	# (mbOutput, world) = readPipeBlocking io.stdErr world
 	| isError mbOutput = (Error o snd $ fromError mbOutput, world)
 	# (mbOsError, world) = closeProcessIO io world
