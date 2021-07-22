@@ -72,7 +72,7 @@ callCocl fp {compiler, paths, libraries} world
 	// Get the searchpaths from the CompilerSettings
 	# searchPaths = concatPaths [takeDirectory fp: (libPathFor cleanHome <$> libraries) ++ paths]
 	// Call cocl
-	# (mbHandle, world) = runProcessIO coclPath ["-P", searchPaths, dropExtension $ takeFileName fp] ?None world
+	# (mbHandle, world) = runProcessIO coclPath ["-c", "-P", searchPaths, dropExtension $ takeFileName fp] ?None world
 	| isError mbHandle = (Error o snd $ fromError mbHandle, world)
 	# (handle, io) = fromOk mbHandle
 	# (retCode, world) = waitForProcess handle world
