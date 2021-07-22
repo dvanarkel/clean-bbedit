@@ -18,7 +18,8 @@ import Eastwood.Range
 CLEAN_HOME_ENV_VAR :== "CLEAN_HOME"
 EXE_PATH :== "lib/exe"
 LIBS_PATH :== "lib"
-WARNING :== "warning"
+WARNING_LOWER :== "warning"
+WARNING_UPPER :== "Warning"
 PROJECT_FILENAME :== "Eastwood.yml"
 
 //* This represents the compiler settings which are provided by the project file.
@@ -133,7 +134,19 @@ diagnosticFor lineNr line =
 	{ range =
 		// Line number of the Clean compiler are 1-based, but we need 0-based line numbers.
 		{start = {line = lineNr - 1, character = 0}, end = {line = lineNr, character = 0}}
-	, severity = if (indexOf WARNING line == -1) 'Eastwood.Diagnostic'.Error 'Eastwood.Diagnostic'.Warning
+	, severity =
+			// we have to check whether 'warning'/'Warning' occurs before the first '[',
+			// as it could also occur in identifiers
+			let bracketOpenIdx  = indexOf "[" line in
+			let warningIdxLower = indexOf WARNING_LOWER line in
+			let warningIdxUpper = indexOf WARNING_UPPER line in
+			if
+				(		(warningIdxLower <> -1 && warningIdxLower < bracketOpenIdx)
+					||
+						(warningIdxUpper <> -1 && warningIdxUpper < bracketOpenIdx)
+				)
+				'Eastwood.Diagnostic'.Warning
+				'Eastwood.Diagnostic'.Error
 	, dCode    = 0
 	, source   = Compiler
 	, message  = line
