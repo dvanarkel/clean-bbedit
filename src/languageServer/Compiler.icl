@@ -92,24 +92,32 @@ where
 
 :: DiagnosticSource | Compiler
 
+/**
+ * diagnosticsFor fileName output = diagnostics:
+ *     `diagnostics` are the diagnostics in the compiler output `output` for `fileName`.
+ */
 diagnosticsFor :: !String !String -> [Diagnostic]
 diagnosticsFor fileName output = diagnosticsForAccum 0 ?None []
 where
+	// accumulates diagnostics, we go through the string using `idx` to avoid constructing intermediate strings
+	// the previously found starting index and line number is provided,
+	// as a diagnostic is added when the start index of the next message is found
 	diagnosticsForAccum :: !Int !(?(Int, Int)) ![Diagnostic] -> [Diagnostic]
 	diagnosticsForAccum idx previousStart acc
-		| locationBlockIdx == -1 = acc`
+		| locationBlockIdx == -1 = acc` // no next message found
 		| otherwise = diagnosticsForAccum (inc locationBlockIdx) (?Just (lineNr, newlineBeforeLocBlock + 1)) acc`
 	where
 		acc` = case previousStart of
-			?Just (lineNr, startIdx) = [diagnosticFor lineNr $ output % (startIdx, previousStartIdx): acc]
-			?None                    = acc
+			?Just (lineNr, previousStartIdx) = [diagnosticFor lineNr $ output % (previousStartIdx, startIdx): acc]
+			?None                            = acc
 
 		lineNr                = toInt (output % (lineNrStartIdx, lastDigitAfter lineNrStartIdx))
 		lineNrStartIdx        = locationBlockIdx + size locationBlockStart
 		newlineBeforeLocBlock = indexOfNewlineBefore locationBlockIdx
-		previousStartIdx      = if (locationBlockIdx == -1) (size output - 1) (newlineBeforeLocBlock - 1)
+		// start index of the current message or end of string if no next message is present
+		startIdx              = if (locationBlockIdx == -1) (size output - 1) (newlineBeforeLocBlock - 1)
+		// start of block "[fileName, lineNumber..."
 		locationBlockIdx      = indexOfAfter idx locationBlockStart output
-		locationBlockStart    = concat3 "[" fileName ","
 
 		indexOfNewlineBefore :: !Int -> Int
 		indexOfNewlineBefore -1  = -1
@@ -117,6 +125,8 @@ where
 
 		lastDigitAfter :: !Int -> Int
 		lastDigitAfter idx = if (isDigit output.[idx]) (lastDigitAfter $ inc idx) (idx - 1)
+
+	locationBlockStart    = concat3 "[" fileName ","
 
 diagnosticFor :: !Int !String -> Diagnostic
 diagnosticFor lineNr line =
