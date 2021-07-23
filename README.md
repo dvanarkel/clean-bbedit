@@ -32,20 +32,19 @@ your vimrc:
 ```lua
 lua << EOF
   local lspconfig = require'lspconfig'
+  local util = require'lspconfig/util'
   local configs = require'lspconfig/configs'
   if not lspconfig.eastwood then
     configs.eastwood = {
       default_config = {
         cmd = {'eastwood-cls'};
         filetypes = {'clean'};
-        root_dir = function(fname)
-          return lspconfig.util.find_git_ancestor(fname) or vim.loop.os_homedir()
-        end;
+        root_dir = util.root_pattern 'Eastwood.yml',
         settings = {};
       };
     }
   end
-  lspconfig.example_lsp.setup{}
+  lspconfig.eastwood.setup{}
 EOF
 ```
 
