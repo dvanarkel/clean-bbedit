@@ -19,13 +19,27 @@ Start world = exposeProperties [OutputTestEvents] [Bent] properties world
 properties :: [Property]
 properties =:
 	[ initializesCorrectly as "language server initializes correctly"
-	, didSaveNotificationCorrectlyHandledFor "ok" "[]" as
+	, didSaveNotificationCorrectlyHandledFor "ok" [!("ok.icl", "[]")] as
 		"language server handles didSave notification correctly for program without issues"
 	, didSaveNotificationCorrectlyHandledFor
 		"errors"
-		"[{\"range\":{\"start\":{\"line\":11,\"character\":0},\"end\":{\"line\":12,\"character\":0}},\"severity\":1,\"message\":\"Type error [errors.icl,12,f]: near Unit : cannot unify demanded type with offered type:\\n Int\\n ()\\n\",\"tags\":[],\"relatedInformation\":[]},{\"range\":{\"start\":{\"line\":7,\"character\":0},\"end\":{\"line\":8,\"character\":0}},\"severity\":1,\"message\":\"Type error [errors.icl,8,Start]: near Unit : cannot unify demanded type with offered type:\\n Int\\n ()\",\"tags\":[],\"relatedInformation\":[]},{\"range\":{\"start\":{\"line\":7,\"character\":0},\"end\":{\"line\":8,\"character\":0}},\"severity\":2,\"message\":\"Parse warning [errors.icl,8;11]: ! ignored\",\"tags\":[],\"relatedInformation\":[]}]"
+		[!	( "errors.icl"
+			, "[{\"range\":{\"start\":{\"line\":19,\"character\":0},\"end\":{\"line\":20,\"character\":0}},\"severity\":1,\"message\":\"Type error [errors.icl,20,h]: near list constructor : cannot unify demanded type with offered type:\\n Int\\n [[Int]]\\n\",\"tags\":[],\"relatedInformation\":[]},{\"range\":{\"start\":{\"line\":16,\"character\":0},\"end\":{\"line\":17,\"character\":0}},\"severity\":1,\"message\":\"Type error [errors.icl,17,g]: near list constructor : cannot unify demanded type with offered type:\\n Int\\n [Int]\",\"tags\":[],\"relatedInformation\":[]},{\"range\":{\"start\":{\"line\":11,\"character\":0},\"end\":{\"line\":12,\"character\":0}},\"severity\":1,\"message\":\"Type error [errors.icl,12,f]: near Unit : cannot unify demanded type with offered type:\\n Int\\n ()\",\"tags\":[],\"relatedInformation\":[]},{\"range\":{\"start\":{\"line\":7,\"character\":0},\"end\":{\"line\":8,\"character\":0}},\"severity\":1,\"message\":\"Type error [errors.icl,8,Start]: near Unit : cannot unify demanded type with offered type:\\n Int\\n ()\",\"tags\":[],\"relatedInformation\":[]},{\"range\":{\"start\":{\"line\":7,\"character\":0},\"end\":{\"line\":8,\"character\":0}},\"severity\":2,\"message\":\"Parse warning [errors.icl,8;11]: ! ignored\",\"tags\":[],\"relatedInformation\":[]}]"
+			)
+		]
 		as
-			"language server handles didSave notification correctly for program without various issues"
+			"language server handles didSave notification correctly for program with various issues"
+	, didSaveNotificationCorrectlyHandledFor
+		"errorsInImportedDcl"
+		[!	( "DclErrors.dcl"
+			, "[{\"range\":{\"start\":{\"line\":2,\"character\":0},\"end\":{\"line\":3,\"character\":0}},\"severity\":1,\"message\":\"Error [DclErrors.dcl,3]: Unknown.dcl could not be imported\\n\",\"tags\":[],\"relatedInformation\":[]}]"
+			)
+		,	( "errorsInImportedDcl.icl"
+			, "[]"
+			)
+		]
+		as
+			"language server handles didSave notification correctly for program importing a module with issues in the DCL"
 	, incorrectNotificationsResultsInErrorLog as "language server responds to unknown method with logMessage"
 	]
 
@@ -40,13 +54,13 @@ where
 	# world = shutdownLanguageServer handle world
 	= (message =.= generateMessage expectedInitializeResponseBody, world)
 
-didSaveNotificationCorrectlyHandledFor :: !String !String -> Property
+didSaveNotificationCorrectlyHandledFor :: !String ![!(FilePath, String)] -> Property
 didSaveNotificationCorrectlyHandledFor moduleName expectedDiags = accUnsafe didSaveNotificationCorrectlyHandled`
 where
 	didSaveNotificationCorrectlyHandled` :: !*World -> (Property, *World)
 	didSaveNotificationCorrectlyHandled` world
 	# (Ok curDir, world) = getCurrentDirectory world
-	# testModulePath = testModulePathFor curDir "ok"
+	# testModulePath = testModulePathFor curDir (moduleName <.> "icl")
 	# ((handle, io), world) = startLanguageServer world
 	# world = writeMessage (generateMessage initializeRequestBody) io.stdIn world
 	# (_, world) = readMessage io.stdOut world
@@ -54,10 +68,16 @@ where
 	# world = writeMessage (generateMessage $ didSaveNotificationBodyFor testModulePath) io.stdIn world
 	# (message, world) = readMessage io.stdOut world
 	# world = shutdownLanguageServer handle world
-	= (message =.= generateMessage (expectedDidSaveNotificationResponseBodyFor testModulePath expectedDiags), world)
+	# expectedMessages =
+		concat
+			[ generateMessage $
+				expectedDidSaveNotificationResponseBodyFor (testModulePathFor curDir expectedDiagFile) expectedDiags
+			\\ (expectedDiagFile, expectedDiags) <|- expectedDiags
+			]
+	= (message =.= expectedMessages, world)
 
 	testModulePathFor :: !FilePath !FilePath -> FilePath
-	testModulePathFor dir name = dir </> "testPrograms" </> moduleName <.> "icl"
+	testModulePathFor dir moduleFile = dir </> "testPrograms" </> moduleFile
 
 incorrectNotificationsResultsInErrorLog :: Property
 incorrectNotificationsResultsInErrorLog = accUnsafe incorrectNotificationsResultsInErrorLog`

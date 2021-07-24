@@ -6,6 +6,8 @@ import Data.Maybe
 import Data.Func
 import Data.Functor
 import Data.List
+import qualified Data.Map
+from Data.Map import :: Map
 import Text
 import Text.YAML
 import System.Environment, System.File, System.FilePath, System.Process, System.Directory
@@ -32,8 +34,8 @@ PROJECT_FILENAME :== "Eastwood.yml"
 
 derive gConstructFromYAML CompilerSettings
 
-runCompiler :: !FilePath !*World -> (!MaybeError String [Diagnostic], !*World)
-runCompiler fp world
+runCompiler :: !FilePath !*World -> (!MaybeError String (Map FilePath [!Diagnostic]), !*World)
+runCompiler moduleFile world
 	# (mbConfig, world) = readFile PROJECT_FILENAME world
 	// Check if we could parse the yml file
 	| isError mbConfig =
@@ -46,24 +48,24 @@ runCompiler fp world
 	| isError mbYML =
 		(Error $ concat4 "Invalid format of project file " PROJECT_FILENAME ": " (toString $ fromError mbYML), world)
 	# config = fst $ fromOk mbYML
-	# (mbOutput, world) = callCocl fp config world
+	# (mbOutput, world) = callCocl moduleFile config world
 	| isError mbOutput = (liftError mbOutput, world)
 	# (retCode, output) = fromOk mbOutput
-	# diagnostics = diagnosticsFor (takeFileName fp) output
+	# diagnostics = diagnosticsFor (takeFileName moduleFile) output
 	// If the return code is not 0, either problems have been detected in the file or the file could not be processed.
 	// In the later case (no diagnostics could be extracted from the output)
 	// we generate an error instead of diagnostics.
-	| retCode <> 0 && isEmpty diagnostics = (Error output, world)
+	| retCode <> 0 && 'Data.Map'.null diagnostics = (Error output, world)
 	= (Ok diagnostics , world)
 
 /**
- * Executes the cocl on the given files and results in the resulting output.
+ * Executes the cocl on the given files (which can be a ICL or DCL) and results in the resulting output.
  * @param The file cocl has to be called on
  * @param The settings for the compiler, contains mostly the search path
  * @result Either an error or cocl's output
  */
 callCocl :: !FilePath !CompilerSettings !*World -> (!MaybeError String (Int, String), !*World)
-callCocl fp {compiler, paths, libraries} world
+callCocl moduleFile {compiler, paths, libraries} world
 	// Get CLEAN_HOME
 	# (mbCleanHome, world) = getEnvironmentVariable CLEAN_HOME_ENV_VAR world
 	| isNone mbCleanHome = (Error (concat3 "Could not get " CLEAN_HOME_ENV_VAR " environment variable"), world)
@@ -71,9 +73,10 @@ callCocl fp {compiler, paths, libraries} world
 	// Find the compiler executable
 	# coclPath = cleanHome </> EXE_PATH </> compiler
 	// Get the searchpaths from the CompilerSettings
-	# searchPaths = concatPaths [takeDirectory fp: (libPathFor cleanHome <$> libraries) ++ paths]
+	# searchPaths = concatPaths [takeDirectory moduleFile: (libPathFor cleanHome <$> libraries) ++ paths]
 	// Call cocl
-	# (mbHandle, world) = runProcessIO coclPath ["-c", "-P", searchPaths, dropExtension $ takeFileName fp] ?None world
+	# (mbHandle, world) =
+		runProcessIO coclPath ["-c", "-P", searchPaths, dropExtension $ takeFileName moduleFile] ?None world
 	| isError mbHandle = (Error o snd $ fromError mbHandle, world)
 	# (handle, io) = fromOk mbHandle
 	# (retCode, world) = waitForProcess handle world
@@ -94,31 +97,42 @@ where
 :: DiagnosticSource | Compiler
 
 /**
- * diagnosticsFor fileName output = diagnostics:
- *     `diagnostics` are the diagnostics in the compiler output `output` for `fileName`.
+ * diagnosticsFor moduleFile output = diagnostics:
+ *     `diagnostics` are the diagnostics in the compiler output `output` for `moduleFile`.
  */
-diagnosticsFor :: !String !String -> [Diagnostic]
-diagnosticsFor fileName output = diagnosticsForAccum 0 ?None []
+diagnosticsFor :: !FilePath !String -> Map FilePath [!Diagnostic]
+diagnosticsFor moduleFile output =
+	// We always have to generate a result for `moduleFile`.
+	// If there are no diagnostics we have to report that to the client to clear possibly present diagnostics.
+	diagnosticsForAccum 0 ?None $ 'Data.Map'.singleton moduleFile [!]
 where
 	// accumulates diagnostics, we go through the string using `idx` to avoid constructing intermediate strings
-	// the previously found starting index and line number is provided,
+	// the previously found file (module.icl or module.dcl), starting index and line number is provided,
 	// as a diagnostic is added when the start index of the next message is found
-	diagnosticsForAccum :: !Int !(?(Int, Int)) ![Diagnostic] -> [Diagnostic]
+	diagnosticsForAccum :: !Int !(?(String, Int, Int)) !(Map FilePath [!Diagnostic]) -> Map FilePath [!Diagnostic]
 	diagnosticsForAccum idx previousStart acc
-		| locationBlockIdx == -1 = acc` // no next message found
-		| otherwise = diagnosticsForAccum (inc locationBlockIdx) (?Just (lineNr, newlineBeforeLocBlock + 1)) acc`
+		| locationBlockIdx == -1 =
+			acc` // no next message found
+		| otherwise =
+			diagnosticsForAccum
+				(startIdxOfNextMessageLine locationBlockIdx) (?Just (fileName, lineNr, newlineBeforeLocBlock + 1)) acc`
 	where
 		acc` = case previousStart of
-			?Just (lineNr, previousStartIdx) = [diagnosticFor lineNr $ output % (previousStartIdx, startIdx): acc]
-			?None                            = acc
+			?Just (fileName, lineNr, previousStartIdx) =
+				'Data.Map'.alter (?Just o maybe [!diag] (\acc -> [!diag: acc])) fileName acc
+			where
+				diag = diagnosticFor lineNr $ output % (previousStartIdx, startIdx)
+			?None =
+				acc
 
+		fileName              = output % (locationBlockIdx + 1, lineNrStartIdx - 2)
 		lineNr                = toInt (output % (lineNrStartIdx, lastDigitAfter lineNrStartIdx))
-		lineNrStartIdx        = locationBlockIdx + size locationBlockStart
+		lineNrStartIdx        = indexOfAfter locationBlockIdx "," output + 1
 		newlineBeforeLocBlock = indexOfNewlineBefore locationBlockIdx
 		// start index of the current message or end of string if no next message is present
 		startIdx              = if (locationBlockIdx == -1) (size output - 1) (newlineBeforeLocBlock - 1)
 		// start of block "[fileName, lineNumber..."
-		locationBlockIdx      = indexOfAfter idx locationBlockStart output
+		locationBlockIdx      = indexOfAfter idx "[" output
 
 		indexOfNewlineBefore :: !Int -> Int
 		indexOfNewlineBefore -1  = -1
@@ -127,7 +141,13 @@ where
 		lastDigitAfter :: !Int -> Int
 		lastDigitAfter idx = if (isDigit output.[idx]) (lastDigitAfter $ inc idx) (idx - 1)
 
-	locationBlockStart    = concat3 "[" fileName ","
+		// The index of the next start of the line containing a new message.
+		// All further lines of multi-line message are assumed to start with a ' '.
+		startIdxOfNextMessageLine :: !Int -> Int
+		startIdxOfNextMessageLine idx
+			| idx == size output - 1 = idx
+			| output.[idx] == '\n' && (idx + 1 == size output || output.[idx + 1] <> ' ') = idx + 1
+			| otherwise = startIdxOfNextMessageLine $ inc idx
 
 diagnosticFor :: !Int !String -> Diagnostic
 diagnosticFor lineNr line =

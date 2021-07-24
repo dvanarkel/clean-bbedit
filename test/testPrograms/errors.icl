@@ -11,3 +11,12 @@ Start = ()
 // type error
 f :: Int
 f = ()
+
+// type errors including "["
+// (important to test as the compiler uses "["/"]" in it's output around module name and line number
+g :: Int
+g = [1]
+
+h :: Int
+h = [[1]]
+
