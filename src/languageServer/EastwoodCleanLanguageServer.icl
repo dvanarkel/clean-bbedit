@@ -4,11 +4,14 @@ import StdEnv
 import StdOverloadedList
 
 from Data.Error import fromOk
+import qualified Data.Error
+import qualified Data.Map
 import Data.Func
 import Data.Maybe
 import Text
 import Text.GenJSON
 import Text.URI
+import System.FilePath
 
 from LSP.Diagnostic import qualified :: Diagnostic {..}, :: DiagnosticSeverity {..}
 from LSP.Position import qualified :: Position {..}
@@ -71,8 +74,12 @@ onNotification {NotificationMessage| method, params} st world =
 		"textDocument/didSave"
 			| isNothing params
 				= ([!errorLogMessage "Missing argument for 'textDocument/didSave'."] , st, world)
-			# (diag, world) = diagnosticsFor (deserialize $ fromJust params) world
-			= ([!notificationMessage "textDocument/publishDiagnostics" (?Just diag)], st, world)
+			# (diags, world) = diagnosticsFor (deserialize $ fromJust params) world
+			= case diags of
+				'Data.Error'.Ok diags =
+					([!notificationMessage "textDocument/publishDiagnostics" (?Just diag) \\ diag <|- diags], st, world)
+				'Data.Error'.Error err =
+					([!errorLogMessage err], st, world)
 		_
 			= ([!errorLogMessage $ concat3 "Unknown notification '" method "'."], st, world)
 where
@@ -83,14 +90,22 @@ where
 		, message = message
 		}
 
-diagnosticsFor :: !DidSaveTextDocumentParams !*World -> (!?'LSP.PublishDiagnosticsParams'.PublishDiagnosticsParams, !*World)
-diagnosticsFor params world
-	# (diagnostics, world) = runCompiler params.textDocument.TextDocumentIdentifier.uri.uriPath world
-	// TODO: error handling for `diagnostics`
-	= (?Just
-		{ 'LSP.PublishDiagnosticsParams'.uri = params.textDocument.TextDocumentIdentifier.uri
-		, 'LSP.PublishDiagnosticsParams'.diagnostics = Map lspDiagnosticFor $ fromOk diagnostics
-		}
+diagnosticsFor ::
+	!DidSaveTextDocumentParams !*World
+	-> (!(MaybeError String [!'LSP.PublishDiagnosticsParams'.PublishDiagnosticsParams]), !*World)
+diagnosticsFor params=:{textDocument = {uri = uri=:{uriPath}}} world
+	# (diagnostics, world) = runCompiler uriPath world
+	= ( case diagnostics of
+			'Data.Error'.Ok diagnostics =
+				'Data.Error'.Ok
+					[!	let uriForFile = takeDirectory uriPath </> fileName in
+						{ 'LSP.PublishDiagnosticsParams'.uri         = {uri & uriPath = uriForFile}
+						, 'LSP.PublishDiagnosticsParams'.diagnostics = Map lspDiagnosticFor diagnosticsForFile
+						}
+						\\ (fileName, diagnosticsForFile) <- 'Data.Map'.toList diagnostics
+					]
+			error =
+				'Data.Error'.liftError error
 		, world)
 where
 	lspDiagnosticFor :: !'Eastwood.Diagnostic'.Diagnostic -> 'LSP.Diagnostic'.Diagnostic

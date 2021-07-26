@@ -4,6 +4,26 @@ Eastwood is a linter and language server for the functional programming language
 
 Neovim and VS Code are the currently supported IDEs. Other IDEs will need to be configured manually.
 
+## General Usage
+
+Eastwood requires a project configuration file `Eastwood.yml` in the current working directory.
+This is a YAML file with the following fields:
+
+- `compiler`: compiler executable (usually `cocl` or `cocl-itasks`)
+- `libraries`: libraries to include, located in the Clean distribution's library directory
+- `paths`: additional relative or absolute paths in which included modules are located
+
+An example file:
+
+```
+compiler: cocl-itasks
+libraries:
+  - StdEnv
+  - Platform
+paths:
+  - someLib
+```
+
 ## Usage in Neovim
 
 The configuration below assumes you have neovim 0.5 or greater with lsp-config installed. Simply add the following to
@@ -12,20 +32,19 @@ your vimrc:
 ```lua
 lua << EOF
   local lspconfig = require'lspconfig'
+  local util = require'lspconfig/util'
   local configs = require'lspconfig/configs'
   if not lspconfig.eastwood then
     configs.eastwood = {
       default_config = {
         cmd = {'eastwood-cls'};
         filetypes = {'clean'};
-        root_dir = function(fname)
-          return lspconfig.util.find_git_ancestor(fname) or vim.loop.os_homedir()
-        end;
+        root_dir = util.root_pattern 'Eastwood.yml',
         settings = {};
       };
     }
   end
-  lspconfig.example_lsp.setup{}
+  lspconfig.eastwood.setup{}
 EOF
 ```
 
