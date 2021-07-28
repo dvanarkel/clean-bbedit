@@ -21,7 +21,8 @@ import LSP
 import LSP.BasicTypes
 import LSP.DidSaveTextDocumentParams
 import LSP.Internal.Serialize
-import LSP.LogMessageParams
+import LSP.MessageParams
+import LSP.ShowMessageParams
 import LSP.NotificationMessage
 import LSP.RequestMessage
 import LSP.ResponseMessage
@@ -84,11 +85,7 @@ onNotification {NotificationMessage| method, params} st world =
 			= ([!errorLogMessage $ concat3 "Unknown notification '" method "'."], st, world)
 where
 	errorLogMessage :: !String -> NotificationMessage
-	errorLogMessage message = logMessage
-		{ LogMessageParams
-		| type = Error
-		, message = message
-		}
+	errorLogMessage message = showMessage {MessageParams| type = Error, message = message}
 
 diagnosticsFor ::
 	!DidSaveTextDocumentParams !*World

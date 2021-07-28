@@ -2,6 +2,7 @@
 	path = src/lib/compiler
 	url = https://gitlab.science.ru.nl/clean-compiler-and-rts/compiler.git
 	ignore = untracked
+	branch=itask
 [submodule "src/lib/clean-lsp"]
 	path = src/lib/clean-lsp
 	url = https://gitlab.com/top-software/clean-lsp.git
