@@ -40,7 +40,7 @@ properties =:
 		]
 		as
 			"language server handles didSave notification correctly for program importing a module with issues in the DCL"
-	, incorrectNotificationsResultsInErrorLog as "language server responds to unknown method with logMessage"
+	, incorrectNotificationsResultsInErrorLog as "language server responds to unknown method with showMessage"
 	]
 
 initializesCorrectly :: Property
@@ -113,4 +113,4 @@ expectedDidSaveNotificationResponseBodyFor file expectedDiagnostics =
 		expectedDiagnostics
 		"}}"
 incorrectNotificationBody = "{\"method\":\"unknown/method\",\"jsonrpc\":\"2.0\",\"params\":{}}"
-expectedErrorLogMessage = "{\"jsonrpc\":2.0,\"method\":\"window/logMessage\",\"params\":{\"type\":1,\"message\":\"Unknown notification \'unknown/method\'.\"}}"
+expectedErrorLogMessage = "{\"jsonrpc\":2.0,\"method\":\"window/showMessage\",\"params\":{\"type\":1,\"message\":\"Unknown notification \'unknown/method\'.\"}}"
