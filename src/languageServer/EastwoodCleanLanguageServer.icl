@@ -19,7 +19,8 @@ from LSP.PublishDiagnosticsParams import qualified :: PublishDiagnosticsParams {
 from LSP.Range import qualified :: Range {..}
 import LSP
 import LSP.BasicTypes
-import LSP.DidSaveTextDocumentParams
+from LSP.DidOpenTextDocumentParams import qualified :: DidOpenTextDocumentParams {..}
+from LSP.DidSaveTextDocumentParams import qualified :: DidSaveTextDocumentParams {..}
 import LSP.InitializeParams
 import LSP.Internal.Serialize
 import LSP.MessageParams
@@ -48,7 +49,7 @@ Start w = serve capabilities cleanLanguageServer w
 capabilities :: ServerCapabilities
 capabilities =
 	{ ServerCapabilities
-	| textDocumentSync = {openClose = False, save = True}
+	| textDocumentSync = {openClose = True, save = True}
 	}
 
 :: EastwoodState =
@@ -92,27 +93,30 @@ where
 		}
 
 onNotification :: !NotificationMessage !EastwoodState !*World -> (![!NotificationMessage], !EastwoodState, !*World)
-onNotification {NotificationMessage| method, params} st world =
-	case method of
-		"textDocument/didSave"
-			| isNothing params
-				= ([!errorLogMessage "Missing argument for 'textDocument/didSave'."] , st, world)
-			# (diags, world) = diagnosticsFor (deserialize $ fromJust params) st world
-			= case diags of
-				'Data.Error'.Ok diags =
-					([!notificationMessage "textDocument/publishDiagnostics" (?Just diag) \\ diag <|- diags], st, world)
-				'Data.Error'.Error err =
-					([!errorLogMessage err], st, world)
-		_
-			= ([!errorLogMessage $ concat3 "Unknown notification '" method "'."], st, world)
+onNotification {NotificationMessage| method, params} st world
+	| method == "textDocument/didSave" || method == "textDocument/didOpen"
+		| isNone params
+			= ([!errorLogMessage (concat3 "Missing argument for '" method "'.")], st, world)
+		# (diags, world) = diagnosticsFor (textDocument (fromJust params)) st world
+		= case diags of
+			'Data.Error'.Ok diags =
+				([!notificationMessage "textDocument/publishDiagnostics" (?Just diag) \\ diag <|- diags], st, world)
+			'Data.Error'.Error err =
+				([!errorLogMessage err], st, world)
+		with
+			textDocument params = case method of
+				"textDocument/didSave" -> (deserialize params).'LSP.DidSaveTextDocumentParams'.textDocument
+				"textDocument/didOpen" -> (deserialize params).'LSP.DidOpenTextDocumentParams'.textDocument
+	| otherwise
+		= ([!errorLogMessage $ concat3 "Unknown notification '" method "'."], st, world)
 where
 	errorLogMessage :: !String -> NotificationMessage
 	errorLogMessage message = showMessage {MessageParams| type = Error, message = message}
 
 diagnosticsFor ::
-	!DidSaveTextDocumentParams !EastwoodState !*World
+	!TextDocumentIdentifier !EastwoodState !*World
 	-> (!(MaybeError String [!'LSP.PublishDiagnosticsParams'.PublishDiagnosticsParams]), !*World)
-diagnosticsFor params=:{textDocument = {TextDocumentIdentifier | uri = uri=:{uriPath}}} eastwoodState world
+diagnosticsFor {TextDocumentIdentifier| uri = uri=:{uriPath}} eastwoodState world
 	# (diagnostics, world) = runCompiler uriPath eastwoodState.EastwoodState.workspaceFolders world
 	= ( case diagnostics of
 			'Data.Error'.Ok diagnostics =
