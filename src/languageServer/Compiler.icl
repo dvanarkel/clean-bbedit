@@ -34,20 +34,25 @@ PROJECT_FILENAME :== "Eastwood.yml"
 
 derive gConstructFromYAML CompilerSettings
 
-runCompiler :: !FilePath !*World -> (!MaybeError String (Map FilePath [!Diagnostic]), !*World)
-runCompiler moduleFile world
-	# (mbConfig, world) = readFile PROJECT_FILENAME world
+runCompiler :: !FilePath ![!FilePath] !*World -> (!MaybeError String (Map FilePath [!Diagnostic]), !*World)
+runCompiler moduleFile workspaceFolders world
+	# (mbConfigPath, world) = findFile PROJECT_FILENAME workspaceFolders world
+	| isNone mbConfigPath = (Error ("Could not find " +++ PROJECT_FILENAME), world)
+	# configPath = fromJust mbConfigPath
+	# (mbConfig, world) = readFile configPath world
 	// Check if we could parse the yml file
 	| isError mbConfig =
-		( Error (concat4 "Cannot get project settings from " PROJECT_FILENAME ": " (toString $ fromError mbConfig))
+		( Error (concat4 "Cannot get project settings from " configPath ": " (toString $ fromError mbConfig))
 		, world
 		)
 	# config = fromOk mbConfig
 	// Parse the YAML, ignore warnings
 	# mbYML = loadYAML coreSchema config
 	| isError mbYML =
-		(Error $ concat4 "Invalid format of project file " PROJECT_FILENAME ": " (toString $ fromError mbYML), world)
+		(Error $ concat4 "Invalid format of project file " configPath ": " (toString $ fromError mbYML), world)
 	# config = fst $ fromOk mbYML
+	  // Interpret the paths relative to the path of the configuration file
+	  config & paths = [takeDirectory configPath </> p \\ p <- config.paths]
 	# (mbOutput, world) = callCocl moduleFile config world
 	| isError mbOutput = (liftError mbOutput, world)
 	# (retCode, output) = fromOk mbOutput
@@ -57,6 +62,14 @@ runCompiler moduleFile world
 	// we generate an error instead of diagnostics.
 	| retCode <> 0 && 'Data.Map'.null diagnostics = (Error output, world)
 	= (Ok diagnostics , world)
+where
+	findFile :: !FilePath ![!FilePath] !*World -> (!?FilePath, !*World)
+	findFile file [|] w = (?None, w)
+	findFile file [|dir:dirs] w
+		# (exi, w) = fileExists path w
+		= if exi (?Just path, w) (findFile file dirs w)
+	where
+		path = dir </> file
 
 /**
  * Executes the cocl on the given files (which can be a ICL or DCL) and results in the resulting output.

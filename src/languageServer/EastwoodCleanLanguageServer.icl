@@ -20,6 +20,7 @@ from LSP.Range import qualified :: Range {..}
 import LSP
 import LSP.BasicTypes
 import LSP.DidSaveTextDocumentParams
+import LSP.InitializeParams
 import LSP.Internal.Serialize
 import LSP.MessageParams
 import LSP.ShowMessageParams
@@ -47,13 +48,34 @@ Start w = serve capabilities cleanLanguageServer w
 capabilities :: ServerCapabilities
 capabilities =
 	{ ServerCapabilities
-	| textDocumentSync = {save = True}
+	| textDocumentSync = {openClose = False, save = True}
 	}
 
-cleanLanguageServer :: LanguageServer ()
-cleanLanguageServer = {initialState = (), onRequest = onRequest, onNotification = onNotification}
+:: EastwoodState =
+	{ workspaceFolders :: ![!FilePath]
+	}
 
-onRequest :: !RequestMessage !() !*World -> (!ResponseMessage, !(), !*World)
+cleanLanguageServer :: LanguageServer EastwoodState
+cleanLanguageServer = {onInitialize = onInitialize, onRequest = onRequest, onNotification = onNotification}
+
+onInitialize :: !InitializeParams -> EastwoodState
+onInitialize {rootPath, rootUri, workspaceFolders} =
+	{ EastwoodState
+	| workspaceFolders = workspace
+	}
+where
+	workspace = case workspaceFolders of
+		?Just folders -> [|uriToString uri \\ {WorkspaceFolder | uri} <|- folders]
+		?None -> case rootUri of
+			?Just uri -> [|uriToString uri]
+			?None -> case rootPath of
+				?Just path -> [|path]
+				?None -> [|]
+	where
+		// Strip the file:// prefix; this is needed for `readFile` etc. to work
+		uriToString uri = toString {uri & uriScheme = ?None}
+
+onRequest :: !RequestMessage !EastwoodState !*World -> (!ResponseMessage, !EastwoodState, !*World)
 onRequest {RequestMessage | id} st world = (errorResponse id, st, world)
 where
 	errorResponse :: !RequestId -> ResponseMessage
@@ -69,13 +91,13 @@ where
 			}
 		}
 
-onNotification :: !NotificationMessage !() !*World -> (![!NotificationMessage], !(), !*World)
+onNotification :: !NotificationMessage !EastwoodState !*World -> (![!NotificationMessage], !EastwoodState, !*World)
 onNotification {NotificationMessage| method, params} st world =
 	case method of
 		"textDocument/didSave"
 			| isNothing params
 				= ([!errorLogMessage "Missing argument for 'textDocument/didSave'."] , st, world)
-			# (diags, world) = diagnosticsFor (deserialize $ fromJust params) world
+			# (diags, world) = diagnosticsFor (deserialize $ fromJust params) st world
 			= case diags of
 				'Data.Error'.Ok diags =
 					([!notificationMessage "textDocument/publishDiagnostics" (?Just diag) \\ diag <|- diags], st, world)
@@ -88,10 +110,10 @@ where
 	errorLogMessage message = showMessage {MessageParams| type = Error, message = message}
 
 diagnosticsFor ::
-	!DidSaveTextDocumentParams !*World
+	!DidSaveTextDocumentParams !EastwoodState !*World
 	-> (!(MaybeError String [!'LSP.PublishDiagnosticsParams'.PublishDiagnosticsParams]), !*World)
-diagnosticsFor params=:{textDocument = {uri = uri=:{uriPath}}} world
-	# (diagnostics, world) = runCompiler uriPath world
+diagnosticsFor params=:{textDocument = {TextDocumentIdentifier | uri = uri=:{uriPath}}} eastwoodState world
+	# (diagnostics, world) = runCompiler uriPath eastwoodState.EastwoodState.workspaceFolders world
 	= ( case diagnostics of
 			'Data.Error'.Ok diagnostics =
 				'Data.Error'.Ok
