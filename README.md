@@ -64,7 +64,6 @@ Nightly builds are available here:
 - [Windows, x86](https://ftp.cs.ru.nl/Clean/builds/windows-x86/clean-eastwood-windows-x86-latest.tgz)
 
 ## Building
-
 The sources can be compiled as follows:
 
 ```bash
@@ -72,6 +71,11 @@ make -C src/linter eastwood-lint
 make -C src/languageServer eastwood-cls
 ```
 
+Remember to initialize the git submodules located within the project before compilation through: 
+```bash 
+git submodule init 
+git submodule update
+```
 ## Running tests
 
 The tests can be run as follows:
