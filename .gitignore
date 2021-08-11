@@ -1,7 +1,9 @@
 Clean System Files/
 *.prj
 
+src/languageServer/eastwood-cls
 src/linter/eastwood-lint
 
 test/eastwoodTests
-test/junit.xml
+test/languageServerTests
+test/junit_*.xml
