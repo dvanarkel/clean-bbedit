@@ -29,8 +29,13 @@ runCompiler moduleFile moduleName config world
 	// If the return code is not 0, either problems have been detected in the file or the file could not be processed.
 	// In the later case (no diagnostics could be extracted from the output)
 	// we generate an error instead of diagnostics.
-	| retCode <> 0 && 'Data.Map'.null diagnostics = (Error output, world)
+	| retCode <> 0 && noDiagnostics diagnostics = (Error ("The compiler crashed with the output:\n" +++ output), world)
 	= (Ok diagnostics , world)
+where
+	// Because diagnosticsFor will always return an entry for the requested
+	// module, we cannot use `'Data.Map'.null`. The diagnostics are empty when
+	// there is one entry, and this entry has no diagnostics.
+	noDiagnostics diagnostics = ('Data.Map'.toList diagnostics) =: [(_, [|])]
 
 /**
  * Executes the cocl on the given files (which can be a ICL or DCL) and results in the resulting output.

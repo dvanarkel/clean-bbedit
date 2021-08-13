@@ -43,6 +43,7 @@ properties =:
 		as
 			"language server handles didSave notification correctly for program importing a module with issues in the DCL"
 	, incorrectNotificationsResultsInErrorLog as "language server responds to unknown method with showMessage"
+	, compilerRuntimeErrorHandled as "compiler runtime errors are handled"
 	, didSaveNotificationCorrectlyHandledFor
 		"nonexisting"
 		[!("nonexisting.icl", diagnosticsForNonexisting)]
@@ -189,6 +190,18 @@ where
 	# world = writeMessage (generateMessage $ didCloseNotificationBodyFor testModulePath) io.stdIn world
 	# (finalOut, world) = shutdownLanguageServer handle io world
 	= (finalOut =.= ?None, world)
+
+compilerRuntimeErrorHandled :: Property
+compilerRuntimeErrorHandled = accUnsafe compilerRuntimeErrorHandled`
+where
+	compilerRuntimeErrorHandled` :: !*World -> (Property, *World)
+	compilerRuntimeErrorHandled` world
+	# (Ok curDir, world) = getCurrentDirectory world
+	# testModulePath = testModulePathFor 1 curDir "TooLarge.icl"
+	# (message, finalOut, world) = singleMessageResponse (didSaveNotificationBodyFor testModulePath) world
+	= (message =.= generateMessage expected /\ finalOut =.= ?None, world)
+
+	expected = "{\"jsonrpc\":2.0,\"method\":\"window/showMessage\",\"params\":{\"type\":1,\"message\":\"The compiler crashed with the output:\\nStack overflow.\\n\"}}"
 
 singleMessageResponse :: !String !*World -> (String, ?String, *World)
 singleMessageResponse message world
