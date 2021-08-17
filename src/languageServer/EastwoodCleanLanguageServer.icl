@@ -143,20 +143,27 @@ fetchConfig workspaceFolders world
 			"Could not get " CLEAN_HOME_ENV_VAR " environment variable"
 		, world)
 	# searchPaths = (libPathFor cleanHome <$> config.libraries) ++ config.paths
-	# (searchPaths, world) = mapSt getFullPathName searchPaths world
-	| any 'Data.Error'.isError searchPaths =
-		( (\('Data.Error'.Error e) -> 'Data.Error'.Error $ toString e) $
-			hd $ filter 'Data.Error'.isError searchPaths
-		, world)
+	# (fullSearchPaths, world) = mapSt getFullPathName searchPaths world
+	# mbErr = firstSearchPathError searchPaths fullSearchPaths
+	| isJust mbErr = ('Data.Error'.Error $ fromJust mbErr, world)
 	# config =
 		{ compilerPath = cleanHome </> EXE_PATH </> config.compiler
-		, searchPaths = map 'Data.Error'.fromOk searchPaths
+		, searchPaths = map 'Data.Error'.fromOk fullSearchPaths
 		}
 	| otherwise
 		= ('Data.Error'.Ok config, world)
 where
 	libPathFor :: !FilePath !FilePath -> FilePath
 	libPathFor cleanHome lib = cleanHome </> LIBS_PATH </> lib
+
+	firstSearchPathError :: ![FilePath] ![MaybeOSError FilePath] -> ?String
+	firstSearchPathError paths fullPaths = case filter ('Data.Error'.isError o snd) $ zip2 paths fullPaths of
+		[] -> ?None
+		[(path, 'Data.Error'.Error (_, error)):_] -> ?Just $ concat
+			[ "Failed to find full path of ", path
+			, " mentioned in ", PROJECT_FILENAME
+			, ": ", error
+			]
 
 onRequest :: !RequestMessage !EastwoodState !*World -> (!ResponseMessage, !EastwoodState, !*World)
 onRequest {RequestMessage | id} st world = (errorResponse id, st, world)
