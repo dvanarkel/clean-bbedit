@@ -127,7 +127,7 @@ diagnosticFor :: !Int !String -> Diagnostic
 diagnosticFor lineNr line =
 	{ range =
 		// Line number of the Clean compiler are 1-based, but we need 0-based line numbers.
-		{start = {line = lineNr - 1, character = 0}, end = {line = lineNr, character = 0}}
+		{start = {line = lineNr - 1, character = 0}, end = {line = lineNr - 1, character = 999999}}
 	, severity =
 			// we have to check whether 'warning'/'Warning' occurs before the first '[',
 			// as it could also occur in identifiers

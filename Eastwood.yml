@@ -1,0 +1,11 @@
+compiler: cocl
+libraries:
+  - StdEnv
+  - Platform
+  - Gast
+paths:
+  - src/languageServer
+  - src/lib
+  - src/lib/yaml/src
+  - src/lib/clean-lsp/src
+  - test
