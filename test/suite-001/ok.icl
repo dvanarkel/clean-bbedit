@@ -10,4 +10,8 @@ import Data.Func
 // import from other path provided in project file
 import someLib.TestModule
 
+// test if dynamics are supported
+dyn :: Dynamic
+dyn = dynamic ()
+
 Start = ()
