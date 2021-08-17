@@ -7,6 +7,7 @@ from System.FilePath import :: FilePath
 import System.OSError
 from System.Process import :: ProcessHandle, :: ProcessIO {..}, :: ReadPipe, :: WritePipe, runProcessIO,
     terminateProcess, writePipe, readPipeBlocking, readPipeNonBlocking
+import System.Time
 
 LANGUAGE_SERVER_REL_PATH = "../src/languageServer/eastwood-cls"
 CONTENT_LENGTH_FIELD = "Content-Length"
@@ -18,15 +19,24 @@ startLanguageServer world
 | isError mbProc = abort "Unable to start language server"
 = (fromOk mbProc, world)
 
-shutdownLanguageServer :: !ProcessHandle !ProcessIO !*World -> *World
+shutdownLanguageServer :: !ProcessHandle !ProcessIO !*World -> (?String, *World)
 shutdownLanguageServer handle io world
-# (mbStdErr, world) = readPipeNonBlocking io.stdErr world // pass through stderr of server in this process, for debugging
+// Give the language server 500ms to send final messages
+# (_, world) = timespecSleep {tv_sec=0, tv_nsec=500000000} world
+# (mbOut, world) = readPipeNonBlocking io.stdOut world
+# finalOut = case mbOut of
+	Error _ -> abort "Unable to read final stdout\n"
+	Ok "" -> ?None
+	Ok s -> ?Just s
+# (mbErr, world) = readPipeNonBlocking io.stdErr world // pass through stderr of server in this process, for debugging
+# finalErr = case mbErr of
+	Error _ -> ""
+	Ok s -> s
+# (_, world) = fclose (stderr <<< finalErr) world
+// Kill the process
 # (mbError, world) = terminateProcess handle world //TODO: implement shutdown/exit in LSP to avoid ugly process killing
-| isError mbError = abort "Unable to terminate language server"
-| isError mbStdErr
-	= world
-	# (_, world) = fclose (stderr <<< fromOk mbStdErr) world
-	= world
+| isError mbError = abort "Unable to terminate language server\n"
+= (finalOut, world)
 
 generateMessage :: !String -> String
 generateMessage content = concat

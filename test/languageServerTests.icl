@@ -11,8 +11,10 @@ from System.FilePath import </>
 import System._Unsafe
 from System.Process import :: ProcessIO {..}, checkProcess
 import Text
-import Text.GenPrint
-import Gast
+from Gast import
+	:: Property, :: Testoption (Bent), =.=, generic genShow, as, name, :: PrintOption (OutputTestEvents),
+	instance Testable Property, instance Testable Bool,
+	class /\(..), instance /\ Property Property
 import Gast.CommandLine
 import Common
 
@@ -62,6 +64,7 @@ properties =:
 		("otherLib" </> "IncorrectModuleHeader")
 		[!("otherLib" </> "IncorrectModuleHeader.icl", diagnosticsForIncorrectModuleHeader)]
 		as "correct notifications for file with the wrong module name, depending on the search paths"
+	, didCloseIgnored as "didClose notification is ignored"
 	]
 where
 	diagnosticsForErrors =
@@ -86,8 +89,8 @@ where
 	# (Ok currentDirectory, world) = getCurrentDirectory world
 	# world = writeMessage (generateMessage $ initializeRequestBody $ currentDirectory </> "suite-001") io.stdIn world
 	# (message, world) = readMessage io.stdOut world
-	# world = shutdownLanguageServer handle io world
-	= (message =.= generateMessage expectedInitializeResponseBody, world)
+	# (finalOut, world) = shutdownLanguageServer handle io world
+	= (message =.= generateMessage expectedInitializeResponseBody /\ finalOut =.= ?None, world)
 
 failsToInitializeWithoutConfig :: Property
 failsToInitializeWithoutConfig = accUnsafe failsToInitializeWithoutConfig`
@@ -140,24 +143,39 @@ where
 	didSaveNotificationCorrectlyHandled` world
 	# (Ok curDir, world) = getCurrentDirectory world
 	# testModulePath = testModulePathFor 1 curDir (moduleName +++ ".icl")
-	# (message, world) = singleMessageResponse (didSaveNotificationBodyFor testModulePath) world
+	# (message, finalOut, world) = singleMessageResponse (didSaveNotificationBodyFor testModulePath) world
 	# expectedMessages =
 		concat
 			[ generateMessage $
 				expectedDidSaveNotificationResponseBodyFor (testModulePathFor 1 curDir expectedDiagFile) expectedDiags
 			\\ (expectedDiagFile, expectedDiags) <|- expectedDiags
 			]
-	= (message =.= expectedMessages, world)
+	= (message =.= expectedMessages /\ finalOut =.= ?None, world)
 
 incorrectNotificationsResultsInErrorLog :: Property
 incorrectNotificationsResultsInErrorLog = accUnsafe incorrectNotificationsResultsInErrorLog`
 where
 	incorrectNotificationsResultsInErrorLog` :: !*World -> (Property, *World)
 	incorrectNotificationsResultsInErrorLog` world
-	# (message, world) = singleMessageResponse incorrectNotificationBody world
-	= (message =.= generateMessage expectedErrorLogMessage, world)
+	# (message, finalOut, world) = singleMessageResponse incorrectNotificationBody world
+	= (message =.= generateMessage expectedErrorLogMessage /\ finalOut =.= ?None, world)
 
-singleMessageResponse :: !String !*World -> (String, *World)
+didCloseIgnored :: Property
+didCloseIgnored = accUnsafe didCloseIgnored`
+where
+	didCloseIgnored` :: !*World -> (Property, *World)
+	didCloseIgnored` world
+	# (Ok curDir, world) = getCurrentDirectory world
+	# testModulePath = curDir </> "suite-001" </> "ok.icl"
+	# ((handle, io), world) = startLanguageServer world
+	# world = writeMessage (generateMessage $ initializeRequestBody $ curDir </> "suite-001") io.stdIn world
+	# (_, world) = readMessage io.stdOut world
+	# world = writeMessage (generateMessage initializedNotificationBody) io.stdIn world // no response expected
+	# world = writeMessage (generateMessage $ didCloseNotificationBodyFor testModulePath) io.stdIn world
+	# (finalOut, world) = shutdownLanguageServer handle io world
+	= (finalOut =.= ?None, world)
+
+singleMessageResponse :: !String !*World -> (String, ?String, *World)
 singleMessageResponse message world
 # ((handle, io), world) = startLanguageServer world
 # (Ok currentDirectory, world) = getCurrentDirectory world
@@ -166,8 +184,8 @@ singleMessageResponse message world
 # world = writeMessage (generateMessage initializedNotificationBody) io.stdIn world // no response expected
 # world = writeMessage (generateMessage message) io.stdIn world
 # (message, world) = readMessage io.stdOut world
-# world = shutdownLanguageServer handle io world
-= (message, world)
+# (finalOut, world) = shutdownLanguageServer handle io world
+= (message, finalOut, world)
 
 initializeRequestBody currentPath = concat3
 	"{\"id\": 1, \"jsonrpc\": \"2.0\", \"method\": \"initialize\", \"params\": {\"initializationOptions\": {}, \"rootPath\": \""
@@ -197,3 +215,10 @@ expectedDidSaveNotificationResponseBodyFor file expectedDiagnostics =
 		"}}"
 incorrectNotificationBody = "{\"method\":\"unknown/method\",\"jsonrpc\":\"2.0\",\"params\":{}}"
 expectedErrorLogMessage = "{\"jsonrpc\":2.0,\"method\":\"window/showMessage\",\"params\":{\"type\":1,\"message\":\"Unknown notification \'unknown/method\'.\"}}"
+
+didCloseNotificationBodyFor :: !String -> String
+didCloseNotificationBodyFor file =
+	concat3
+		"{\"method\":\"textDocument/didClose\",\"jsonrpc\":\"2.0\",\"params\":{\"textDocument\":{\"uri\":\"file://"
+		file
+		"\"}}}"
