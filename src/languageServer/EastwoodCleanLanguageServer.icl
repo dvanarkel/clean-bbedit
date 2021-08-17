@@ -201,6 +201,8 @@ onNotification {NotificationMessage| method, params} st world
 				"textDocument/didOpen" -> (deserialize params).'LSP.DidOpenTextDocumentParams'.textDocument
 	| method == "textDocument/didClose"
 		= ([!], st, world)
+	| method == "$/setTrace"
+		= ([!], st, world)
 	| otherwise
 		= ([!errorLogMessage $ concat3 "Unknown notification '" method "'."], st, world)
 where
