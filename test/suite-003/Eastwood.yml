@@ -1,0 +1,5 @@
+compiler: cocl
+libraries:
+  - StdEnv
+paths:
+  - nonexisting
