@@ -1,7 +1,7 @@
 module errors
 
 /**
- * This is a test programs which should result on various compiler errors and warnings.
+ * This is a test program which should result on various compiler errors and warnings.
  */
 
 // type error and ignored ! warning for the same line

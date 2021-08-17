@@ -1,0 +1,11 @@
+compiler: cocl-itasks
+libraries:
+  - StdEnv
+  - Platform
+paths:
+  # module name resolution in runCompiler is tricky when one search path is the
+  # parent of another search path. We don't actually need someLib here, but add
+  # it to check that the correct module name is still found. someLib should be
+  # ranked higher than .!
+  - someLib
+  - .

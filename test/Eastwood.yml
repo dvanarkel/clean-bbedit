@@ -1,6 +1,0 @@
-compiler: cocl-itasks
-libraries:
-  - StdEnv
-  - Platform
-paths:
-  - testPrograms/someLib

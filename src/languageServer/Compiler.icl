@@ -8,88 +8,42 @@ import Data.Functor
 import Data.List
 import qualified Data.Map
 from Data.Map import :: Map
+import System.OS
+import System.Process
 import Text
-import Text.YAML
-import System.Environment, System.File, System.FilePath, System.Process, System.Directory
 from Eastwood.Diagnostic import
 	:: Diagnostic {..}, :: DiagnosticSource, :: DiagnosticSeverity, :: CharacterRange,
 	:: Position
 import qualified Eastwood.Diagnostic
 import Eastwood.Range
 
-CLEAN_HOME_ENV_VAR :== "CLEAN_HOME"
-EXE_PATH :== "lib/exe"
-LIBS_PATH :== "lib"
 WARNING_LOWER :== "warning"
 WARNING_UPPER :== "Warning"
-PROJECT_FILENAME :== "Eastwood.yml"
 
-//* This represents the compiler settings which are provided by the project file.
-:: CompilerSettings =
-	{ compiler :: !FilePath
-		//* compiler's executable name (e.g. `cocl`, `cocl-itasks`), supposed to be found in `CLEAN_HOME/EXE_PATH`.
-	, libraries :: ![String] //* libraries of which modules are included (located in `CLEAN_HOME/LIB_PATH`)
-	, paths     :: ![FilePath] //* additional paths to search for modules
-	}
-
-derive gConstructFromYAML CompilerSettings
-
-runCompiler :: !FilePath ![!FilePath] !*World -> (!MaybeError String (Map FilePath [!Diagnostic]), !*World)
-runCompiler moduleFile workspaceFolders world
-	# (mbConfigPath, world) = findFile PROJECT_FILENAME workspaceFolders world
-	| isNone mbConfigPath = (Error ("Could not find " +++ PROJECT_FILENAME), world)
-	# configPath = fromJust mbConfigPath
-	# (mbConfig, world) = readFile configPath world
-	// Check if we could parse the yml file
-	| isError mbConfig =
-		( Error (concat4 "Cannot get project settings from " configPath ": " (toString $ fromError mbConfig))
-		, world
-		)
-	# config = fromOk mbConfig
-	// Parse the YAML, ignore warnings
-	# mbYML = loadYAML coreSchema config
-	| isError mbYML =
-		(Error $ concat4 "Invalid format of project file " configPath ": " (toString $ fromError mbYML), world)
-	# config = fst $ fromOk mbYML
-	  // Interpret the paths relative to the path of the configuration file
-	  config & paths = [takeDirectory configPath </> p \\ p <- config.paths]
-	# (mbOutput, world) = callCocl moduleFile config world
-	| isError mbOutput = (liftError mbOutput, world)
-	# (retCode, output) = fromOk mbOutput
-	# diagnostics = diagnosticsFor (takeFileName moduleFile) output
+runCompiler :: !FilePath !String !CompilerSettings !*World -> (!MaybeError String (Map FilePath [!Diagnostic]), !*World)
+runCompiler moduleFile moduleName config world
+	# (mbCoclResult, world) = callCocl moduleFile moduleName config world
+	| isError mbCoclResult = (liftError mbCoclResult, world)
+	# (retCode, output) = fromOk mbCoclResult
+	# diagnostics = diagnosticsFor (moduleName <.> takeExtension moduleFile) output
 	// If the return code is not 0, either problems have been detected in the file or the file could not be processed.
 	// In the later case (no diagnostics could be extracted from the output)
 	// we generate an error instead of diagnostics.
 	| retCode <> 0 && 'Data.Map'.null diagnostics = (Error output, world)
 	= (Ok diagnostics , world)
-where
-	findFile :: !FilePath ![!FilePath] !*World -> (!?FilePath, !*World)
-	findFile file [|] w = (?None, w)
-	findFile file [|dir:dirs] w
-		# (exi, w) = fileExists path w
-		= if exi (?Just path, w) (findFile file dirs w)
-	where
-		path = dir </> file
 
 /**
  * Executes the cocl on the given files (which can be a ICL or DCL) and results in the resulting output.
  * @param The file cocl has to be called on
+ * @param The module name
  * @param The settings for the compiler, contains mostly the search path
  * @result Either an error or cocl's output
  */
-callCocl :: !FilePath !CompilerSettings !*World -> (!MaybeError String (Int, String), !*World)
-callCocl moduleFile {compiler, paths, libraries} world
-	// Get CLEAN_HOME
-	# (mbCleanHome, world) = getEnvironmentVariable CLEAN_HOME_ENV_VAR world
-	| isNone mbCleanHome = (Error (concat3 "Could not get " CLEAN_HOME_ENV_VAR " environment variable"), world)
-	# cleanHome = fromJust mbCleanHome
-	// Find the compiler executable
-	# coclPath = cleanHome </> EXE_PATH </> compiler
-	// Get the searchpaths from the CompilerSettings
-	# searchPaths = concatPaths [takeDirectory moduleFile: (libPathFor cleanHome <$> libraries) ++ paths]
+callCocl :: !FilePath !String !CompilerSettings !*World -> (!MaybeError String (Int, String), !*World)
+callCocl moduleFile moduleName {compilerPath, searchPaths} world
 	// Call cocl
 	# (mbHandle, world) =
-		runProcessIO coclPath ["-c", "-P", searchPaths, dropExtension $ takeFileName moduleFile] ?None world
+		runProcessIO compilerPath ["-c", "-P", concatPaths searchPaths, moduleName] ?None world
 	| isError mbHandle = (Error o snd $ fromError mbHandle, world)
 	# (handle, io) = fromOk mbHandle
 	# (retCode, world) = waitForProcess handle world
@@ -104,9 +58,6 @@ where
 	concatPaths :: ![FilePath] -> String
 	concatPaths paths = join ":" paths
 
-	libPathFor :: !FilePath !FilePath -> FilePath
-	libPathFor cleanHome lib = cleanHome </> LIBS_PATH </> lib
-
 :: DiagnosticSource | Compiler
 
 /**
@@ -115,9 +66,13 @@ where
  */
 diagnosticsFor :: !FilePath !String -> Map FilePath [!Diagnostic]
 diagnosticsFor moduleFile output =
+	// The compiler has filenames with . instead of / (e.g. Data.Error.icl); we
+	// need to convert these to real filenames.
+	'Data.Map'.foldrWithKey ('Data.Map'.put o fixFileName) 'Data.Map'.newMap $
+	diagnosticsForAccum 0 ?None $
 	// We always have to generate a result for `moduleFile`.
 	// If there are no diagnostics we have to report that to the client to clear possibly present diagnostics.
-	diagnosticsForAccum 0 ?None $ 'Data.Map'.singleton moduleFile [!]
+	'Data.Map'.singleton moduleFile [!]
 where
 	// accumulates diagnostics, we go through the string using `idx` to avoid constructing intermediate strings
 	// the previously found file (module.icl or module.dcl), starting index and line number is provided,
@@ -161,6 +116,12 @@ where
 			| idx == size output - 1 = idx
 			| output.[idx] == '\n' && (idx + 1 == size output || output.[idx + 1] <> ' ') = idx + 1
 			| otherwise = startIdxOfNextMessageLine $ inc idx
+
+	// replace all .s except the one of the extension with /s
+	fixFileName s =
+		{ if (c == '.' && i <> size s - 4) OS_PATH_SEPARATOR c
+		\\ c <-: s & i <- [0..]
+		}
 
 diagnosticFor :: !Int !String -> Diagnostic
 diagnosticFor lineNr line =

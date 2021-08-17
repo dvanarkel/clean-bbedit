@@ -11,8 +11,9 @@ startLanguageServer :: !*World -> ((ProcessHandle, ProcessIO), *World)
 /**
  * Shuts down the language server process.
  * @param The process handle.
+ * @param The process pipes.
  */
-shutdownLanguageServer :: !ProcessHandle !*World -> *World
+shutdownLanguageServer :: !ProcessHandle !ProcessIO !*World -> *World
 
 /**
  * Generates a message in the LSP format.

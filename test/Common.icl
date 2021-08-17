@@ -6,7 +6,7 @@ import Data.Func
 from System.FilePath import :: FilePath
 import System.OSError
 from System.Process import :: ProcessHandle, :: ProcessIO {..}, :: ReadPipe, :: WritePipe, runProcessIO,
-    terminateProcess, writePipe, readPipeBlocking
+    terminateProcess, writePipe, readPipeBlocking, readPipeNonBlocking
 
 LANGUAGE_SERVER_REL_PATH = "../src/languageServer/eastwood-cls"
 CONTENT_LENGTH_FIELD = "Content-Length"
@@ -18,11 +18,15 @@ startLanguageServer world
 | isError mbProc = abort "Unable to start language server"
 = (fromOk mbProc, world)
 
-shutdownLanguageServer :: !ProcessHandle !*World -> *World
-shutdownLanguageServer handle world
+shutdownLanguageServer :: !ProcessHandle !ProcessIO !*World -> *World
+shutdownLanguageServer handle io world
+# (mbStdErr, world) = readPipeNonBlocking io.stdErr world // pass through stderr of server in this process, for debugging
 # (mbError, world) = terminateProcess handle world //TODO: implement shutdown/exit in LSP to avoid ugly process killing
 | isError mbError = abort "Unable to terminate language server"
-= world
+| isError mbStdErr
+	= world
+	# (_, world) = fclose (stderr <<< fromOk mbStdErr) world
+	= world
 
 generateMessage :: !String -> String
 generateMessage content = concat
