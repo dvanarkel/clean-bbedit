@@ -5,11 +5,11 @@ import StdMaybe
 import Data.Func, Data.Error
 import Data.Maybe.Gast
 import Data.Maybe.GenPrint
-import System.Time
 import System.Directory
 from System.FilePath import </>
-import System._Unsafe
 from System.Process import :: ProcessIO {..}, checkProcess
+import System.Time
+import System._Unsafe
 import Text
 from Gast import
 	:: Property, :: Testoption (Bent), =.=, generic genShow, as, name, :: PrintOption (OutputTestEvents),
@@ -26,6 +26,7 @@ properties =:
 	[ initializesCorrectly as "language server initializes correctly"
 	, failsToInitializeWithoutConfig as "refuses to initialize without Eastwood.yml"
 	, failsToInitializeWithMissingPaths as "refuses to initialize with missing search paths"
+	, setTraceIgnored as "$/setTrace notification is ignored"
 	, didSaveNotificationCorrectlyHandledFor "ok" [!("ok.icl", "[]")] as
 		"language server handles didSave notification correctly for program without issues"
 	, didSaveNotificationCorrectlyHandledFor
@@ -136,6 +137,20 @@ where
 			(currentDirectory </> "suite-003" </> "nonexisting")
 			" mentioned in Eastwood.yml: No such file or directory\"}}"
 
+setTraceIgnored :: Property
+setTraceIgnored = accUnsafe setTraceIgnored`
+where
+	setTraceIgnored` :: !*World -> (Property, *World)
+	setTraceIgnored` world
+	# (Ok curDir, world) = getCurrentDirectory world
+	# ((handle, io), world) = startLanguageServer world
+	# world = writeMessage (generateMessage $ initializeRequestBody $ curDir </> "suite-001") io.stdIn world
+	# (_, world) = readMessage io.stdOut world
+	# world = writeMessage (generateMessage initializedNotificationBody) io.stdIn world // no response expected
+	# world = writeMessage (generateMessage setTraceNotificationBody) io.stdIn world // no response expected
+	# (finalOut, world) = shutdownLanguageServer handle io world
+	= (finalOut =.= ?None, world)
+
 didSaveNotificationCorrectlyHandledFor :: !String ![!(FilePath, String)] -> Property
 didSaveNotificationCorrectlyHandledFor moduleName expectedDiags = accUnsafe didSaveNotificationCorrectlyHandled`
 where
@@ -197,6 +212,8 @@ initializedNotificationBody = "{\"jsonrpc\": \"2.0\", \"method\": \"initialized\
 
 testModulePathFor :: !Int !FilePath !FilePath -> FilePath
 testModulePathFor id dir moduleFile = dir </> "suite-" +++ lpad (toString id) 3 '0' </> moduleFile
+
+setTraceNotificationBody = "{\"method\":\"$/setTrace\",\"jsonrpc\":\"2.0\",\"params\":{\"value\":\"off\"}}"
 
 didSaveNotificationBodyFor :: !String -> String
 didSaveNotificationBodyFor file =
