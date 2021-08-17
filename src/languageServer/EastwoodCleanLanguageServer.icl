@@ -199,6 +199,8 @@ onNotification {NotificationMessage| method, params} st world
 			textDocument params = case method of
 				"textDocument/didSave" -> (deserialize params).'LSP.DidSaveTextDocumentParams'.textDocument
 				"textDocument/didOpen" -> (deserialize params).'LSP.DidOpenTextDocumentParams'.textDocument
+	| method == "textDocument/didClose"
+		= ([!], st, world)
 	| otherwise
 		= ([!errorLogMessage $ concat3 "Unknown notification '" method "'."], st, world)
 where
