@@ -211,6 +211,8 @@ singleMessageResponse message world
 # (_, world) = readMessage io.stdOut world
 # world = writeMessage (generateMessage initializedNotificationBody) io.stdIn world // no response expected
 # world = writeMessage (generateMessage message) io.stdIn world
+// Sleep for 500ms to make sure all messages are received.
+# (_, world) = timespecSleep {tv_sec=0, tv_nsec=500000000} world
 # (message, world) = readMessage io.stdOut world
 # (finalOut, world) = shutdownLanguageServer handle io world
 = (message, finalOut, world)

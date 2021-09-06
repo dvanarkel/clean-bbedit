@@ -7,3 +7,4 @@ src/linter/eastwood-lint
 test/eastwoodTests
 test/languageServerTests
 test/junit_*.xml
+test/.ctest-results.json
