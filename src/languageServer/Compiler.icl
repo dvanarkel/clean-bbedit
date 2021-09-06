@@ -48,7 +48,8 @@ callCocl :: !FilePath !String !CompilerSettings !*World -> (!MaybeError String (
 callCocl moduleFile moduleName {compilerPath, searchPaths} world
 	// Call cocl
 	# (mbHandle, world) =
-		runProcessIO compilerPath ["-c", "-dynamics", "-P", concatPaths searchPaths, moduleName] ?None world
+		// -saw is added because the compiler does not provide error information for strictness export warnings.
+		runProcessIO compilerPath ["-saw", "-c", "-dynamics", "-P", concatPaths searchPaths, moduleName] ?None world
 	| isError mbHandle = (Error o snd $ fromError mbHandle, world)
 	# (handle, io) = fromOk mbHandle
 	# (retCode, world) = waitForProcess handle world
