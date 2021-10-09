@@ -6,7 +6,7 @@ stages:
   - test
 
 linux-x64:
-  image: 'camilstaps/clean:nightly'
+  image: 'itasks/clean:nightly'
   stage: build
   needs: []
   before_script:
@@ -24,7 +24,7 @@ linux-x64:
       - src/languageServer/eastwood-cls
 
 test:
-  image: 'camilstaps/clean:nightly'
+  image: 'itasks/clean:nightly'
   stage: test
   before_script:
     - install_clean_nightly.sh bundle-complete
