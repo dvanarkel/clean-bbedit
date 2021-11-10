@@ -68,10 +68,7 @@ capabilities =
 	| textDocumentSync = {openClose = True, save = True}
 	}
 
-:: EastwoodState =
-	{ workspaceFolders :: ![!FilePath]
-	, compilerSettings :: !CompilerSettings
-	}
+:: EastwoodState = {workspaceFolders :: ![!FilePath]}
 
 //* Shadow for `CompilerSettings` on which `gConstructFromYAML` can be derived.
 :: CompilerSettingsConfig =
@@ -91,16 +88,10 @@ cleanLanguageServer :: LanguageServer EastwoodState
 cleanLanguageServer = {onInitialize = onInitialize, onRequest = onRequest, onNotification = onNotification}
 
 onInitialize :: !InitializeParams !*World -> (!MaybeError String EastwoodState, !*World)
-onInitialize {rootPath, rootUri, workspaceFolders} world =
-	appFst (fmap toEastwoodState) $
-	fetchConfig workspace world
+onInitialize {rootPath, rootUri, workspaceFolders} world
+	= ('Data.Error'.Ok {EastwoodState|workspaceFolders=workspace}, world)
 where
-	toEastwoodState compilerSettings =
-		{ EastwoodState
-		| workspaceFolders = workspace
-		, compilerSettings = compilerSettings
-		}
-
+	workspace :: [!FilePath]
 	workspace = case workspaceFolders of
 		?Just folders -> [|uriToString uri \\ {WorkspaceFolder | uri} <|- folders]
 		?None -> case rootUri of
@@ -121,9 +112,8 @@ fetchConfig workspaceFolders world
 	  config = 'Data.Error'.fromOk mbConfig
 	// Check if we could parse the yml file
 	| 'Data.Error'.isError mbConfig =
-		( 'Data.Error'.Error $ concat4
-			"Cannot get project settings from " configPath
-			": " (toString $ 'Data.Error'.fromError mbConfig)
+		('Data.Error'.Error $
+			concat4 "Cannot get project settings from " configPath ": " (toString $ 'Data.Error'.fromError mbConfig)
 		, world)
 	// Parse the YAML, ignore warnings
 	# mbYML = loadYAML coreSchema config
@@ -131,17 +121,14 @@ fetchConfig workspaceFolders world
 	  // Interpret the paths relative to the path of the configuration file
 	  config & paths = [takeDirectory configPath </> p \\ p <- config.paths]
 	| 'Data.Error'.isError mbYML =
-		( 'Data.Error'.Error $ concat4
-			"Invalid format of project file " configPath
-			": " (toString $ 'Data.Error'.fromError mbYML)
+		( 'Data.Error'.Error $
+			concat4 "Invalid format of project file " configPath ": " (toString $ 'Data.Error'.fromError mbYML)
 		, world)
 	// Get CLEAN_HOME
 	# (mbCleanHome, world) = getEnvironmentVariable CLEAN_HOME_ENV_VAR world
 	  cleanHome = fromJust mbCleanHome
 	| isNone mbCleanHome =
-		( 'Data.Error'.Error $ concat3
-			"Could not get " CLEAN_HOME_ENV_VAR " environment variable"
-		, world)
+		( 'Data.Error'.Error $ concat3 "Could not get " CLEAN_HOME_ENV_VAR " environment variable", world)
 	# searchPaths = (libPathFor cleanHome <$> config.libraries) ++ config.paths
 	# (fullSearchPaths, world) = mapSt getFullPathName searchPaths world
 	# mbErr = firstSearchPathError searchPaths fullSearchPaths
@@ -181,7 +168,9 @@ where
 			}
 		}
 
-onNotification :: !NotificationMessage !EastwoodState !*World -> (![!NotificationMessage], !EastwoodState, !*World)
+onNotification ::
+	!NotificationMessage !EastwoodState !*World
+	-> (![!NotificationMessage], !EastwoodState, !*World)
 onNotification {NotificationMessage| method, params} st world
 	| method == "textDocument/didSave" || method == "textDocument/didOpen"
 		| isNone params
@@ -205,14 +194,18 @@ onNotification {NotificationMessage| method, params} st world
 		= ([!], st, world)
 	| otherwise
 		= ([!errorLogMessage $ concat3 "Unknown notification '" method "'."], st, world)
-where
-	errorLogMessage :: !String -> NotificationMessage
-	errorLogMessage message = showMessage {MessageParams| type = Error, message = message}
+
+errorLogMessage :: !String -> NotificationMessage
+errorLogMessage message = showMessage {MessageParams| type = Error, message = message}
 
 diagnosticsFor ::
 	!TextDocumentIdentifier !EastwoodState !*World
 	-> (!MaybeError String ([!NotificationMessage], [!'LSP.PublishDiagnosticsParams'.PublishDiagnosticsParams]), !*World)
-diagnosticsFor {TextDocumentIdentifier| uri = uri=:{uriPath}} {compilerSettings} world
+diagnosticsFor {TextDocumentIdentifier| uri = uri=:{uriPath}} {EastwoodState|workspaceFolders} world
+	# (mbCompilerSettings, world) = fetchConfig workspaceFolders world
+	| 'Data.Error'.isError mbCompilerSettings
+		= ('Data.Error'.Ok $ ([!errorLogMessage $ 'Data.Error'.fromError mbCompilerSettings], [!]), world)
+	# compilerSettings = fromOk mbCompilerSettings
 	# (mbModuleName, world) = resolveModuleName uriPath compilerSettings.searchPaths world
 	  moduleName = fromOk mbModuleName
 	| 'Data.Error'.isError mbModuleName
@@ -241,15 +234,16 @@ diagnosticsFor {TextDocumentIdentifier| uri = uri=:{uriPath}} {compilerSettings}
 	# (diagnostics, world) = runCompiler uriPath moduleName compilerSettings world
 	= case diagnostics of
 		'Data.Error'.Ok diagnostics
-			# (notifications, diagnostics, world) = collectDiagnostics diagnostics world
+			# (notifications, diagnostics, world) = collectDiagnostics compilerSettings diagnostics world
 			-> ('Data.Error'.Ok (notifications, diagnostics), world)
 		error
 			-> ('Data.Error'.liftError error, world)
 where
 	collectDiagnostics
-		:: !('Data.Map'.Map FilePath [!Diagnostic]) !*World
+		:: !CompilerSettings !('Data.Map'.Map FilePath [!Diagnostic]) !*World
 		-> (![!NotificationMessage], ![!'LSP.PublishDiagnosticsParams'.PublishDiagnosticsParams], !*World)
-	collectDiagnostics diagnostics world = 'Data.Map'.foldrWithKey` append ([!], [!], world) diagnostics
+	collectDiagnostics compilerSettings diagnostics world
+		= 'Data.Map'.foldrWithKey` append ([!], [!], world) diagnostics
 	where
 		append fileName diagnosticsForFile (notifications, collectedDiagnostics, world)
 			// We need the fileName with `OS_PATH_SEPARATOR`s for
