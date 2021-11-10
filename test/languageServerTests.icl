@@ -24,8 +24,6 @@ Start world = exposeProperties [OutputTestEvents] [Bent] properties world
 properties :: [Property]
 properties =:
 	[ initializesCorrectly as "language server initializes correctly"
-	, failsToInitializeWithoutConfig as "refuses to initialize without Eastwood.yml"
-	, failsToInitializeWithMissingPaths as "refuses to initialize with missing search paths"
 	, setTraceIgnored as "$/setTrace notification is ignored"
 	, didSaveNotificationCorrectlyHandledFor "ok" [!("ok.icl", "[]")] as
 		"language server handles didSave notification correctly for program without issues"
@@ -93,50 +91,6 @@ where
 	# (message, world) = readMessage io.stdOut world
 	# (finalOut, world) = shutdownLanguageServer handle io world
 	= (message =.= generateMessage expectedInitializeResponseBody /\ finalOut =.= ?None, world)
-
-failsToInitializeWithoutConfig :: Property
-failsToInitializeWithoutConfig = accUnsafe failsToInitializeWithoutConfig`
-where
-	failsToInitializeWithoutConfig` :: !*World -> (Property, *World)
-	failsToInitializeWithoutConfig` world
-	# ((handle, io), world) = startLanguageServer world
-	# (Ok currentDirectory, world) = getCurrentDirectory world
-	# world = writeMessage (generateMessage $ initializeRequestBody $ currentDirectory </> "suite-002") io.stdIn world
-	# (message, world) = readMessage io.stdOut world
-	// Wait a reasonable amount of time for the server to exit
-	# (_, world) = timespecSleep {tv_sec=1, tv_nsec=0} world
-	# (mbExitCode, world) = checkProcess handle world
-	| isError mbExitCode = (name "failed to check process exit code" False, world)
-	=	(	name "correct response" (message =.= generateMessage expectedInitializeResponseBody) /\
-			name "language sever has exited" (fromOk mbExitCode =.= ?Just 0)
-		, world
-		)
-	where
-		expectedInitializeResponseBody =
-			"{\"jsonrpc\":2.0,\"id\":1,\"error\":{\"code\":-32001,\"message\":\"Could not find Eastwood.yml\"}}"
-
-failsToInitializeWithMissingPaths :: Property
-failsToInitializeWithMissingPaths = accUnsafe failsToInitializeWithMissingPaths`
-where
-	failsToInitializeWithMissingPaths` :: !*World -> (Property, *World)
-	failsToInitializeWithMissingPaths` world
-	# ((handle, io), world) = startLanguageServer world
-	# (Ok currentDirectory, world) = getCurrentDirectory world
-	# world = writeMessage (generateMessage $ initializeRequestBody $ currentDirectory </> "suite-003") io.stdIn world
-	# (message, world) = readMessage io.stdOut world
-	// Wait a reasonable amount of time for the server to exit
-	# (_, world) = timespecSleep {tv_sec=1, tv_nsec=0} world
-	# (mbExitCode, world) = checkProcess handle world
-	| isError mbExitCode = (name "failed to check process exit code" False, world)
-	=	(	name "correct response" (message =.= generateMessage (expectedInitializeResponseBody currentDirectory)) /\
-			name "language sever has exited" (fromOk mbExitCode =.= ?Just 0)
-		, world
-		)
-	where
-		expectedInitializeResponseBody currentDirectory = concat3
-			"{\"jsonrpc\":2.0,\"id\":1,\"error\":{\"code\":-32001,\"message\":\"Failed to find full path of "
-			(currentDirectory </> "suite-003" </> "nonexisting")
-			" mentioned in Eastwood.yml: No such file or directory\"}}"
 
 setTraceIgnored :: Property
 setTraceIgnored = accUnsafe setTraceIgnored`
