@@ -119,7 +119,7 @@ configIsMissingResultsInErrorLogOnSave :: Property
 configIsMissingResultsInErrorLogOnSave
 	= accUnsafe $ assertResponseForSaveNotification SUITE_WITHOUT_CONFIG expectedDiagnosticsResponseBody
 where
-	expectedDiagnosticsResponseBody = "{\"jsonrpc\":2.0,\"method\":\"window/showMessage\",\"params\":{\"type\":1,\"message\":\"Could not find Eastwood.yml\"}}"
+	expectedDiagnosticsResponseBody = "{\"jsonrpc\":2.0,\"method\":\"window/showMessage\",\"params\":{\"type\":1,\"message\":\"Could not find the Eastwood.yml project configuration file in the workspace folder. Please create the file in the workspace\'s root folder. The expected format of the Eastwood.yml file is described in https://gitlab.com/top-software/eastwood/-/blob/main/README.md.\"}}"
 
 configHasNonExistingPathsResultsInErrorLogOnSave :: Property
 configHasNonExistingPathsResultsInErrorLogOnSave
