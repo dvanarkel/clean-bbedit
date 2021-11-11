@@ -58,6 +58,7 @@ EXE_PATH :== "lib/exe"
 LIBS_PATH :== "lib"
 
 PROJECT_FILENAME :== "Eastwood.yml"
+README_LINK :== "https://gitlab.com/top-software/eastwood/-/blob/main/README.md"
 
 Start :: !*World -> *World
 Start w = serve capabilities cleanLanguageServer w
@@ -106,24 +107,43 @@ where
 fetchConfig :: ![!FilePath] !*World -> (!'Data.Error'.MaybeError String CompilerSettings, !*World)
 fetchConfig workspaceFolders world
 	# (mbConfigPath, world) = findSearchPath PROJECT_FILENAME workspaceFolders world
-	| isNone mbConfigPath = ('Data.Error'.Error ("Could not find " +++ PROJECT_FILENAME), world)
+	| isNone mbConfigPath
+		= ('Data.Error'.Error $
+			concat
+				[ "Could not find the "
+				, PROJECT_FILENAME
+				, " project configuration file in the workspace folder. Please create the file in the workspace's root folder. The expected format of the "
+				, PROJECT_FILENAME
+				, " file is described in "
+				, README_LINK
+				, "."
+				]
+			, world)
 	# configPath = fromJust mbConfigPath </> PROJECT_FILENAME
 	# (mbConfig, world) = readFile configPath world
-	  config = 'Data.Error'.fromOk mbConfig
-	// Check if we could parse the yml file
+	// Check if he project file could be read.
 	| 'Data.Error'.isError mbConfig =
 		('Data.Error'.Error $
-			concat4 "Cannot get project settings from " configPath ": " (toString $ 'Data.Error'.fromError mbConfig)
+			concat4 "Cannot read project file found at " configPath ": " (toString $ 'Data.Error'.fromError mbConfig)
 		, world)
+	# config = 'Data.Error'.fromOk mbConfig
 	// Parse the YAML, ignore warnings
 	# mbYML = loadYAML coreSchema config
-	  config = fst $ 'Data.Error'.fromOk mbYML
-	  // Interpret the paths relative to the path of the configuration file
-	  config & paths = [takeDirectory configPath </> p \\ p <- config.paths]
+	// Check if the YML could be parsed.
 	| 'Data.Error'.isError mbYML =
 		( 'Data.Error'.Error $
-			concat4 "Invalid format of project file " configPath ": " (toString $ 'Data.Error'.fromError mbYML)
+			concat
+				[ "Invalid format of project file "
+				, configPath
+				, ": "
+				, (toString $ 'Data.Error'.fromError mbYML)
+				, ". The expected format of the project file is described in "
+				, README_LINK
+				]
 		, world)
+	# config = fst $ 'Data.Error'.fromOk mbYML
+	// Interpret the paths relative to the path of the configuration file
+	# config & paths = [takeDirectory configPath </> p \\ p <- config.paths]
 	// Get CLEAN_HOME
 	# (mbCleanHome, world) = getEnvironmentVariable CLEAN_HOME_ENV_VAR world
 	  cleanHome = fromJust mbCleanHome
@@ -137,8 +157,7 @@ fetchConfig workspaceFolders world
 		{ compilerPath = cleanHome </> EXE_PATH </> config.compiler
 		, searchPaths = map 'Data.Error'.fromOk fullSearchPaths
 		}
-	| otherwise
-		= ('Data.Error'.Ok config, world)
+	= ('Data.Error'.Ok config, world)
 where
 	libPathFor :: !FilePath !FilePath -> FilePath
 	libPathFor cleanHome lib = cleanHome </> LIBS_PATH </> lib
@@ -168,9 +187,7 @@ where
 			}
 		}
 
-onNotification ::
-	!NotificationMessage !EastwoodState !*World
-	-> (![!NotificationMessage], !EastwoodState, !*World)
+onNotification :: !NotificationMessage !EastwoodState !*World -> (![!NotificationMessage], !EastwoodState, !*World)
 onNotification {NotificationMessage| method, params} st world
 	| method == "textDocument/didSave" || method == "textDocument/didOpen"
 		| isNone params
