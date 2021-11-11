@@ -42,6 +42,10 @@ properties =:
 			"language server handles didSave notification correctly for program importing a module with issues in the DCL"
 	, incorrectNotificationsResultsInErrorLog as "language server responds to unknown method with showMessage"
 	, compilerRuntimeErrorHandled as "compiler runtime errors are handled"
+	, configIsMissingResultsInErrorLogOnSave
+		as "Error notification is shown when config is missing and a module is saved."
+	, configHasNonExistingPathsResultsInErrorLogOnSave
+		as "Error notification is shown when config contains non-existing paths and a module is saved."
 	, didSaveNotificationCorrectlyHandledFor
 		"nonexisting"
 		[!("nonexisting.icl", diagnosticsForNonexisting)]
@@ -80,6 +84,10 @@ where
 	noDiagnostics =
 		"[]"
 
+SUITE_WITH_CONFIG :== "suite-001"
+SUITE_WITHOUT_CONFIG :== "suite-002"
+SUITE_CONFIG_NON_EXISTING_PATHS :== "suite-003"
+
 initializesCorrectly :: Property
 initializesCorrectly = accUnsafe initializesCorrectly`
 where
@@ -87,7 +95,8 @@ where
 	initializesCorrectly` world
 	# ((handle, io), world) = startLanguageServer world
 	# (Ok currentDirectory, world) = getCurrentDirectory world
-	# world = writeMessage (generateMessage $ initializeRequestBody $ currentDirectory </> "suite-001") io.stdIn world
+	# world =
+		writeMessage (generateMessage $ initializeRequestBody $ currentDirectory </> SUITE_WITH_CONFIG) io.stdIn world
 	# (message, world) = readMessage io.stdOut world
 	# (finalOut, world) = shutdownLanguageServer handle io world
 	= (message =.= generateMessage expectedInitializeResponseBody /\ finalOut =.= ?None, world)
@@ -99,12 +108,42 @@ where
 	setTraceIgnored` world
 	# (Ok curDir, world) = getCurrentDirectory world
 	# ((handle, io), world) = startLanguageServer world
-	# world = writeMessage (generateMessage $ initializeRequestBody $ curDir </> "suite-001") io.stdIn world
+	# world = writeMessage (generateMessage $ initializeRequestBody $ curDir </> SUITE_WITH_CONFIG) io.stdIn world
 	# (_, world) = readMessage io.stdOut world
 	# world = writeMessage (generateMessage initializedNotificationBody) io.stdIn world // no response expected
 	# world = writeMessage (generateMessage setTraceNotificationBody) io.stdIn world // no response expected
 	# (finalOut, world) = shutdownLanguageServer handle io world
 	= (finalOut =.= ?None, world)
+
+configIsMissingResultsInErrorLogOnSave :: Property
+configIsMissingResultsInErrorLogOnSave
+	= accUnsafe $ assertResponseForSaveNotification SUITE_WITHOUT_CONFIG expectedDiagnosticsResponseBody
+where
+	expectedDiagnosticsResponseBody = "{\"jsonrpc\":2.0,\"method\":\"window/showMessage\",\"params\":{\"type\":1,\"message\":\"Could not find Eastwood.yml\"}}"
+
+configHasNonExistingPathsResultsInErrorLogOnSave :: Property
+configHasNonExistingPathsResultsInErrorLogOnSave
+	= accUnsafe $ configIsMissingResultsInErrorLogOnSave`
+where
+	configIsMissingResultsInErrorLogOnSave` world
+		# (Ok curDir, world) = getCurrentDirectory world
+		= assertResponseForSaveNotification
+			SUITE_CONFIG_NON_EXISTING_PATHS
+			(expectedDiagnosticsResponseBody curDir)
+			world
+	expectedDiagnosticsResponseBody curDir
+		= concat3
+			"{\"jsonrpc\":2.0,\"method\":\"window/showMessage\",\"params\":{\"type\":1,\"message\":\"Failed to find full path of "
+			(curDir </> "suite-003" </> "nonexisting")
+			" mentioned in Eastwood.yml: No such file or directory\"}}"
+
+assertResponseForSaveNotification :: !String !String !*World -> (Property, *World)
+assertResponseForSaveNotification suite expectedResponseBody world
+	# (Ok curDir, world) = getCurrentDirectory world
+	# testModulePath = testModulePathFor 1 curDir ("ok.icl")
+	# (response, finalOut, world) = singleMessageResponse suite (didSaveNotificationBodyFor testModulePath) world
+	=	( name "didSave notification response is correct response" $ response =.= generateMessage expectedResponseBody
+		, world)
 
 didSaveNotificationCorrectlyHandledFor :: !String ![!(FilePath, String)] -> Property
 didSaveNotificationCorrectlyHandledFor moduleName expectedDiags = accUnsafe didSaveNotificationCorrectlyHandled`
@@ -113,7 +152,8 @@ where
 	didSaveNotificationCorrectlyHandled` world
 	# (Ok curDir, world) = getCurrentDirectory world
 	# testModulePath = testModulePathFor 1 curDir (moduleName +++ ".icl")
-	# (message, finalOut, world) = singleMessageResponse (didSaveNotificationBodyFor testModulePath) world
+	# (message, finalOut, world)
+		= singleMessageResponse SUITE_WITH_CONFIG (didSaveNotificationBodyFor testModulePath) world
 	# expectedMessages =
 		concat
 			[ generateMessage $
@@ -127,7 +167,7 @@ incorrectNotificationsResultsInErrorLog = accUnsafe incorrectNotificationsResult
 where
 	incorrectNotificationsResultsInErrorLog` :: !*World -> (Property, *World)
 	incorrectNotificationsResultsInErrorLog` world
-	# (message, finalOut, world) = singleMessageResponse incorrectNotificationBody world
+	# (message, finalOut, world) = singleMessageResponse SUITE_WITH_CONFIG incorrectNotificationBody world
 	= (message =.= generateMessage expectedErrorLogMessage /\ finalOut =.= ?None, world)
 
 didCloseIgnored :: Property
@@ -136,9 +176,9 @@ where
 	didCloseIgnored` :: !*World -> (Property, *World)
 	didCloseIgnored` world
 	# (Ok curDir, world) = getCurrentDirectory world
-	# testModulePath = curDir </> "suite-001" </> "ok.icl"
+	# testModulePath = curDir </> SUITE_WITH_CONFIG </> "ok.icl"
 	# ((handle, io), world) = startLanguageServer world
-	# world = writeMessage (generateMessage $ initializeRequestBody $ curDir </> "suite-001") io.stdIn world
+	# world = writeMessage (generateMessage $ initializeRequestBody $ curDir </> SUITE_WITH_CONFIG) io.stdIn world
 	# (_, world) = readMessage io.stdOut world
 	# world = writeMessage (generateMessage initializedNotificationBody) io.stdIn world // no response expected
 	# world = writeMessage (generateMessage $ didCloseNotificationBodyFor testModulePath) io.stdIn world
@@ -152,16 +192,16 @@ where
 	compilerRuntimeErrorHandled` world
 	# (Ok curDir, world) = getCurrentDirectory world
 	# testModulePath = testModulePathFor 1 curDir "TooLarge.icl"
-	# (message, finalOut, world) = singleMessageResponse (didSaveNotificationBodyFor testModulePath) world
+	# (message, finalOut, world) = singleMessageResponse SUITE_WITH_CONFIG (didSaveNotificationBodyFor testModulePath) world
 	= (message =.= generateMessage expected /\ finalOut =.= ?None, world)
 
 	expected = "{\"jsonrpc\":2.0,\"method\":\"window/showMessage\",\"params\":{\"type\":1,\"message\":\"The compiler crashed with the output:\\nStack overflow.\\n\"}}"
 
-singleMessageResponse :: !String !*World -> (String, ?String, *World)
-singleMessageResponse message world
+singleMessageResponse :: !String !String !*World -> (String, ?String, *World)
+singleMessageResponse suite message world
 # ((handle, io), world) = startLanguageServer world
 # (Ok currentDirectory, world) = getCurrentDirectory world
-# world = writeMessage (generateMessage $ initializeRequestBody $ currentDirectory </> "suite-001") io.stdIn world
+# world = writeMessage (generateMessage $ initializeRequestBody $ currentDirectory </> suite) io.stdIn world
 # (_, world) = readMessage io.stdOut world
 # world = writeMessage (generateMessage initializedNotificationBody) io.stdIn world // no response expected
 # world = writeMessage (generateMessage message) io.stdIn world
