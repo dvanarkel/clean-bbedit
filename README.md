@@ -4,7 +4,7 @@ Eastwood is a linter and language server for the functional programming language
 
 Neovim and VS Code are the currently supported IDEs. Other IDEs will need to be configured manually.
 
-## General Usage
+## The project configuration file (Eastwood.yml)
 
 Eastwood requires a project configuration file `Eastwood.yml` in the current working directory.
 This is a YAML file with the following fields:
@@ -13,7 +13,7 @@ This is a YAML file with the following fields:
 - `libraries`: libraries to include, located in the Clean distribution's library directory
 - `paths`: additional relative or absolute paths in which included modules are located
 
-An example file:
+An example Eastwood.yml file:
 
 ```
 compiler: cocl-itasks
@@ -23,6 +23,12 @@ libraries:
 paths:
   - someLib
 ```
+
+It is required to specify a compiler.
+
+It is required to specify a YAML list for the libraries key (use "libraries: []" for an empty list).
+
+It is required to specify a YAML list for the paths key (use "paths: []" for an empty list).
 
 ## Usage in Neovim
 
@@ -71,9 +77,9 @@ make -C src/linter eastwood-lint
 make -C src/languageServer eastwood-cls
 ```
 
-Remember to initialize the git submodules located within the project before compilation through: 
-```bash 
-git submodule init 
+Remember to initialize the git submodules located within the project before compilation through:
+```bash
+git submodule init
 git submodule update
 ```
 ## Running tests

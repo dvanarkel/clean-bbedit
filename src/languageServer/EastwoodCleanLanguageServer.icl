@@ -121,7 +121,7 @@ fetchConfig workspaceFolders world
 			, world)
 	# configPath = fromJust mbConfigPath </> PROJECT_FILENAME
 	# (mbConfig, world) = readFile configPath world
-	// Check if he project file could be read.
+	// Check if the project file could be read.
 	| 'Data.Error'.isError mbConfig =
 		('Data.Error'.Error $
 			concat4 "Cannot read project file found at " configPath ": " (toString $ 'Data.Error'.fromError mbConfig)
@@ -130,7 +130,8 @@ fetchConfig workspaceFolders world
 	// Parse the YAML, ignore warnings
 	# mbYML = loadYAML coreSchema config
 	// Check if the YML could be parsed.
-	| 'Data.Error'.isError mbYML =
+	| 'Data.Error'.isError mbYML
+		=
 		( 'Data.Error'.Error $
 			concat
 				[ "Invalid format of project file "

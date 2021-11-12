@@ -42,6 +42,8 @@ properties =:
 			"language server handles didSave notification correctly for program importing a module with issues in the DCL"
 	, incorrectNotificationsResultsInErrorLog as "language server responds to unknown method with showMessage"
 	, compilerRuntimeErrorHandled as "compiler runtime errors are handled"
+	, configMissingValueForPaths as "Error notification is shown when there is no value for paths field."
+	, configPathsSectionMissing as "Error notification is shown when paths section is missing in config."
 	, configIsMissingResultsInErrorLogOnSave
 		as "Error notification is shown when config is missing and a module is saved."
 	, configHasNonExistingPathsResultsInErrorLogOnSave
@@ -87,6 +89,8 @@ where
 SUITE_WITH_CONFIG :== "suite-001"
 SUITE_WITHOUT_CONFIG :== "suite-002"
 SUITE_CONFIG_NON_EXISTING_PATHS :== "suite-003"
+SUITE_WITH_MISSING_PATHS_VALUE_CONFIG :== "suite-004"
+SUITE_WITH_NO_KEY_FOR_PATHS_CONFIG :== "suite-005"
 
 initializesCorrectly :: Property
 initializesCorrectly = accUnsafe initializesCorrectly`
@@ -115,29 +119,67 @@ where
 	# (finalOut, world) = shutdownLanguageServer handle io world
 	= (finalOut =.= ?None, world)
 
+configMissingValueForPaths :: Property
+configMissingValueForPaths = accUnsafe configMissingValueForPaths`
+where
+	configMissingValueForPaths` :: !*World -> (!Property, !*World)
+	configMissingValueForPaths` world
+		# (Ok curDir, world) = getCurrentDirectory world
+		= assertResponseForSaveNotification
+			SUITE_WITH_MISSING_PATHS_VALUE_CONFIG
+			(expectedDiagnosticsResponseBody curDir)
+			world
+
+	expectedDiagnosticsResponseBody :: !String -> !String
+	expectedDiagnosticsResponseBody curDir =
+		concat3
+			"{\"jsonrpc\":2.0,\"method\":\"window/showMessage\",\"params\":{\"type\":1,\"message\":\"Invalid format of project file "
+			(curDir </> "suite-004" </> "Eastwood.yml")
+			": invalid content: expected sequence for list while attempting to parse key \\\"paths\\\". The expected format of the project file is described in https://gitlab.com/top-software/eastwood/-/blob/main/README.md\"}}"
+
+configPathsSectionMissing :: Property
+configPathsSectionMissing = accUnsafe configPathsSectionIsMissing`
+where
+	configPathsSectionIsMissing` :: !*World -> (!Property, !*World)
+	configPathsSectionIsMissing` world
+		# (Ok curDir, world) = getCurrentDirectory world
+		= assertResponseForSaveNotification
+			SUITE_WITH_NO_KEY_FOR_PATHS_CONFIG
+			(expectedDiagnosticsResponseBody curDir)
+			world
+
+	expectedDiagnosticsResponseBody :: !String -> String
+	expectedDiagnosticsResponseBody curDir =
+		concat3 "{\"jsonrpc\":2.0,\"method\":\"window/showMessage\",\"params\":{\"type\":1,\"message\":\"Invalid format of project file "
+		(curDir </> "suite-005" </> "Eastwood.yml")
+		": invalid content: expected sequence for list while attempting to parse key \\\"paths\\\". The expected format of the project file is described in https://gitlab.com/top-software/eastwood/-/blob/main/README.md\"}}"
+
 configIsMissingResultsInErrorLogOnSave :: Property
 configIsMissingResultsInErrorLogOnSave
 	= accUnsafe $ assertResponseForSaveNotification SUITE_WITHOUT_CONFIG expectedDiagnosticsResponseBody
 where
+	expectedDiagnosticsResponseBody :: String
 	expectedDiagnosticsResponseBody = "{\"jsonrpc\":2.0,\"method\":\"window/showMessage\",\"params\":{\"type\":1,\"message\":\"Could not find the Eastwood.yml project configuration file in the workspace folder. Please create the file in the workspace\'s root folder. The expected format of the Eastwood.yml file is described in https://gitlab.com/top-software/eastwood/-/blob/main/README.md.\"}}"
 
 configHasNonExistingPathsResultsInErrorLogOnSave :: Property
 configHasNonExistingPathsResultsInErrorLogOnSave
 	= accUnsafe $ configIsMissingResultsInErrorLogOnSave`
 where
+	configIsMissingResultsInErrorLogOnSave` :: !*World -> (!Property, !*World)
 	configIsMissingResultsInErrorLogOnSave` world
 		# (Ok curDir, world) = getCurrentDirectory world
 		= assertResponseForSaveNotification
 			SUITE_CONFIG_NON_EXISTING_PATHS
 			(expectedDiagnosticsResponseBody curDir)
 			world
-	expectedDiagnosticsResponseBody curDir
-		= concat3
+	expectedDiagnosticsResponseBody :: !String -> String
+	expectedDiagnosticsResponseBody curDir =
+		concat3
 			"{\"jsonrpc\":2.0,\"method\":\"window/showMessage\",\"params\":{\"type\":1,\"message\":\"Failed to find full path of "
 			(curDir </> "suite-003" </> "nonexisting")
 			" mentioned in Eastwood.yml: No such file or directory\"}}"
 
-assertResponseForSaveNotification :: !String !String !*World -> (Property, *World)
+assertResponseForSaveNotification :: !String !String !*World -> (!Property, !*World)
 assertResponseForSaveNotification suite expectedResponseBody world
 	# (Ok curDir, world) = getCurrentDirectory world
 	# testModulePath = testModulePathFor 1 curDir ("ok.icl")
