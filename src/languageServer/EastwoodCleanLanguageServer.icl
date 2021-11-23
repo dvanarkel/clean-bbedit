@@ -314,6 +314,22 @@ where
 			, 'LSP.Position'.character = uint character
 		}
 
+instance toString YAMLErrorWithLocations where
+	toString {error, locations} =
+		concat5
+			"Error occurred while constructing YAML: "
+			(toString error)
+			"."
+			(if (isEmpty locations) ("") ("The following hints were provided for solving the error: "))
+			(join ". " (map (\l -> "Error occurred " +++ toString l) locations))
+
+instance toString ErrorLocation where
+	toString (ADT a) = concat3 "while parsing ADT \"" a "\""
+	toString (Constructor c) = concat3 "while parsing constructor \"" c "\""
+	toString (Record r) = concat3 "while parsing record \"" r "\""
+	toString (Field f) = concat3 "while parsing field \"" f "\""
+	toString (SequenceIndex i) = "at sequence index " +++ (toString i)
+
 severityCorrespondingTo :: !'Eastwood.Diagnostic'.DiagnosticSeverity -> 'LSP.Diagnostic'.DiagnosticSeverity
 severityCorrespondingTo 'Eastwood.Diagnostic'.Error       = 'LSP.Diagnostic'.Error
 severityCorrespondingTo 'Eastwood.Diagnostic'.Warning     = 'LSP.Diagnostic'.Warning

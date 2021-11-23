@@ -135,7 +135,7 @@ where
 		concat3
 			"{\"jsonrpc\":2.0,\"method\":\"window/showMessage\",\"params\":{\"type\":1,\"message\":\"Invalid format of project file "
 			(curDir </> "suite-004" </> "Eastwood.yml")
-			": invalid content: expected sequence for list while attempting to parse key \\\"paths\\\". The expected format of the project file is described in https://gitlab.com/top-software/eastwood/-/blob/main/README.md\"}}"
+			": Error occurred while constructing YAML: invalid content: expected sequence for list.The following hints were provided for solving the error: Error occurred while parsing record \\\"CompilerSettingsConfig\\\". Error occurred while parsing field \\\"paths\\\". The expected format of the project file is described in https://gitlab.com/top-software/eastwood/-/blob/main/README.md\"}}"
 
 configPathsSectionMissing :: Property
 configPathsSectionMissing = accUnsafe configPathsSectionIsMissing`
@@ -152,7 +152,8 @@ where
 	expectedDiagnosticsResponseBody curDir =
 		concat3 "{\"jsonrpc\":2.0,\"method\":\"window/showMessage\",\"params\":{\"type\":1,\"message\":\"Invalid format of project file "
 		(curDir </> "suite-005" </> "Eastwood.yml")
-		": invalid content: expected sequence for list while attempting to parse key \\\"paths\\\". The expected format of the project file is described in https://gitlab.com/top-software/eastwood/-/blob/main/README.md\"}}"
+		": Error occurred while constructing YAML: invalid content: required key paths is not specified.The following hints were provided for solving the error: Error occurred while parsing record \\\"CompilerSettingsConfig\\\". The expected format of the project file is described in https://gitlab.com/top-software/eastwood/-/blob/main/README.md\"}}"
+
 
 configIsMissingResultsInErrorLogOnSave :: Property
 configIsMissingResultsInErrorLogOnSave
