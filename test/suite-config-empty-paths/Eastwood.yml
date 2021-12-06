@@ -1,6 +1,4 @@
 compiler: cocl-itasks
 libraries:
   - StdEnv
-  - Platform
-paths:
-  - someLib
+paths: []

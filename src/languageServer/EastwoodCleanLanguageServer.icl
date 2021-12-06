@@ -143,8 +143,10 @@ fetchConfig workspaceFolders world
 				]
 		, world)
 	# config = fst $ 'Data.Error'.fromOk mbYML
-	// Interpret the paths relative to the path of the configuration file
-	# config & paths = [takeDirectory configPath </> p \\ p <- config.paths]
+	// Interpret the paths relative to the path of the configuration file.
+	// The config file path is included by default, so that a developer doesn't have to explicitly add `.` in the config
+	// file to include the root directory.
+	# config & paths = [takeDirectory configPath : [takeDirectory configPath </> p \\ p <- config.paths]]
 	// Get CLEAN_HOME
 	# (mbCleanHome, world) = getEnvironmentVariable CLEAN_HOME_ENV_VAR world
 	  cleanHome = fromJust mbCleanHome

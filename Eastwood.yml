@@ -5,6 +5,7 @@ libraries:
   - Gast
 paths:
   - src/languageServer
+  - src/linter
   - src/lib
   - src/lib/yaml/src
   - src/lib/clean-lsp/src

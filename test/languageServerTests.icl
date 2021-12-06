@@ -23,10 +23,12 @@ SUITE_WITHOUT_CONFIG :== "suite-without-config"
 SUITE_CONFIG_NON_EXISTING_PATHS :== "suite-config-non-existing-paths"
 SUITE_CONFIG_MISSING_PATHS :== "suite-config-missing-paths"
 SUITE_CONFIG_NO_PATHS_KEY :== "suite-config-no-paths-key"
+SUITE_CONFIG_EMPTY_PATHS :== "suite-config-empty-paths"
 
 // A non-existing file. Used when the actual file doesn't matter, because Eastwood is expected to run into a more
 // fundamental edge-case.
 FILE_DONT_CARE :== "dontcare.icl"
+FILE_OK :== "ok.icl"
 
 Start :: *World -> *World
 Start world = exposeProperties [OutputTestEvents] [Bent] properties world
@@ -35,7 +37,7 @@ properties :: [Property]
 properties =:
 	[ initializesCorrectly SUITE_DEFAULT as "language server initializes correctly"
 	, setTraceIgnored SUITE_DEFAULT as "$/setTrace notification is ignored"
-	, didSaveNotificationCorrectlyHandledFor SUITE_DEFAULT "ok" [!("ok.icl", "[]")] as
+	, didSaveNotificationCorrectlyHandledFor SUITE_DEFAULT "ok" [!(FILE_OK, "[]")] as
 		"language server handles didSave notification correctly for program without issues"
 	, didSaveNotificationCorrectlyHandledFor
 		SUITE_DEFAULT
@@ -60,6 +62,7 @@ properties =:
 		as "Error notification is shown when config is missing and a module is saved."
 	, configHasNonExistingPathsResultsInErrorLogOnSave SUITE_CONFIG_NON_EXISTING_PATHS FILE_DONT_CARE
 		as "Error notification is shown when config contains non-existing paths and a module is saved."
+	, configPathEmpty SUITE_CONFIG_EMPTY_PATHS FILE_OK as "Empty path config still includes the root directory."
 	, didSaveNotificationCorrectlyHandledFor SUITE_DEFAULT
 		"nonexisting"
 		[!("nonexisting.icl", diagnosticsForNonexisting)]
@@ -82,7 +85,7 @@ properties =:
 		("otherLib" </> "IncorrectModuleHeader")
 		[!("otherLib" </> "IncorrectModuleHeader.icl", diagnosticsForIncorrectModuleHeader)]
 		as "correct notifications for file with the wrong module name, depending on the search paths"
-	, didCloseIgnored SUITE_DEFAULT "ok.icl" as "didClose notification is ignored"
+	, didCloseIgnored SUITE_DEFAULT FILE_OK as "didClose notification is ignored"
 	]
 where
 	diagnosticsForErrors =
@@ -172,7 +175,7 @@ where
 
 configHasNonExistingPathsResultsInErrorLogOnSave :: !String !String -> Property
 configHasNonExistingPathsResultsInErrorLogOnSave suite file
-	= accUnsafe $ configIsMissingResultsInErrorLogOnSave`
+	= accUnsafe configIsMissingResultsInErrorLogOnSave`
 where
 	configIsMissingResultsInErrorLogOnSave` :: !*World -> (!Property, !*World)
 	configIsMissingResultsInErrorLogOnSave` world
@@ -182,12 +185,32 @@ where
 			file
 			(expectedDiagnosticsResponseBody curDir)
 			world
+
 	expectedDiagnosticsResponseBody :: !String -> String
 	expectedDiagnosticsResponseBody curDir =
 		concat3
 			"{\"jsonrpc\":2.0,\"method\":\"window/showMessage\",\"params\":{\"type\":1,\"message\":\"Failed to find full path of "
 			(curDir </> suite </> "nonexisting")
 			" mentioned in Eastwood.yml: No such file or directory\"}}"
+
+configPathEmpty :: !String !String -> Property
+configPathEmpty suite file = accUnsafe configPathEmpty`
+where
+	configPathEmpty` :: !*World -> (!Property, !*World)
+	configPathEmpty` world
+		# (Ok curDir, world) = getCurrentDirectory world
+		= assertResponseForSaveNotification
+			suite
+			file
+			(expectedDiagnosticsResponseBody curDir)
+			world
+
+	expectedDiagnosticsResponseBody :: !String -> String
+	expectedDiagnosticsResponseBody curDir =
+		concat3
+			"{\"jsonrpc\":2.0,\"method\":\"textDocument/publishDiagnostics\",\"params\":{\"uri\":\"file://"
+			(curDir </> suite </> file)
+			"\",\"diagnostics\":[]}}"
 
 assertResponseForSaveNotification :: !String !String !String !*World -> (!Property, !*World)
 assertResponseForSaveNotification suite file expectedResponseBody world
