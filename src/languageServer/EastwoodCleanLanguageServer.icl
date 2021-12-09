@@ -3,6 +3,8 @@ module EastwoodCleanLanguageServer
 import StdEnv
 import StdOverloadedList
 
+from StdMaybe import :: Maybe
+
 from Data.Error import instance Functor (MaybeError e), fromOk, isError, :: MaybeError (Ok), fromError
 from Data.Error import qualified :: MaybeError (Error)
 import qualified Data.Error
@@ -236,7 +238,7 @@ onGotoDeclaration :: !RequestMessage !EastwoodState !*World -> (!ResponseMessage
 onGotoDeclaration req=:{RequestMessage|id, params=(?Just json)} st=:{EastwoodState|workspaceFolders} world
 	// Boilerplate to get the line (String) for which a declaration was requested.
 	# {GotoDeclarationParams|textDocument={TextDocumentIdentifier|uri}, position} = deserialize json
-	# (mbLines, world) = trace_n (toString uri) readFileLines uri.uriPath world
+	# (mbLines, world) = readFileLines uri.uriPath world
 	| isError mbLines =
 		( errorResponse id InternalError (concat3 "The file located at " uri.uriPath "was not found.")
 		, st
@@ -262,17 +264,31 @@ onGotoDeclaration req=:{RequestMessage|id, params=(?Just json)} st=:{EastwoodSta
 	| isError mbSearchString = (fromError mbSearchString, st, world)
 	// Using the searchString, execute grep to find the file names and line numbers of the definitions that match.
 	# searchString = fromOk mbSearchString
-	// CLEAN_HOME_ENV_VAR is also searched by grep so the value is retrieved.
+	// The root path is necessary because otherwise grep returns relative paths and the client needs absolute paths.
+	# (mbConfigPath, world) = findSearchPath PROJECT_FILENAME workspaceFolders world
+	| isNone mbConfigPath
+		= (errorResponse id InternalError ("could not find absolute path of " +++ PROJECT_FILENAME), st, world)
+	# searchPath = fromJust mbConfigPath
+	# (mbRootPath, world) = getFullPathName searchPath world
+	| isError mbRootPath =
+		(errorResponse id InternalError ("could not find absolute path of " +++ PROJECT_FILENAME), st, world)
+	# rootPath = fromOk mbRootPath
+	// CLEAN_HOME_ENV_VAR is also searched by grep so the value is retrieved to get the path.
 	# (mbCleanHome, world) = getEnvironmentVariable CLEAN_HOME_ENV_VAR world
 	| isNone mbCleanHome
 		= (errorResponse id InternalError "Could not find CLEAN_HOME.", st, world)
 	# cleanHomePath = fromJust mbCleanHome
 	//* The grep typedef search string is adjusted to avoid finding imports using (?<!).
 	# typeDefSearchStr = "(?<!import |, ):: " +++ searchString
-	// -P enables perl regexp, -r recurses through all files, -n gives line number, --include \*.dcl makes sure only
-	// dcl files are examined by grep.
+	// -P enables perl regexp, -r recurses through all files, -n gives line number,
+	// -w matches whole words only (e.g: :: Maybe matches :: Maybe but not :: MaybeOSError).
+	//--include \*.dcl makes sure only dcl files are examined by grep.
 	# (mbGrepResultTypeDef, world)
-		= callProcessWithOutput "grep" ["-P", typeDefSearchStr, "-r", "-n", "--include", "\*.dcl", ".", cleanHomePath] ?None world
+		= callProcessWithOutput
+			"grep"
+			["-P", typeDefSearchStr, "-r", "-n", "-w", "--include", "\*.dcl", rootPath, cleanHomePath]
+			?None
+			world
 	| isError mbGrepResultTypeDef
 		= (errorResponse id InternalError "grep failed when searching for type definitions.", st, world)
 	# {stdout} = fromOk mbGrepResultTypeDef
@@ -280,25 +296,18 @@ onGotoDeclaration req=:{RequestMessage|id, params=(?Just json)} st=:{EastwoodSta
 	// grep adds an empty newline at the end of the results which is removed by init.
 	// The first two results are the file name and line number.
 	// This is transformed into a list of tuples of filename and linenumber for convenience.
-	# results = (\[fileName, lineNr] -> ([(fileName, toInt lineNr)])) o take 2 o split ":" <$> (init $ split "\n" stdout)
-	//Grep returns relative paths but the client needs absolute path URIs so the absolute path is determined.
-	# (mbSearchPath, world) = findSearchPath PROJECT_FILENAME workspaceFolders world
-	| isNone mbSearchPath
-		= (errorResponse id InternalError ("could not find absolute path of " +++ PROJECT_FILENAME), st, world)
-	# searchPath = fromJust mbSearchPath
-	# (mbAbsPath, world) = getFullPathName searchPath world
-	| isError mbAbsPath =
-		(errorResponse id InternalError ("could not find absolute path of " +++ PROJECT_FILENAME), st, world)
-	# absPath = fromOk mbAbsPath
+	# results
+		= (\[fileName, lineNr] -> ([(fileName, toInt lineNr)])) o take 2 o split ":" <$> (init $ split "\n" stdout)
+	// grep returns relative paths but the client needs absolute path URIs so the absolute path is determined.
+	// the config path is the root path.
 	// // For every tuple of fileName and lineNumber, a Location is generated to be sent back to the client.
-	# locations = [! l \\ l <- catMaybes $ (fileAndLineToLocation absPath cleanHomePath) <$> flatten results !]
+	# locations = [! l \\ l <- catMaybes $ fileAndLineToLocation <$> flatten results !]
 	// # funcDefSearchStr = searchString +++ " ::"
 	= (locationResponse id locations, st, world)
 where
 	searchTermFor :: !String !UInt -> MaybeError ResponseMessage String
 	searchTermFor line (UInt charNr)
 		# firstUnicodeChar = fromChar $ select line charNr
-		#! firstUnicodeChar = trace_n (toInt firstUnicodeChar) firstUnicodeChar
 		| isSpecialSymbol firstUnicodeChar =
 			'Data.Error'.Error $
 				errorResponse id InternalError "it is not possible to go to the definition of a special syntax symbol."
@@ -306,7 +315,7 @@ where
 		// When goto definition is pressed when a whole term is selected the character ends up being the first char
 		// after the term, the same holds when attempting to go to the declaration when selecting these characters.
 		# lookBackCharacters = fromChar <$> [' ', ',', '\n', '\t']
-		| elem firstUnicodeChar lookBackCharacters = trace_n "lookup" searchTermFor line (UInt (charNr - 1))
+		| elem firstUnicodeChar lookBackCharacters = searchTermFor line (UInt (charNr - 1))
 		| isSymbol firstUnicodeChar || isAlphaNum firstUnicodeChar || isPunctuation firstUnicodeChar
 			# stopPredicate =
 				if (isSymbol firstUnicodeChar || isPunctuation firstUnicodeChar)
@@ -345,7 +354,7 @@ where
 		// Not possible to retrieve a declaration for these symbols are they are special syntax characters.
 		// Not strict because there is currently no Elem in StdOverloadedList.
 		specialSymbols :: [UChar]
-		specialSymbols = map fromChar ['(', ')', '{', '}', '[', ']', ';', '\"', '\'', '_', 'c']
+		specialSymbols = map fromChar ['(', ')', '{', '}', '[', ']', ';', '\"', '\'', '_']
 
 		isSpecialSymbol :: !UChar -> Bool
 		isSpecialSymbol uc = elem uc specialSymbols
@@ -378,13 +387,12 @@ where
 		, error = ?None
 		}
 
-	fileAndLineToLocation :: !FilePath !FilePath !(!String, !Int) -> ?Location
-	fileAndLineToLocation absPath cleanHomePath (fileName, lineNr)
+	fileAndLineToLocation :: !(!String, !Int) -> ?Location
+	fileAndLineToLocation (fileName, lineNr)
 		// Grep returns relative paths, vscode needs absolute paths so the absolute path is determined.
 		# (mbRootPath, world) = findSearchPath PROJECT_FILENAME workspaceFolders
-		#! fileName = trace_n fileName fileName
 		// Files in CLEAN_HOME already are in absolute path form, therefore we do not add absPath in this case.
-		# fileUri = parseURI $ "file://"  </> (if (startsWith cleanHomePath fileName) (fileName) (absPath </> fileName))
+		# fileUri = parseURI $ "file://" </> fileName
 		| isNone fileUri = ?None
 		= ?Just $
 			{ Location
