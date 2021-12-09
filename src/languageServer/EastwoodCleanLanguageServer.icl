@@ -3,7 +3,8 @@ module EastwoodCleanLanguageServer
 import StdEnv
 import StdOverloadedList
 
-from Data.Error import instance Functor (MaybeError e), fromOk
+from Data.Error import instance Functor (MaybeError e), fromOk, isError, :: MaybeError (Ok), fromError
+from Data.Error import qualified :: MaybeError (Error)
 import qualified Data.Error
 import qualified Data.Map
 import Data.Func
@@ -16,11 +17,13 @@ import System.Environment
 import System.File
 import System.FilePath
 import System.OS
+from System.Process import :: ProcessResult {..}, callProcessWithOutput
 import Text
 import Text.GenJSON
 import Text.URI
-
 import Text.YAML
+from Text.Unicode.UChar import isSymbol, :: UChar, instance fromChar UChar, instance toChar UChar, instance == UChar, instance toInt UChar
+	, isAlphaNum, isPunctuation
 
 from LSP.Diagnostic import qualified :: Diagnostic {..}, :: DiagnosticSeverity {..}
 from LSP.Position import qualified :: Position {..}
@@ -32,13 +35,14 @@ from LSP.DidOpenTextDocumentParams import qualified :: DidOpenTextDocumentParams
 from LSP.DidSaveTextDocumentParams import qualified :: DidSaveTextDocumentParams {..}
 import LSP.InitializeParams
 import LSP.Internal.Serialize
-import LSP.MessageParams
+from LSP.MessageParams import :: MessageParams (..), :: MessageType (..)
 import LSP.ShowMessageParams
 import LSP.NotificationMessage
 import LSP.RequestMessage
 import LSP.ResponseMessage
 import LSP.ServerCapabilities
 import LSP.TextDocumentIdentifier
+from LSP.Location import :: Location (..)
 import qualified LSP.Position
 import qualified LSP.PublishDiagnosticsParams
 import qualified LSP.Range
@@ -68,6 +72,7 @@ capabilities :: ServerCapabilities
 capabilities =
 	{ ServerCapabilities
 	| textDocumentSync = {openClose = True, save = True}
+	, declarationProvider = True
 	}
 
 :: EastwoodState = {workspaceFolders :: ![!FilePath]}
@@ -87,7 +92,7 @@ capabilities =
 derive gConstructFromYAML CompilerSettingsConfig
 
 cleanLanguageServer :: LanguageServer EastwoodState
-cleanLanguageServer = {onInitialize = onInitialize, onRequest = onRequest, onNotification = onNotification}
+cleanLanguageServer = { onInitialize = onInitialize, onRequest = onRequest, onNotification = onNotification}
 
 onInitialize :: !InitializeParams !*World -> (!MaybeError String EastwoodState, !*World)
 onInitialize {rootPath, rootUri, workspaceFolders} world
@@ -175,8 +180,14 @@ where
 			, ": ", error
 			]
 
+import StdDebug
+import Text.GenJSON
+
 onRequest :: !RequestMessage !EastwoodState !*World -> (!ResponseMessage, !EastwoodState, !*World)
-onRequest {RequestMessage | id} st world = (errorResponse id, st, world)
+onRequest msg=:{RequestMessage | id, method} st world =
+	case method of
+		"textDocument/declaration" = onGotoDeclaration msg st world
+		_ = (errorResponse id, st, world)
 where
 	errorResponse :: !RequestId -> ResponseMessage
 	errorResponse id =
@@ -215,6 +226,183 @@ onNotification {NotificationMessage| method, params} st world
 		= ([!], st, world)
 	| otherwise
 		= ([!errorLogMessage $ concat3 "Unknown notification '" method "'."], st, world)
+
+import Debug.Trace
+import Data.GenEq
+
+derive gEq Location, URI, 'Eastwood.Range'.Range, 'LSP.Range'.Range, 'LSP.Position'.Position, UInt
+
+onGotoDeclaration :: !RequestMessage !EastwoodState !*World -> (!ResponseMessage, !EastwoodState, !*World)
+onGotoDeclaration req=:{RequestMessage|id, params=(?Just json)} st=:{EastwoodState|workspaceFolders} world
+	// Boilerplate to get the line (String) for which a declaration was requested.
+	# {GotoDeclarationParams|textDocument={TextDocumentIdentifier|uri}, position} = deserialize json
+	# (mbLines, world) = trace_n (toString uri) readFileLines uri.uriPath world
+	| isError mbLines =
+		( errorResponse id InternalError (concat3 "The file located at " uri.uriPath "was not found.")
+		, st
+		, world)
+	# lines = fromOk mbLines
+	# (UInt lineNr) = position.'LSP.Position'.line
+	# mbLine = lines !? lineNr
+	| isNone mbLine =
+		( errorResponse
+			id
+			InternalError
+			(concat4 "The file located at " uri.uriPath "does no longer contain line number " (toString lineNr))
+		, st
+		, world
+		)
+	// The line was found.
+	# line = fromJust mbLine
+	// NB: charNr does not mean column number, it is the number of the character within the line.
+	// E.g tab = x cols 1 char.
+	# charNr = position.'LSP.Position'.character
+	// Parse the search term for which a declaration was requested.
+	# mbSearchString = searchTermFor line charNr
+	| isError mbSearchString = (fromError mbSearchString, st, world)
+	// Using the searchString, execute grep to find the file names and line numbers of the definitions that match.
+	# searchString = fromOk mbSearchString
+	// CLEAN_HOME_ENV_VAR is also searched by grep so the value is retrieved.
+	# (mbCleanHome, world) = getEnvironmentVariable CLEAN_HOME_ENV_VAR world
+	| isNone mbCleanHome
+		= (errorResponse id InternalError "Could not find CLEAN_HOME.", st, world)
+	# cleanHomePath = fromJust mbCleanHome
+	//* The grep typedef search string is adjusted to avoid finding imports using (?<!).
+	# typeDefSearchStr = "(?<!import |, ):: " +++ searchString
+	// -P enables perl regexp, -r recurses through all files, -n gives line number, --include \*.dcl makes sure only
+	// dcl files are examined by grep.
+	# (mbGrepResultTypeDef, world)
+		= callProcessWithOutput "grep" ["-P", typeDefSearchStr, "-r", "-n", "--include", "\*.dcl", ".", cleanHomePath] ?None world
+	| isError mbGrepResultTypeDef
+		= (errorResponse id InternalError "grep failed when searching for type definitions.", st, world)
+	# {stdout} = fromOk mbGrepResultTypeDef
+	// List of lists of string containing the results, grep separates file name/line number by : and results by \n.
+	// grep adds an empty newline at the end of the results which is removed by init.
+	// The first two results are the file name and line number.
+	// This is transformed into a list of tuples of filename and linenumber for convenience.
+	# results = (\[fileName, lineNr] -> ([(fileName, toInt lineNr)])) o take 2 o split ":" <$> (init $ split "\n" stdout)
+	//Grep returns relative paths but the client needs absolute path URIs so the absolute path is determined.
+	# (mbSearchPath, world) = findSearchPath PROJECT_FILENAME workspaceFolders world
+	| isNone mbSearchPath
+		= (errorResponse id InternalError ("could not find absolute path of " +++ PROJECT_FILENAME), st, world)
+	# searchPath = fromJust mbSearchPath
+	# (mbAbsPath, world) = getFullPathName searchPath world
+	| isError mbAbsPath =
+		(errorResponse id InternalError ("could not find absolute path of " +++ PROJECT_FILENAME), st, world)
+	# absPath = fromOk mbAbsPath
+	// // For every tuple of fileName and lineNumber, a Location is generated to be sent back to the client.
+	# locations = [! l \\ l <- catMaybes $ (fileAndLineToLocation absPath cleanHomePath) <$> flatten results !]
+	// # funcDefSearchStr = searchString +++ " ::"
+	= (locationResponse id locations, st, world)
+where
+	searchTermFor :: !String !UInt -> MaybeError ResponseMessage String
+	searchTermFor line (UInt charNr)
+		# firstUnicodeChar = fromChar $ select line charNr
+		#! firstUnicodeChar = trace_n (toInt firstUnicodeChar) firstUnicodeChar
+		| isSpecialSymbol firstUnicodeChar =
+			'Data.Error'.Error $
+				errorResponse id InternalError "it is not possible to go to the definition of a special syntax symbol."
+		// If the first char is a space, comma, \n, or \t, go backwards
+		// When goto definition is pressed when a whole term is selected the character ends up being the first char
+		// after the term, the same holds when attempting to go to the declaration when selecting these characters.
+		# lookBackCharacters = fromChar <$> [' ', ',', '\n', '\t']
+		| elem firstUnicodeChar lookBackCharacters = trace_n "lookup" searchTermFor line (UInt (charNr - 1))
+		| isSymbol firstUnicodeChar || isAlphaNum firstUnicodeChar || isPunctuation firstUnicodeChar
+			# stopPredicate =
+				if (isSymbol firstUnicodeChar || isPunctuation firstUnicodeChar)
+					symbolPuncStopPredicate
+					alphaNumStopPredicate
+			// Parse backwards and forwards until a char that triggers the stopPredicate is found
+			// or when we run out of chars to parse.
+			# searchTerm =
+				toString $
+				(Reverse $ parseSearchTerm line stopPredicate (Reverse [!0..charNr-1!])) ++|
+				parseSearchTerm line stopPredicate [!charNr..size line!]
+			= Ok searchTerm
+		= 'Data.Error'.Error $
+			errorResponse
+			id
+			InternalError
+			("Unrecognised char: " +++ (toString $ toInt firstUnicodeChar))
+	where
+		parseSearchTerm :: !String !(UChar -> Bool) ![!Int!] -> [!Char!]
+		parseSearchTerm line stopPredicate indexes = parseSearchTerm` line filter indexes [!!]
+		where
+			parseSearchTerm` line filter [!i:is!] acc
+				# uChar = fromChar $ select line i
+				// If there is a character that adheres to the stop filter, break out of the recursion.
+				| stopPredicate uChar = Reverse acc
+				= parseSearchTerm` line filter is [!toChar uChar:acc!]
+			// If there are no indexes left, we return the accumlator of characters for which the filter holds.
+			parseSearchTerm` _ _ [!!] acc = Reverse acc
+
+		symbolPuncStopPredicate :: !UChar -> Bool
+		symbolPuncStopPredicate uc = not (isSymbol uc || isPunctuation uc) || isSpecialSymbol uc
+
+		alphaNumStopPredicate :: !UChar -> Bool
+		alphaNumStopPredicate uc = not (isAlphaNum uc)
+
+		// Not possible to retrieve a declaration for these symbols are they are special syntax characters.
+		// Not strict because there is currently no Elem in StdOverloadedList.
+		specialSymbols :: [UChar]
+		specialSymbols = map fromChar ['(', ')', '{', '}', '[', ']', ';', '\"', '\'', '_', 'c']
+
+		isSpecialSymbol :: !UChar -> Bool
+		isSpecialSymbol uc = elem uc specialSymbols
+
+	grepTypeDefintions :: !String -> [!Location!]
+	grepTypeDefintions searchString = [!!]
+
+	grepFunDefinitions :: !String -> [!Location!]
+	grepFunDefinitions searchString = [!!]
+
+	errorResponse :: !RequestId !ErrorCode !String -> ResponseMessage
+	errorResponse id err msg =
+		{ ResponseMessage
+		 | id = ?Just id
+		, result = ?None
+		, error = ?Just
+			{ ResponseError
+			| errorCode = err
+			, message = msg
+			, data = ?None
+			}
+		}
+
+	locationResponse :: !RequestId ![!Location!] -> ResponseMessage
+	locationResponse id locations=
+		{ ResponseMessage
+		| id = ?Just id
+		, result =
+			?Just $ serialize locations
+		, error = ?None
+		}
+
+	fileAndLineToLocation :: !FilePath !FilePath !(!String, !Int) -> ?Location
+	fileAndLineToLocation absPath cleanHomePath (fileName, lineNr)
+		// Grep returns relative paths, vscode needs absolute paths so the absolute path is determined.
+		# (mbRootPath, world) = findSearchPath PROJECT_FILENAME workspaceFolders
+		#! fileName = trace_n fileName fileName
+		// Files in CLEAN_HOME already are in absolute path form, therefore we do not add absPath in this case.
+		# fileUri = parseURI $ "file://"  </> (if (startsWith cleanHomePath fileName) (fileName) (absPath </> fileName))
+		| isNone fileUri = ?None
+		= ?Just $
+			{ Location
+			| uri = fromJust fileUri
+			, range = rangeCorrespondingTo
+				{ 'Eastwood.Range'.Range
+				| start={'Eastwood.Range'.Position|'Eastwood.Range'.line=lineNr-1, 'Eastwood.Range'.character=0}
+				, end={'Eastwood.Range'.Position|'Eastwood.Range'.line=lineNr-1, 'Eastwood.Range'.character=0}
+				}
+			}
+
+:: GotoDeclarationParams = { textDocument :: !TextDocumentIdentifier, position :: !'LSP.Position'.Position}
+
+// (#,) infixl 3 :: !Int !Int -> Bool
+// (#,) i1 i2 = True
+
+derive gLSPJSONDecode GotoDeclarationParams
+derive gLSPJSONEncode GotoDeclarationParams
 
 errorLogMessage :: !String -> NotificationMessage
 errorLogMessage message = showMessage {MessageParams| type = Error, message = message}
