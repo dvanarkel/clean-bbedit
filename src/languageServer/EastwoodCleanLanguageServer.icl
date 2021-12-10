@@ -229,64 +229,44 @@ onNotification {NotificationMessage| method, params} st world
 	| otherwise
 		= ([!errorLogMessage $ concat3 "Unknown notification '" method "'."], st, world)
 
-import Debug.Trace
-import Data.GenEq
-
-derive gEq Location, URI, 'Eastwood.Range'.Range, 'LSP.Range'.Range, 'LSP.Position'.Position, UInt
-
 onGotoDeclaration :: !RequestMessage !EastwoodState !*World -> (!ResponseMessage, !EastwoodState, !*World)
 onGotoDeclaration req=:{RequestMessage|id, params=(?Just json)} st=:{EastwoodState|workspaceFolders} world
-	// Boilerplate to get the line (String) for which a declaration was requested.
 	# {GotoDeclarationParams|textDocument={TextDocumentIdentifier|uri}, position} = deserialize json
-	# (mbLines, world) = readFileLines uri.uriPath world
-	| isError mbLines =
-		( errorResponse id InternalError (concat3 "The file located at " uri.uriPath "was not found.")
-		, st
-		, world)
-	# lines = fromOk mbLines
-	# (UInt lineNr) = position.'LSP.Position'.line
-	# mbLine = lines !? lineNr
-	| isNone mbLine =
-		( errorResponse
-			id
-			InternalError
-			(concat4 "The file located at " uri.uriPath "does no longer contain line number " (toString lineNr))
-		, st
-		, world
-		)
-	// The line was found.
-	# line = fromJust mbLine
+	# (mbLine, world) = getLineOfDeclarationRequest uri position world
+	| isError mbLine = (fromError mbLine, st, world)
+	# line = fromOk mbLine
 	// NB: charNr does not mean column number, it is the number of the character within the line.
 	// E.g tab = x cols 1 char.
 	# charNr = position.'LSP.Position'.character
-	// Parse the search term for which a declaration was requested.
-	# mbSearchString = searchTermFor line charNr
-	| isError mbSearchString = (fromError mbSearchString, st, world)
-	// Using the searchString, execute grep to find the file names and line numbers of the definitions that match.
-	# searchString = fromOk mbSearchString
+	// Parse the grep search term for which a declaration was requested.
+	# mbSearchTerm = grepSearchTermFor line charNr
+	| isError mbSearchTerm = (fromError mbSearchTerm, st, world)
+	// Using the searchString, grep is executed to find the file names and line numbers of the definitions that match.
+	# searchTerm = fromOk mbSearchTerm
 	// The root path is necessary because otherwise grep returns relative paths and the client needs absolute paths.
+	// The config path is the root path.
 	# (mbConfigPath, world) = findSearchPath PROJECT_FILENAME workspaceFolders world
 	| isNone mbConfigPath
-		= (errorResponse id InternalError ("could not find absolute path of " +++ PROJECT_FILENAME), st, world)
+		= (errorResponse id InternalError ("Could not find absolute path of " +++ PROJECT_FILENAME), st, world)
 	# searchPath = fromJust mbConfigPath
+	// We remove symlinks/../. to get the actual full path.
 	# (mbRootPath, world) = getFullPathName searchPath world
 	| isError mbRootPath =
-		(errorResponse id InternalError ("could not find absolute path of " +++ PROJECT_FILENAME), st, world)
+		(errorResponse id InternalError ("Could not find absolute path of " +++ PROJECT_FILENAME), st, world)
 	# rootPath = fromOk mbRootPath
 	// CLEAN_HOME_ENV_VAR is also searched by grep so the value is retrieved to get the path.
 	# (mbCleanHome, world) = getEnvironmentVariable CLEAN_HOME_ENV_VAR world
 	| isNone mbCleanHome
-		= (errorResponse id InternalError "Could not find CLEAN_HOME.", st, world)
+		= (errorResponse id UnknownErrorCode "Could not find CLEAN_HOME environment variable.", st, world)
 	# cleanHomePath = fromJust mbCleanHome
 	//* The grep typedef search string is adjusted to avoid finding imports using (?<!).
-	# typeDefSearchStr = "(?<!import |, ):: " +++ searchString
 	// -P enables perl regexp, -r recurses through all files, -n gives line number,
 	// -w matches whole words only (e.g: :: Maybe matches :: Maybe but not :: MaybeOSError).
 	//--include \*.dcl makes sure only dcl files are examined by grep.
 	# (mbGrepResultTypeDef, world)
 		= callProcessWithOutput
 			"grep"
-			["-P", typeDefSearchStr, "-r", "-n", "-w", "--include", "\*.dcl", rootPath, cleanHomePath]
+			["-P", searchTerm, "-r", "-n", "-w", "--include", "\*.dcl", rootPath, cleanHomePath]
 			?None
 			world
 	| isError mbGrepResultTypeDef
@@ -298,26 +278,47 @@ onGotoDeclaration req=:{RequestMessage|id, params=(?Just json)} st=:{EastwoodSta
 	// This is transformed into a list of tuples of filename and linenumber for convenience.
 	# results
 		= (\[fileName, lineNr] -> ([(fileName, toInt lineNr)])) o take 2 o split ":" <$> (init $ split "\n" stdout)
-	// grep returns relative paths but the client needs absolute path URIs so the absolute path is determined.
-	// the config path is the root path.
 	// // For every tuple of fileName and lineNumber, a Location is generated to be sent back to the client.
 	# locations = [! l \\ l <- catMaybes $ fileAndLineToLocation <$> flatten results !]
-	// # funcDefSearchStr = searchString +++ " ::"
 	= (locationResponse id locations, st, world)
 where
-	searchTermFor :: !String !UInt -> MaybeError ResponseMessage String
-	searchTermFor line (UInt charNr)
+	getLineOfDeclarationRequest :: !URI 'LSP.Position'.Position !*World -> (!MaybeError ResponseMessage String, !*World)
+	getLineOfDeclarationRequest uri position world
+		# (mbLines, world) = readFileLines uri.uriPath world
+		| isError mbLines =
+			('Data.Error'.Error $
+				errorResponse id ContentModified (concat3 "The file located at " uri.uriPath "was not found.")
+			, world
+			)
+		# lines = fromOk mbLines
+		# (UInt lineNr) = position.'LSP.Position'.line
+		# mbLine = lines !? lineNr
+		| isNone mbLine =
+			('Data.Error'.Error $
+				errorResponse
+					id
+					ParseError
+					(concat4 "The file located at " uri.uriPath "does no longer contain line number " (toString lineNr))
+			, world
+			)
+		// The line was found.
+		= (Ok $ fromJust mbLine, world)
+
+	grepSearchTermFor :: !String !UInt -> MaybeError ResponseMessage String
+	grepSearchTermFor line (UInt charNr)
 		# firstUnicodeChar = fromChar $ select line charNr
 		| isSpecialSymbol firstUnicodeChar =
 			'Data.Error'.Error $
-				errorResponse id InternalError "it is not possible to go to the definition of a special syntax symbol."
+				errorResponse id ParseError "it is not possible to go to the definition of a special syntax symbol."
 		// If the first char is a space, comma, \n, or \t, go backwards
 		// When goto definition is pressed when a whole term is selected the character ends up being the first char
 		// after the term, the same holds when attempting to go to the declaration when selecting these characters.
 		# lookBackCharacters = fromChar <$> [' ', ',', '\n', '\t']
-		| elem firstUnicodeChar lookBackCharacters = searchTermFor line (UInt (charNr - 1))
+		| elem firstUnicodeChar lookBackCharacters = grepSearchTermFor line (UInt (charNr - 1))
+		// This is the general case.
 		| isSymbol firstUnicodeChar || isAlphaNum firstUnicodeChar || isPunctuation firstUnicodeChar
 			# stopPredicate =
+				// The parser stops parsing based on a different condition if an infix function is parsed.
 				if (isSymbol firstUnicodeChar || isPunctuation firstUnicodeChar)
 					symbolPuncStopPredicate
 					alphaNumStopPredicate
@@ -325,13 +326,36 @@ where
 			// or when we run out of chars to parse.
 			# searchTerm =
 				toString $
-				(Reverse $ parseSearchTerm line stopPredicate (Reverse [!0..charNr-1!])) ++|
-				parseSearchTerm line stopPredicate [!charNr..size line!]
-			= Ok searchTerm
+					(Reverse $ parseSearchTerm line stopPredicate (Reverse [!0..charNr-1!])) ++|
+					parseSearchTerm line stopPredicate [!charNr..size line!]
+			# atleastOneWhiteSpace = "(\\s+)"
+			// The grep type definition search pattern is adjusted to avoid finding imports using (?<!).
+			# avoidImports = "(?<!import |, )"
+			# grepTypeSearchTerm = concat3 avoidImports ":: " searchTerm
+			// The grep func definition search pattern is adjusted based on
+			// whether an infix function or a prefix function was parsed.
+			# grepFuncSearchTerm =
+				if (isSymbol firstUnicodeChar || isPunctuation firstUnicodeChar)
+					(	let
+							// E.g: <$> array size becomes 6 (because outcome should be \<\$\>). so you get \\\\\\.
+							// Index 1,3..n (nonEscapeCharIndex) need have to value of index 0,1..k of the searchTerm
+							// (termIndex). The end result is \<\$\> which is the escaped regex which is needed.
+							escapedSearchTerm = // createArray (2 * size searchTerm - 1) '\\'
+								{createArray (2 * size searchTerm) '\\'
+								& [nonEscapeCharIndex] = select searchTerm termIndex
+								\\ nonEscapeCharIndex <- [1,3..2 * size searchTerm - 1] & termIndex <- [0..]
+								}
+						// infix. indicates infix followed by any char.
+						in concat5 "\\(" escapedSearchTerm "\\)" atleastOneWhiteSpace "infix."
+					)
+					(searchTerm +++ "(\\s+)::" )
+			# grepGenericSearchTerm
+				= concat4 avoidImports "generic" atleastOneWhiteSpace searchTerm
+			= Ok $ concat5 grepTypeSearchTerm "|" grepFuncSearchTerm "|" grepGenericSearchTerm
 		= 'Data.Error'.Error $
 			errorResponse
 			id
-			InternalError
+			ParseError
 			("Unrecognised char: " +++ (toString $ toInt firstUnicodeChar))
 	where
 		parseSearchTerm :: !String !(UChar -> Bool) ![!Int!] -> [!Char!]
@@ -341,6 +365,7 @@ where
 				# uChar = fromChar $ select line i
 				// If there is a character that adheres to the stop filter, break out of the recursion.
 				| stopPredicate uChar = Reverse acc
+				// Parsed a character, go to the next index.
 				= parseSearchTerm` line filter is [!toChar uChar:acc!]
 			// If there are no indexes left, we return the accumlator of characters for which the filter holds.
 			parseSearchTerm` _ _ [!!] acc = Reverse acc
@@ -358,12 +383,6 @@ where
 
 		isSpecialSymbol :: !UChar -> Bool
 		isSpecialSymbol uc = elem uc specialSymbols
-
-	grepTypeDefintions :: !String -> [!Location!]
-	grepTypeDefintions searchString = [!!]
-
-	grepFunDefinitions :: !String -> [!Location!]
-	grepFunDefinitions searchString = [!!]
 
 	errorResponse :: !RequestId !ErrorCode !String -> ResponseMessage
 	errorResponse id err msg =
@@ -389,9 +408,6 @@ where
 
 	fileAndLineToLocation :: !(!String, !Int) -> ?Location
 	fileAndLineToLocation (fileName, lineNr)
-		// Grep returns relative paths, vscode needs absolute paths so the absolute path is determined.
-		# (mbRootPath, world) = findSearchPath PROJECT_FILENAME workspaceFolders
-		// Files in CLEAN_HOME already are in absolute path form, therefore we do not add absPath in this case.
 		# fileUri = parseURI $ "file://" </> fileName
 		| isNone fileUri = ?None
 		= ?Just $
@@ -406,11 +422,7 @@ where
 
 :: GotoDeclarationParams = { textDocument :: !TextDocumentIdentifier, position :: !'LSP.Position'.Position}
 
-// (#,) infixl 3 :: !Int !Int -> Bool
-// (#,) i1 i2 = True
-
 derive gLSPJSONDecode GotoDeclarationParams
-derive gLSPJSONEncode GotoDeclarationParams
 
 errorLogMessage :: !String -> NotificationMessage
 errorLogMessage message = showMessage {MessageParams| type = Error, message = message}

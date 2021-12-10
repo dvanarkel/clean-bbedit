@@ -1,5 +1,8 @@
 Clean System Files/
 *.prj
+.ctest-results.json
+junit.xml
+work.yml
 
 src/languageServer/eastwood-cls
 src/linter/eastwood-lint
