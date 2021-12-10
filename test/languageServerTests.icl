@@ -1,8 +1,11 @@
 module languageServerTests
 
 import StdEnv
+import StdOverloadedList
 import StdMaybe
 import Data.Func, Data.Error
+import Data.Tuple
+import Data.Either
 import Data.Maybe.Gast
 import Data.Maybe.GenPrint
 import System.Directory
@@ -18,6 +21,16 @@ from Gast import
 import Gast.CommandLine
 import Common
 
+import LSP.RequestId
+import LSP.BasicTypes
+import LSP.Location
+import LSP.ResponseMessage
+import LSP.Internal.Serialize
+import LSP.Position
+import LSP.Range
+import Text.GenJSON
+import Text.URI
+
 SUITE_DEFAULT :== "suite-default"
 SUITE_WITHOUT_CONFIG :== "suite-without-config"
 SUITE_CONFIG_NON_EXISTING_PATHS :== "suite-config-non-existing-paths"
@@ -29,6 +42,8 @@ SUITE_CONFIG_EMPTY_PATHS :== "suite-config-empty-paths"
 // fundamental edge-case.
 FILE_DONT_CARE :== "dontcare.icl"
 FILE_OK :== "ok.icl"
+FILE_GO_TO_DECLARATION_DCL_1 :== "GoToDeclarationModule1.dcl"
+FILE_GO_TO_DECLARATION_DCL_2 :== "GoToDeclarationModule2.dcl"
 
 Start :: *World -> *World
 Start world = exposeProperties [OutputTestEvents] [Bent] properties world
@@ -55,7 +70,7 @@ properties =:
 		as
 			"language server handles didSave notification correctly for program importing a module with issues in the DCL"
 	, incorrectNotificationsResultsInErrorLog SUITE_DEFAULT as "language server responds to unknown method with showMessage"
-	, compilerRuntimeErrorHandled SUITE_DEFAULT "TooLarge.icl" as "compiler runtime errors are handled"
+	, compilerRuntimeErrorHandled SUITE_DEFAULT "tooLarge.icl" as "compiler runtime errors are handled"
 	, configMissingValueForPaths SUITE_CONFIG_MISSING_PATHS FILE_DONT_CARE as "Error notification is shown when there is no value for paths field."
 	, configPathsSectionMissing SUITE_CONFIG_NO_PATHS_KEY FILE_DONT_CARE as "Error notification is shown when paths section is missing in config."
 	, configIsMissingResultsInErrorLogOnSave SUITE_WITHOUT_CONFIG FILE_DONT_CARE
@@ -86,6 +101,32 @@ properties =:
 		[!("otherLib" </> "IncorrectModuleHeader.icl", diagnosticsForIncorrectModuleHeader)]
 		as "correct notifications for file with the wrong module name, depending on the search paths"
 	, didCloseIgnored SUITE_DEFAULT FILE_OK as "didClose notification is ignored"
+	, goToDeclarationOfTypeSingleResultIsCorrectlyHandledFor
+		as "go to declaration of a type that is only declared in one module is correctly handled"
+	, goToDeclarationOfTypeMultipleResultsIsCorrectlyHandledFor
+		as "go to declaration of a type that is declared in two modules is correctly handled"
+	, goToDeclarationOfFuncSingleResultIsCorrectlyHandledFor
+		as "go to declaration of a function that is only declared in one module is correctly handled"
+	, goToDeclarationOfFuncMultipleResultsIsCorrectlyHandledFor
+		as "go to declaration of a function that is declared in two modules is correctly handled"
+	, goToDeclarationOfFuncThatStartsWithUppercaseIsCorrectlyHandledFor
+		as "go to declaration of a function whose name starts with an uppercase letter is correctly handled"
+	, goToDeclarationOfDeriveGenericFuncSingleResultIsCorrectlyHandledFor
+		as "go to declaration of a generic function that is only declared in one module is correctly handled (derive)"
+	, goToDeclarationOfDeriveGenericFuncMultipleResultsIsCorrectlyHandledFor
+		as "go to declaration of a generic function that is declared in two modules is correctly handled (derive)"
+	, goToDeclarationOfRecordFieldSingleResultIsCorrectlyHandledFor
+		as "go to declaration of a record field that is only declared in one module is correctly handled"
+	, goToDeclarationOfRecordFieldMultipleResultsIsCorrectlyHandledFor
+		as "go to declaration of a record field that is declared in two modules is correctly handled"
+	, goToDeclarationOfClassSingleResultIsCorrectlyHandledFor
+		as "go to declaration of a class that is declared in one module is correctly handled"
+	, goToDeclarationOfClassMultipleResultsIsCorrectlyHandledFor
+		as "go to declaration of a class that is declared in two modules is correctly handled"
+	, goToDeclarationOfClassFuncSingleResultIsCorrectlyHandledFor
+		as "go to declaration of a class function with a single result is correctly handled"
+	, goToDeclarationOfClassFuncMultipleResultsIsCorrectlyHandledFor
+		as "go to declaration of a class function with multiple results is correctly handled"
 	]
 where
 	diagnosticsForErrors =
@@ -321,3 +362,208 @@ didCloseNotificationBodyFor file =
 		"{\"method\":\"textDocument/didClose\",\"jsonrpc\":\"2.0\",\"params\":{\"textDocument\":{\"uri\":\"file://"
 		file
 		"\"}}}"
+
+
+goToDeclarationTest :: !String !String !Position ![!(String,UInt)!] -> Property
+goToDeclarationTest suite fileName position expectedFileNamesAndLineNumbers = accUnsafe goToDeclarationTest`
+where
+	goToDeclarationTest` world
+		# (Ok currentDirectory, world) = getCurrentDirectory world
+		# expectedFilePathsAndLineNumbers
+			= Map (appFst (\s -> currentDirectory </> suite </> s)) expectedFileNamesAndLineNumbers
+		# (response, finalOut, world) =
+			singleMessageResponse
+				suite
+				(goToDeclarationRequestBodyFor (currentDirectory </> suite </> fileName) position)
+				world
+		=	(
+				(generateMessage $
+					"{\"jsonrpc\":2.0," +++
+					dropChars 1 (toString $ serialize $ goToDeclarationResponseBodyFor expectedFilePathsAndLineNumbers)
+				)
+					=.= response
+				/\
+				finalOut =.= ?None
+			,	world
+			)
+
+	goToDeclarationRequestBodyFor filePath {line=(UInt line),character=(UInt char)} =
+		concat
+			[ "{\"jsonrpc\": \"2.0\", \"id\":\"5\", \"method\":\"textDocument/declaration\",\"params\":{\"textDocument\":{\"uri\":\"file://"
+			, filePath
+			, "\"},\"position\":{\"line\":"
+			, toString line
+			, ",\"character\":"
+			, toString char
+			,"}}}"
+			]
+
+	goToDeclarationResponseBodyFor :: ![!(String, UInt)!] -> ResponseMessage
+	goToDeclarationResponseBodyFor filesAndLineNumbers =
+		{ ResponseMessage
+		| id = ?Just $ RequestId (Right "5")
+		, result =
+			?Just jsonResult
+		, error = ?None
+		}
+	where
+		jsonResult :: JSONNode
+		jsonResult
+			# locations = [! fAndLn \\ fAndLn <- Map fileAndLineToLocation filesAndLineNumbers | isJust fAndLn !]
+			= serialize locations
+		where
+			fileAndLineToLocation :: !(!String, !UInt) -> ?Location
+			fileAndLineToLocation (filePath, (UInt lineNr))
+				# fileUri = parseURI $ "file://" </> filePath
+				| isNone fileUri = ?None
+				= ?Just $
+					{ Location
+					| uri = fromJust fileUri
+					, range =
+						{ start={line=uint lineNr, character=uint 0}
+						, end={line=uint lineNr, character=uint 0}
+						}
+					}
+
+goToDeclarationOfTypeSingleResultIsCorrectlyHandledFor :: Property
+goToDeclarationOfTypeSingleResultIsCorrectlyHandledFor =
+	goToDeclarationTest
+		SUITE_DEFAULT
+		FILE_GO_TO_DECLARATION_DCL_1
+		typeSingleResultPosition
+		[!(FILE_GO_TO_DECLARATION_DCL_1, uint 6)!]
+where
+	typeSingleResultPosition :: Position
+	typeSingleResultPosition = {line=uint 6, character=uint 6}
+
+goToDeclarationOfTypeMultipleResultsIsCorrectlyHandledFor :: Property
+goToDeclarationOfTypeMultipleResultsIsCorrectlyHandledFor =
+	goToDeclarationTest
+		SUITE_DEFAULT
+		FILE_GO_TO_DECLARATION_DCL_1
+		typeMultipleResultsPosition
+		[!(FILE_GO_TO_DECLARATION_DCL_1, uint 4), (FILE_GO_TO_DECLARATION_DCL_2, uint 4)!]
+where
+	typeMultipleResultsPosition :: Position
+	typeMultipleResultsPosition = {line=uint 4, character=uint 12}
+
+goToDeclarationOfFuncSingleResultIsCorrectlyHandledFor :: Property
+goToDeclarationOfFuncSingleResultIsCorrectlyHandledFor =
+	goToDeclarationTest
+		SUITE_DEFAULT
+		FILE_GO_TO_DECLARATION_DCL_1
+		funcSingleResultPosition
+		[!(FILE_GO_TO_DECLARATION_DCL_1, uint 8)!]
+where
+	funcSingleResultPosition :: Position
+	funcSingleResultPosition = {line=uint 8, character=uint 5}
+
+goToDeclarationOfFuncMultipleResultsIsCorrectlyHandledFor :: Property
+goToDeclarationOfFuncMultipleResultsIsCorrectlyHandledFor =
+	goToDeclarationTest
+		SUITE_DEFAULT
+		FILE_GO_TO_DECLARATION_DCL_2
+		funcMultipleResultsPosition
+		[!(FILE_GO_TO_DECLARATION_DCL_1, uint 10), (FILE_GO_TO_DECLARATION_DCL_2, uint 6)!]
+where
+	funcMultipleResultsPosition :: Position
+	funcMultipleResultsPosition = {line=uint 6, character=uint 5}
+
+goToDeclarationOfFuncThatStartsWithUppercaseIsCorrectlyHandledFor :: Property
+goToDeclarationOfFuncThatStartsWithUppercaseIsCorrectlyHandledFor =
+	goToDeclarationTest
+		SUITE_DEFAULT
+		FILE_GO_TO_DECLARATION_DCL_1
+		funcThatStartsWithUppercasePosition
+		[!(FILE_GO_TO_DECLARATION_DCL_1, uint 12)!]
+where
+	funcThatStartsWithUppercasePosition :: Position
+	funcThatStartsWithUppercasePosition = {line=uint 12, character=uint 6}
+
+goToDeclarationOfDeriveGenericFuncSingleResultIsCorrectlyHandledFor :: Property
+goToDeclarationOfDeriveGenericFuncSingleResultIsCorrectlyHandledFor =
+	goToDeclarationTest
+		SUITE_DEFAULT
+		FILE_GO_TO_DECLARATION_DCL_1
+		genericDeriveSingleResultPosition
+		[!(FILE_GO_TO_DECLARATION_DCL_1, uint 14)!]
+where
+	genericDeriveSingleResultPosition :: Position
+	genericDeriveSingleResultPosition = {line=uint 14, character=uint 12}
+
+goToDeclarationOfDeriveGenericFuncMultipleResultsIsCorrectlyHandledFor :: Property
+goToDeclarationOfDeriveGenericFuncMultipleResultsIsCorrectlyHandledFor =
+	goToDeclarationTest
+		SUITE_DEFAULT
+		FILE_GO_TO_DECLARATION_DCL_2
+		genericDeriveMultipleResultsPosition
+		[!(FILE_GO_TO_DECLARATION_DCL_1, uint 16), (FILE_GO_TO_DECLARATION_DCL_2, uint 8)!]
+where
+	genericDeriveMultipleResultsPosition :: Position
+	genericDeriveMultipleResultsPosition = {line=uint 8, character=uint 12}
+
+goToDeclarationOfRecordFieldSingleResultIsCorrectlyHandledFor :: Property
+goToDeclarationOfRecordFieldSingleResultIsCorrectlyHandledFor =
+	goToDeclarationTest
+		SUITE_DEFAULT
+		FILE_GO_TO_DECLARATION_DCL_1
+		recordFieldSingleResultPosition
+		[!(FILE_GO_TO_DECLARATION_DCL_1, uint 19)!]
+where
+	recordFieldSingleResultPosition :: Position
+	recordFieldSingleResultPosition = {line=uint 19, character=uint 6}
+
+goToDeclarationOfRecordFieldMultipleResultsIsCorrectlyHandledFor :: Property
+goToDeclarationOfRecordFieldMultipleResultsIsCorrectlyHandledFor =
+	goToDeclarationTest
+		SUITE_DEFAULT
+		FILE_GO_TO_DECLARATION_DCL_1
+		recordFieldMultipleResultsPosition
+		[!(FILE_GO_TO_DECLARATION_DCL_1, uint 25),(FILE_GO_TO_DECLARATION_DCL_2, uint 12)!]
+where
+	recordFieldMultipleResultsPosition :: Position
+	recordFieldMultipleResultsPosition = {line=uint 25, character=uint 6}
+
+goToDeclarationOfClassFuncSingleResultIsCorrectlyHandledFor :: Property
+goToDeclarationOfClassFuncSingleResultIsCorrectlyHandledFor =
+	goToDeclarationTest
+		SUITE_DEFAULT
+		FILE_GO_TO_DECLARATION_DCL_1
+		classFuncSingleResultPosition
+		[!(FILE_GO_TO_DECLARATION_DCL_1, uint 29)!]
+where
+	classFuncSingleResultPosition :: Position
+	classFuncSingleResultPosition = {line=uint 29, character = uint 6}
+
+goToDeclarationOfClassFuncMultipleResultsIsCorrectlyHandledFor :: Property
+goToDeclarationOfClassFuncMultipleResultsIsCorrectlyHandledFor =
+	goToDeclarationTest
+		SUITE_DEFAULT
+		FILE_GO_TO_DECLARATION_DCL_2
+		classFuncMultipleResultsPosition
+		[!(FILE_GO_TO_DECLARATION_DCL_1, uint 32), (FILE_GO_TO_DECLARATION_DCL_2, uint 16)!]
+where
+	classFuncMultipleResultsPosition :: Position
+	classFuncMultipleResultsPosition = {line=uint 16, character = uint 6}
+
+goToDeclarationOfClassSingleResultIsCorrectlyHandledFor :: Property
+goToDeclarationOfClassSingleResultIsCorrectlyHandledFor =
+	goToDeclarationTest
+		SUITE_DEFAULT
+		FILE_GO_TO_DECLARATION_DCL_1
+		classSingleResultPosition
+		[!(FILE_GO_TO_DECLARATION_DCL_1, uint 28)!]
+where
+	classSingleResultPosition :: Position
+	classSingleResultPosition = {line=uint 28, character=uint 12}
+
+goToDeclarationOfClassMultipleResultsIsCorrectlyHandledFor :: Property
+goToDeclarationOfClassMultipleResultsIsCorrectlyHandledFor =
+	goToDeclarationTest
+		SUITE_DEFAULT
+		FILE_GO_TO_DECLARATION_DCL_2
+		classMultipleResultsPosition
+		[!(FILE_GO_TO_DECLARATION_DCL_1, uint 31),(FILE_GO_TO_DECLARATION_DCL_2, uint 15)!]
+where
+	classMultipleResultsPosition :: Position
+	classMultipleResultsPosition = {line=uint 15, character=uint 12}

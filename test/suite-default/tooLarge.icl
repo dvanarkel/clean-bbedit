@@ -1,4 +1,4 @@
-module TooLarge
+module tooLarge
 
 // To test what happens in case of a stack overflow in cocl
 

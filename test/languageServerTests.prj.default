@@ -3,7 +3,7 @@ Global
 	ProjectRoot:	.
 	Target:	Gast
 	Exec:	{Project}/languageServerTests
-	ByteCode:	
+	ByteCode:
 	CodeGen
 		CheckStacks:	False
 		CheckIndexes:	True
@@ -41,20 +41,21 @@ Global
 		GenerateSymbolTable:	False
 		GenerateLinkMap:	False
 		LinkResources:	False
-		ResourceSource:	
+		ResourceSource:
 		GenerateDLL:	False
-		ExportedNames:	
+		ExportedNames:
 		StripByteCode:	True
 		KeepByteCodeSymbols:	True
 		PrelinkByteCode:	False
 	Paths
 		Path:	{Project}
 		Path:	{Project}*..*src*lib
+		Path:   {Project}*..*src*lib*clean-lsp*src
 		Path:	{Project}*..*src*lib*compiler*frontend
 		Path:	{Project}*..*src*lib*compiler*main*Unix
 		Path:	{Project}*..*src*lib*clean-platform*src*libraries*OS-Independent
-	Precompile:	
-	Postlink:	
+	Precompile:
+	Postlink:
 MainModule
 	Name:	languageServerTests
 	Dir:	{Project}
