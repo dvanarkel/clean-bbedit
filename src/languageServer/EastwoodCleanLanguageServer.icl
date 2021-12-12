@@ -3,10 +3,8 @@ module EastwoodCleanLanguageServer
 import StdEnv
 import StdOverloadedList
 
-from StdMaybe import :: Maybe
+from Data.Error import fromOk, isError, :: MaybeError (Ok), fromError
 
-from Data.Error import instance Functor (MaybeError e), fromOk, isError, :: MaybeError (Ok), fromError
-from Data.Error import qualified :: MaybeError (Error)
 import qualified Data.Error
 import qualified Data.Map
 import Data.Func
@@ -24,8 +22,8 @@ import Text
 import Text.GenJSON
 import Text.URI
 import Text.YAML
-from Text.Unicode.UChar import isSymbol, :: UChar, instance fromChar UChar, instance toChar UChar, instance == UChar, instance toInt UChar
-	, isAlphaNum, isPunctuation
+from Text.Unicode.UChar import isSymbol, :: UChar, instance fromChar UChar, instance toChar UChar, instance == UChar
+	, instance toInt UChar, isAlphaNum, isPunctuation
 
 from LSP.Diagnostic import qualified :: Diagnostic {..}, :: DiagnosticSeverity {..}
 from LSP.Position import qualified :: Position {..}
@@ -94,7 +92,7 @@ capabilities =
 derive gConstructFromYAML CompilerSettingsConfig
 
 cleanLanguageServer :: LanguageServer EastwoodState
-cleanLanguageServer = { onInitialize = onInitialize, onRequest = onRequest, onNotification = onNotification}
+cleanLanguageServer = {onInitialize = onInitialize, onRequest = onRequest, onNotification = onNotification}
 
 onInitialize :: !InitializeParams !*World -> (!MaybeError String EastwoodState, !*World)
 onInitialize {rootPath, rootUri, workspaceFolders} world
@@ -256,7 +254,7 @@ onGotoDeclaration req=:{RequestMessage|id, params=(?Just json)} st=:{EastwoodSta
 	| isNone mbCleanHome
 		= (errorResponse id UnknownErrorCode "Could not find CLEAN_HOME environment variable.", st, world)
 	# cleanHomePath = fromJust mbCleanHome
-	//* The grep typedef search string is adjusted to avoid finding imports using (?<!).
+	// Call grep using the search term to find the matching declarations.
 	// -P enables perl regexp, -r recurses through all files, -n gives line number,
 	// -w matches whole words only (e.g: :: Maybe matches :: Maybe but not :: MaybeOSError).
 	//--include \*.dcl makes sure only dcl files are examined by grep.
@@ -308,8 +306,8 @@ where
 			'Data.Error'.Error $
 				errorResponse id ParseError "it is not possible to go to the definition of a special syntax symbol."
 		// If the first char is a space, comma, \n, or \t, go backwards
-		// When goto definition is pressed when a whole term is selected the character ends up being the first char
-		// after the term, the same holds when attempting to go to the declaration when selecting these characters.
+		// When a declaration is requested when a whole term is selected the character ends up being the first char
+		// after the term, the same holds when attempting to go to the declaration when selecting a lookBackCharacter.
 		# lookBackCharacters = fromChar <$> [' ', ',', '\n', '\t']
 		| elem firstUnicodeChar lookBackCharacters = grepSearchTermFor line (UInt (charNr - 1))
 		// This is the general case.
@@ -334,7 +332,7 @@ where
 			# grepFuncSearchTerm =
 				if (isSymbol firstUnicodeChar || isPunctuation firstUnicodeChar)
 					(	let
-							// E.g: <$> array size becomes 6 (because outcome should be \<\$\>). so you get \\\\\\.
+							// E.g: <$> array size becomes 6 (because outcome should be \<\$\> ). so you get \\\\\\.
 							// Index 1,3..n (nonEscapeCharIndex) need have to value of index 0,1..k of the searchTerm
 							// (termIndex). The end result is \<\$\> which is the escaped regex which is needed.
 							escapedSearchTerm =
@@ -348,7 +346,16 @@ where
 					(concat3 searchTerm atleastOneWhiteSpace "::" )
 			# grepGenericSearchTerm = concat4 avoidImports "generic" atleastOneWhiteSpace searchTerm
 			# grepClassSearchTerm = concat4 avoidImports "class" atleastOneWhiteSpace searchTerm
-			= Ok $ concat [grepTypeSearchTerm, "|", grepFuncSearchTerm, "|", grepGenericSearchTerm, "|", grepClassSearchTerm]
+			= Ok $
+				concat
+					[ grepTypeSearchTerm
+					, "|"
+					, grepFuncSearchTerm
+					, "|"
+					, grepGenericSearchTerm
+					, "|"
+					, grepClassSearchTerm
+					]
 		= 'Data.Error'.Error $
 			errorResponse
 			id
@@ -417,7 +424,10 @@ where
 				}
 			}
 
-:: GotoDeclarationParams = { textDocument :: !TextDocumentIdentifier, position :: !'LSP.Position'.Position}
+:: GotoDeclarationParams =
+	{ textDocument :: !TextDocumentIdentifier
+	, position :: !'LSP.Position'.Position
+	}
 
 derive gLSPJSONDecode GotoDeclarationParams
 
