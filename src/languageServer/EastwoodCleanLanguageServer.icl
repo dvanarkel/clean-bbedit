@@ -182,9 +182,6 @@ where
 			, ": ", error
 			]
 
-import StdDebug
-import Text.GenJSON
-
 onRequest :: !RequestMessage !EastwoodState !*World -> (!ResponseMessage, !EastwoodState, !*World)
 onRequest msg=:{RequestMessage | id, method} st world =
 	case method of
@@ -340,7 +337,7 @@ where
 							// E.g: <$> array size becomes 6 (because outcome should be \<\$\>). so you get \\\\\\.
 							// Index 1,3..n (nonEscapeCharIndex) need have to value of index 0,1..k of the searchTerm
 							// (termIndex). The end result is \<\$\> which is the escaped regex which is needed.
-							escapedSearchTerm = // createArray (2 * size searchTerm - 1) '\\'
+							escapedSearchTerm =
 								{createArray (2 * size searchTerm) '\\'
 								& [nonEscapeCharIndex] = select searchTerm termIndex
 								\\ nonEscapeCharIndex <- [1,3..2 * size searchTerm - 1] & termIndex <- [0..]
@@ -348,15 +345,15 @@ where
 						// infix. indicates infix followed by any char.
 						in concat5 "\\(" escapedSearchTerm "\\)" atleastOneWhiteSpace "infix."
 					)
-					(searchTerm +++ "(\\s+)::" )
-			# grepGenericSearchTerm
-				= concat4 avoidImports "generic" atleastOneWhiteSpace searchTerm
-			= Ok $ concat5 grepTypeSearchTerm "|" grepFuncSearchTerm "|" grepGenericSearchTerm
+					(concat3 searchTerm atleastOneWhiteSpace "::" )
+			# grepGenericSearchTerm = concat4 avoidImports "generic" atleastOneWhiteSpace searchTerm
+			# grepClassSearchTerm = concat4 avoidImports "class" atleastOneWhiteSpace searchTerm
+			= Ok $ concat [grepTypeSearchTerm, "|", grepFuncSearchTerm, "|", grepGenericSearchTerm, "|", grepClassSearchTerm]
 		= 'Data.Error'.Error $
 			errorResponse
 			id
 			ParseError
-			("Unrecognised char: " +++ (toString $ toInt firstUnicodeChar))
+			("Unrecognised char with unicode : " +++ (toString $ toInt firstUnicodeChar))
 	where
 		parseSearchTerm :: !String !(UChar -> Bool) ![!Int!] -> [!Char!]
 		parseSearchTerm line stopPredicate indexes = parseSearchTerm` line filter indexes [!!]
@@ -407,8 +404,8 @@ where
 		}
 
 	fileAndLineToLocation :: !(!String, !Int) -> ?Location
-	fileAndLineToLocation (fileName, lineNr)
-		# fileUri = parseURI $ "file://" </> fileName
+	fileAndLineToLocation (filePath, lineNr)
+		# fileUri = parseURI $ "file://" </> filePath
 		| isNone fileUri = ?None
 		= ?Just $
 			{ Location
