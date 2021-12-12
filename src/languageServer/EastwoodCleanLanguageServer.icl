@@ -302,14 +302,19 @@ where
 	grepSearchTermFor :: !String !UInt -> MaybeError ResponseMessage String
 	grepSearchTermFor line (UInt charNr)
 		# firstUnicodeChar = fromChar $ select line charNr
-		| isSpecialSymbol firstUnicodeChar =
-			'Data.Error'.Error $
-				errorResponse id ParseError "it is not possible to go to the definition of a special syntax symbol."
 		// If the first char is a space, comma, \n, or \t, go backwards
 		// When a declaration is requested when a whole term is selected the character ends up being the first char
 		// after the term, the same holds when attempting to go to the declaration when selecting a lookBackCharacter.
-		# lookBackCharacters = fromChar <$> [' ', ',', '\n', '\t']
+		# lookBackCharacters = fromChar <$> [' ', ',', '\n', '\t', ')']
 		| elem firstUnicodeChar lookBackCharacters = grepSearchTermFor line (UInt (charNr - 1))
+		// This case is added to deal with going to the declaration of an infix function that is used prefix
+		// and selecting the ( character.
+		# lookForwardCharacter = fromChar '('
+		| firstUnicodeChar == lookForwardCharacter = grepSearchTermFor line (UInt (charNr + 1))
+		// It should not be attempted to go the declaration of special syntax symbols.
+		| isSpecialSymbol firstUnicodeChar =
+			'Data.Error'.Error $
+				errorResponse id ParseError "it is not possible to go to the definition of a special syntax symbol."
 		// This is the general case.
 		| isSymbol firstUnicodeChar || isAlphaNum firstUnicodeChar || isPunctuation firstUnicodeChar
 			# stopPredicate =
@@ -375,7 +380,8 @@ where
 			parseSearchTerm` _ _ [!!] acc = Reverse acc
 
 		symbolPuncStopPredicate :: !UChar -> Bool
-		symbolPuncStopPredicate uc = not (isSymbol uc || isPunctuation uc) || isSpecialSymbol uc
+		symbolPuncStopPredicate uc
+			= not (isSymbol uc || isPunctuation uc) || isSpecialSymbol uc || elem uc (fromChar <$> ['(', ')'])
 
 		alphaNumStopPredicate :: !UChar -> Bool
 		alphaNumStopPredicate uc = not (isAlphaNum uc)
@@ -383,7 +389,7 @@ where
 		// Not possible to retrieve a declaration for these symbols are they are special syntax characters.
 		// Not strict because there is currently no Elem in StdOverloadedList.
 		specialSymbols :: [UChar]
-		specialSymbols = map fromChar ['(', ')', '{', '}', '[', ']', ';', '\"', '\'', '_']
+		specialSymbols = map fromChar ['{', '}', '[', ']', ';', '\"', '\'', '_']
 
 		isSpecialSymbol :: !UChar -> Bool
 		isSpecialSymbol uc = elem uc specialSymbols
