@@ -15,3 +15,6 @@ generic gFuncMultipleResult a :: !a -> String
 
 class classMultipleResults a where
 	fooMultipleResultsFunc :: !a -> Bool
+
+//* Used multiple
+(#$$) infixl 4 :: !Bool !Bool -> !Bool

@@ -31,3 +31,8 @@ class classSingleResult a where
 
 class classMultipleResults a where
 	fooMultipleResultsFunc :: !a -> Bool
+
+//* Used single.
+(#$) infixl 4 :: !Bool !Bool -> !Bool
+//* Used multiple
+(#$$) infixl 4 :: !Bool !Bool -> !Bool

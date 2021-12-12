@@ -4,7 +4,13 @@ funcSingleResult :: Bool
 funcSingleResult = True
 
 funcMultipleResults :: Bool
-funcMultipleResults = True
+funcMultipleResults = (#$$) True (True #$$ True)
 
 FunctionThatStartsWithCapitalLetter :: Bool
-FunctionThatStartsWithCapitalLetter = True
+FunctionThatStartsWithCapitalLetter = (#$) True (True #$ True)
+
+(#$) :: !Bool !Bool -> Bool
+(#$) _ _ = True
+
+(#$$) :: !Bool !Bool -> Bool
+(#$$) _ _ = True

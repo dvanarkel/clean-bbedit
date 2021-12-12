@@ -43,6 +43,7 @@ SUITE_CONFIG_EMPTY_PATHS :== "suite-config-empty-paths"
 FILE_DONT_CARE :== "dontcare.icl"
 FILE_OK :== "ok.icl"
 FILE_GO_TO_DECLARATION_DCL_1 :== "GoToDeclarationModule1.dcl"
+FILE_GO_TO_DECLARATION_ICL_1 :== "GoToDeclarationModule1.icl"
 FILE_GO_TO_DECLARATION_DCL_2 :== "GoToDeclarationModule2.dcl"
 
 Start :: *World -> *World
@@ -109,6 +110,14 @@ properties =:
 		as "go to declaration of a function that is only declared in one module is correctly handled"
 	, goToDeclarationOfFuncMultipleResultsIsCorrectlyHandledFor
 		as "go to declaration of a function that is declared in two modules is correctly handled"
+	, goToDeclarationOfInfixFuncSingleResultIsCorrectlyHandledFor
+		as "go to declaration of a infix function that is only declared in one module is correctly handled"
+	, goToDeclarationOfInfixFuncMultipleResultsIsCorrectlyHandledFor
+		as "go to declaration of a infix function that is declared in two modules is correctly handled"
+	, goToDeclarationOfInfixFuncUsedPrefixSingleResultIsCorrectlyHandledFor
+		as "go to declaration of a infix function used prefix that is only declared in one module is correctly handled"
+	, goToDeclarationOfInfixFuncUsedPrefixMultipleResultsIsCorrectlyHandledFor
+		as "go to declaration of a infix function used prefix that is declared in two modules is correctly handled"
 	, goToDeclarationOfFuncThatStartsWithUppercaseIsCorrectlyHandledFor
 		as "go to declaration of a function whose name starts with an uppercase letter is correctly handled"
 	, goToDeclarationOfDeriveGenericFuncSingleResultIsCorrectlyHandledFor
@@ -468,6 +477,50 @@ goToDeclarationOfFuncMultipleResultsIsCorrectlyHandledFor =
 where
 	funcMultipleResultsPosition :: Position
 	funcMultipleResultsPosition = {line=uint 6, character=uint 5}
+
+goToDeclarationOfInfixFuncSingleResultIsCorrectlyHandledFor :: Property
+goToDeclarationOfInfixFuncSingleResultIsCorrectlyHandledFor =
+	goToDeclarationTest
+		SUITE_DEFAULT
+		FILE_GO_TO_DECLARATION_ICL_1
+		infixFuncSingleResultPosition
+		[!(FILE_GO_TO_DECLARATION_DCL_1, uint 35)!]
+where
+	infixFuncSingleResultPosition :: Position
+	infixFuncSingleResultPosition = {line=uint 9, character = uint 56}
+
+goToDeclarationOfInfixFuncMultipleResultsIsCorrectlyHandledFor :: Property
+goToDeclarationOfInfixFuncMultipleResultsIsCorrectlyHandledFor =
+	goToDeclarationTest
+		SUITE_DEFAULT
+		FILE_GO_TO_DECLARATION_ICL_1
+		infixFuncMultipleResultsPosition
+		[!(FILE_GO_TO_DECLARATION_DCL_1, uint 37), (FILE_GO_TO_DECLARATION_DCL_2, uint 19)!]
+where
+	infixFuncMultipleResultsPosition :: Position
+	infixFuncMultipleResultsPosition = {line=uint 6, character = uint 41}
+
+goToDeclarationOfInfixFuncUsedPrefixSingleResultIsCorrectlyHandledFor :: Property
+goToDeclarationOfInfixFuncUsedPrefixSingleResultIsCorrectlyHandledFor =
+	goToDeclarationTest
+		SUITE_DEFAULT
+		FILE_GO_TO_DECLARATION_ICL_1
+		infixFuncSingleResultPosition
+		[!(FILE_GO_TO_DECLARATION_DCL_1, uint 35)!]
+where
+	infixFuncSingleResultPosition :: Position
+	infixFuncSingleResultPosition = {line=uint 9, character = uint 41}
+
+goToDeclarationOfInfixFuncUsedPrefixMultipleResultsIsCorrectlyHandledFor :: Property
+goToDeclarationOfInfixFuncUsedPrefixMultipleResultsIsCorrectlyHandledFor =
+	goToDeclarationTest
+		SUITE_DEFAULT
+		FILE_GO_TO_DECLARATION_ICL_1
+		infixFuncMultipleResultsPosition
+		[!(FILE_GO_TO_DECLARATION_DCL_1, uint 37), (FILE_GO_TO_DECLARATION_DCL_2, uint 19)!]
+where
+	infixFuncMultipleResultsPosition :: Position
+	infixFuncMultipleResultsPosition = {line=uint 6, character = uint 25}
 
 goToDeclarationOfFuncThatStartsWithUppercaseIsCorrectlyHandledFor :: Property
 goToDeclarationOfFuncThatStartsWithUppercaseIsCorrectlyHandledFor =
