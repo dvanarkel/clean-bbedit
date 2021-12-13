@@ -224,6 +224,10 @@ onNotification {NotificationMessage| method, params} st world
 	| otherwise
 		= ([!errorLogMessage $ concat3 "Unknown notification '" method "'."], st, world)
 
+/**
+ * Sends a response to the client containing the locations of the declarations which were requested by the client.
+ * based on a request.
+ */
 onGotoDeclaration :: !RequestMessage !EastwoodState !*World -> (!ResponseMessage, !EastwoodState, !*World)
 onGotoDeclaration req=:{RequestMessage|id, params=(?Just json)} st=:{EastwoodState|workspaceFolders} world
 	# {GotoDeclarationParams|textDocument={TextDocumentIdentifier|uri}, position} = deserialize json
@@ -277,6 +281,15 @@ onGotoDeclaration req=:{RequestMessage|id, params=(?Just json)} st=:{EastwoodSta
 	# locations = [! l \\ l <- catMaybes $ fileAndLineToLocation <$> flatten results !]
 	= (locationResponse id locations, st, world)
 where
+	/**
+	 * This function returns the line for which a go to declaration request was made in string form.
+	 *
+	 * @param The URI that is provided by the client, indicates file for which request was made.
+	 * @param The position within the file for which the request was made
+	 * @param World
+	 * @result an error response to send back to the client in case of failure or the line of the request as a string.
+	 * @result World
+	 */
 	getLineOfDeclarationRequest :: !URI 'LSP.Position'.Position !*World -> (!MaybeError ResponseMessage String, !*World)
 	getLineOfDeclarationRequest uri position world
 		# (mbLines, world) = readFileLines uri.uriPath world
@@ -299,6 +312,13 @@ where
 		// The line was found.
 		= (Ok $ fromJust mbLine, world)
 
+	/**
+	 * This function retrieves the search term that is passed to grep which is used for finding the declaration.
+	 *
+	 * @param The line number for which a declaration was requested.
+	 * @param The character number that was selected when a declaration request was made.
+	 * @result an error response to be sent back to the client or the search term used by grep.
+	 */
 	grepSearchTermFor :: !String !UInt -> MaybeError ResponseMessage String
 	grepSearchTermFor line (UInt charNr)
 		# firstUnicodeChar = fromChar $ select line charNr
@@ -331,22 +351,26 @@ where
 			# atleastOneWhiteSpace = "(\\s+)"
 			// The grep type definition search pattern is adjusted to avoid finding imports using (?<!).
 			# avoidImports = "(?<!.\\s)"
-			# grepTypeSearchTerm = concat3 avoidImports ":: " searchTerm
+			// The ^ indicates that the type definition should be the start of the line.
+			// This makes the avoidImports regexp obsolete here.
+			# grepTypeSearchTerm = "^:: " +++ searchTerm
 			// The grep func definition search pattern is adjusted based on
 			// whether an infix function or a prefix function was parsed.
 			# grepFuncSearchTerm =
 				if (isSymbol firstUnicodeChar || isPunctuation firstUnicodeChar)
 					(	let
-							// E.g: <$> array size becomes 6 (because outcome should be \<\$\> ). so you get \\\\\\.
-							// Index 1,3..n (nonEscapeCharIndex) need have to value of index 0,1..k of the searchTerm
-							// (termIndex). The end result is \<\$\> which is the escaped regex which is needed.
-							escapedSearchTerm =
-								{createArray (2 * size searchTerm) '\\'
-								& [nonEscapeCharIndex] = select searchTerm termIndex
-								\\ nonEscapeCharIndex <- [1,3..2 * size searchTerm - 1] & termIndex <- [0..]
-								}
+							// Characters which should be escaped to avoid them being seen as regex..
+							// See https://riptutorial.com/regex/example/15848/what-characters-need-to-be-escaped.
+							charactersToEscape
+								= ['[', ']', '(', ')', '{', '}', '*', '+', '?', '|', '^', '$', '.', '\\']
+							// Every character that should be escaped results in 2 characters (one for the \)
+							escapedSearchTerm
+								= concat $
+									[ if (elem c charactersToEscape) ("\\" +++ toString c) (toString c)
+									  \\ c <-: searchTerm
+									]
 						// infix. indicates infix followed by any char.
-						in concat5 "\\(" escapedSearchTerm "\\)" atleastOneWhiteSpace "infix."
+						in concat5 "\\(" escapedSearchTerm "\\)" atleastOneWhiteSpace "infix.? \\d ::"
 					)
 					(concat3 searchTerm atleastOneWhiteSpace "::" )
 			# grepGenericSearchTerm = concat4 avoidImports "generic" atleastOneWhiteSpace searchTerm
@@ -367,6 +391,15 @@ where
 			ParseError
 			("Unrecognised char with unicode : " +++ (toString $ toInt firstUnicodeChar))
 	where
+		/**
+		 * This function parses the raw search term for which a declaration was requested without adding regexp
+		 * to filter results.
+		 *
+		 * @param The line on which a go to declaration was made.
+		 * @param A predicate that defines when parsing should stop based on the unicode character that is being parsed.
+		 * @param The character indices within the line that should be parsed.
+		 * @result The parsed raw search term.
+		 */
 		parseSearchTerm :: !String !(UChar -> Bool) ![!Int!] -> [!Char!]
 		parseSearchTerm line stopPredicate indexes = parseSearchTerm` line filter indexes [!!]
 		where
