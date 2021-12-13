@@ -349,11 +349,10 @@ where
 					(Reverse $ parseSearchTerm line stopPredicate (Reverse [!0..charNr-1!])) ++|
 					parseSearchTerm line stopPredicate [!charNr..size line!]
 			# atleastOneWhiteSpace = "(\\s+)"
-			// The grep type definition search pattern is adjusted to avoid finding imports using (?<!).
-			# avoidImports = "(?<!.\\s)"
-			// The ^ indicates that the type definition should be the start of the line.
-			// This makes the avoidImports regexp obsolete here.
-			# grepTypeSearchTerm = "^:: " +++ searchTerm
+			// The ^ indicates that the term that follows should not be preceded by any characters.
+			// This is used to avoid finding imports as declarations terms are never preceded by characters.
+			# avoidImports = "^"
+			# grepTypeSearchTerm = concat3 avoidImports ":: " searchTerm
 			// The grep func definition search pattern is adjusted based on
 			// whether an infix function or a prefix function was parsed.
 			# grepFuncSearchTerm =
