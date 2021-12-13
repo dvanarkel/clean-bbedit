@@ -368,8 +368,8 @@ where
 									[ if (elem c charactersToEscape) ("\\" +++ toString c) (toString c)
 									  \\ c <-: searchTerm
 									]
-						// infix. indicates infix followed by any char.
-						in concat5 "\\(" escapedSearchTerm "\\)" atleastOneWhiteSpace "infix.? \\d ::"
+						// infix[lr]? indicates infix followed by l, r, or nothing.
+						in concat5 "\\(" escapedSearchTerm "\\)" atleastOneWhiteSpace "infix[lr]?"
 					)
 					(concat3 searchTerm atleastOneWhiteSpace "::" )
 			# grepGenericSearchTerm = concat4 avoidImports "generic" atleastOneWhiteSpace searchTerm
