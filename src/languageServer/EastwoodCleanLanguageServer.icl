@@ -7,6 +7,7 @@ from Data.Error import instance Functor (MaybeError e), fromOk
 import qualified Data.Error
 import qualified Data.Map
 import Data.Func
+import Data.Either
 import Data.Functor
 import Data.List
 import Data.Maybe
