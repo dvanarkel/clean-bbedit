@@ -330,7 +330,7 @@ where
 					parseSearchTerm line stopPredicate [!charNr..size line!]
 			# atleastOneWhiteSpace = "(\\s+)"
 			// The grep type definition search pattern is adjusted to avoid finding imports using (?<!).
-			# avoidImports = "(?<!import |, )"
+			# avoidImports = "(?<!.\\s)"
 			# grepTypeSearchTerm = concat3 avoidImports ":: " searchTerm
 			// The grep func definition search pattern is adjusted based on
 			// whether an infix function or a prefix function was parsed.
