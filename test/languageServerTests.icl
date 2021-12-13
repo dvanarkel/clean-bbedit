@@ -110,14 +110,18 @@ properties =:
 		as "go to declaration of a function that is only declared in one module is correctly handled"
 	, goToDeclarationOfFuncMultipleResultsIsCorrectlyHandledFor
 		as "go to declaration of a function that is declared in two modules is correctly handled"
+	, goToDeclarationOfInfixlFuncSingleResultIsCorrectlyHandledFor
+		as "go to declaration of a infixl function that is only declared in one module is correctly handled"
+	, goToDeclarationOfInfixrFuncSingleResultIsCorrectlyHandledFor
+		as "go to declaration of a infixr function is correctly handled."
 	, goToDeclarationOfInfixFuncSingleResultIsCorrectlyHandledFor
-		as "go to declaration of a infix function that is only declared in one module is correctly handled"
-	, goToDeclarationOfInfixFuncMultipleResultsIsCorrectlyHandledFor
-		as "go to declaration of a infix function that is declared in two modules is correctly handled"
-	, goToDeclarationOfInfixFuncUsedPrefixSingleResultIsCorrectlyHandledFor
-		as "go to declaration of a infix function used prefix that is only declared in one module is correctly handled"
-	, goToDeclarationOfInfixFuncUsedPrefixMultipleResultsIsCorrectlyHandledFor
-		as "go to declaration of a infix function used prefix that is declared in two modules is correctly handled"
+		as "go to declaration of a infix function is correctly handled."
+	, goToDeclarationOfInfixlFuncMultipleResultsIsCorrectlyHandledFor
+		as "go to declaration of a infixl function that is declared in two modules is correctly handled"
+	, goToDeclarationOfInfixlFuncUsedPrefixSingleResultIsCorrectlyHandledFor
+		as "go to declaration of a infixl function used prefix that is only declared in one module is correctly handled"
+	, goToDeclarationOfInfixlFuncUsedPrefixMultipleResultsIsCorrectlyHandledFor
+		as "go to declaration of a infixl function used prefix that is declared in two modules is correctly handled"
 	, goToDeclarationOfFuncThatStartsWithUppercaseIsCorrectlyHandledFor
 		as "go to declaration of a function whose name starts with an uppercase letter is correctly handled"
 	, goToDeclarationOfDeriveGenericFuncSingleResultIsCorrectlyHandledFor
@@ -478,8 +482,8 @@ where
 	funcMultipleResultsPosition :: Position
 	funcMultipleResultsPosition = {line=uint 6, character=uint 5}
 
-goToDeclarationOfInfixFuncSingleResultIsCorrectlyHandledFor :: Property
-goToDeclarationOfInfixFuncSingleResultIsCorrectlyHandledFor =
+goToDeclarationOfInfixlFuncSingleResultIsCorrectlyHandledFor :: Property
+goToDeclarationOfInfixlFuncSingleResultIsCorrectlyHandledFor =
 	goToDeclarationTest
 		SUITE_DEFAULT
 		FILE_GO_TO_DECLARATION_ICL_1
@@ -489,8 +493,30 @@ where
 	infixFuncSingleResultPosition :: Position
 	infixFuncSingleResultPosition = {line=uint 9, character = uint 56}
 
-goToDeclarationOfInfixFuncMultipleResultsIsCorrectlyHandledFor :: Property
-goToDeclarationOfInfixFuncMultipleResultsIsCorrectlyHandledFor =
+goToDeclarationOfInfixrFuncSingleResultIsCorrectlyHandledFor :: Property
+goToDeclarationOfInfixrFuncSingleResultIsCorrectlyHandledFor =
+	goToDeclarationTest
+		SUITE_DEFAULT
+		FILE_GO_TO_DECLARATION_ICL_1
+		infixrFuncSingleResultPosition
+		[!(FILE_GO_TO_DECLARATION_DCL_1, uint 39)!]
+where
+	infixrFuncSingleResultPosition :: Position
+	infixrFuncSingleResultPosition = {line=uint 3, character = uint 36}
+
+goToDeclarationOfInfixFuncSingleResultIsCorrectlyHandledFor :: Property
+goToDeclarationOfInfixFuncSingleResultIsCorrectlyHandledFor =
+	goToDeclarationTest
+		SUITE_DEFAULT
+		FILE_GO_TO_DECLARATION_ICL_1
+		infixFuncSingleResultPosition
+		[!(FILE_GO_TO_DECLARATION_DCL_1, uint 41)!]
+where
+	infixFuncSingleResultPosition :: Position
+	infixFuncSingleResultPosition = {line=uint 3, character = uint 27}
+
+goToDeclarationOfInfixlFuncMultipleResultsIsCorrectlyHandledFor :: Property
+goToDeclarationOfInfixlFuncMultipleResultsIsCorrectlyHandledFor =
 	goToDeclarationTest
 		SUITE_DEFAULT
 		FILE_GO_TO_DECLARATION_ICL_1
@@ -500,8 +526,8 @@ where
 	infixFuncMultipleResultsPosition :: Position
 	infixFuncMultipleResultsPosition = {line=uint 6, character = uint 41}
 
-goToDeclarationOfInfixFuncUsedPrefixSingleResultIsCorrectlyHandledFor :: Property
-goToDeclarationOfInfixFuncUsedPrefixSingleResultIsCorrectlyHandledFor =
+goToDeclarationOfInfixlFuncUsedPrefixSingleResultIsCorrectlyHandledFor :: Property
+goToDeclarationOfInfixlFuncUsedPrefixSingleResultIsCorrectlyHandledFor =
 	goToDeclarationTest
 		SUITE_DEFAULT
 		FILE_GO_TO_DECLARATION_ICL_1
@@ -511,8 +537,8 @@ where
 	infixFuncSingleResultPosition :: Position
 	infixFuncSingleResultPosition = {line=uint 9, character = uint 41}
 
-goToDeclarationOfInfixFuncUsedPrefixMultipleResultsIsCorrectlyHandledFor :: Property
-goToDeclarationOfInfixFuncUsedPrefixMultipleResultsIsCorrectlyHandledFor =
+goToDeclarationOfInfixlFuncUsedPrefixMultipleResultsIsCorrectlyHandledFor :: Property
+goToDeclarationOfInfixlFuncUsedPrefixMultipleResultsIsCorrectlyHandledFor =
 	goToDeclarationTest
 		SUITE_DEFAULT
 		FILE_GO_TO_DECLARATION_ICL_1

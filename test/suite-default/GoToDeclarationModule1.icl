@@ -1,16 +1,22 @@
 implementation module GoToDeclarationModule1
 
 funcSingleResult :: Bool
-funcSingleResult = True
+funcSingleResult = True <#$> True #$> True
 
 funcMultipleResults :: Bool
-funcMultipleResults = (#$$) True (True #$$ True)
+funcMultipleResults = (<#$$) True (True <#$$ True)
 
 FunctionThatStartsWithCapitalLetter :: Bool
-FunctionThatStartsWithCapitalLetter = (#$) True (True #$ True)
+FunctionThatStartsWithCapitalLetter = (<#$) True (True <#$ True)
 
-(#$) :: !Bool !Bool -> Bool
-(#$) _ _ = True
+(<#$) :: !Bool !Bool -> Bool
+(<#$) _ _ = True
 
-(#$$) :: !Bool !Bool -> Bool
-(#$$) _ _ = True
+(<#$$) :: !Bool !Bool -> Bool
+(<#$$) _ _ = True
+
+(#$>) :: !Bool !Bool -> Bool
+(#$>) _ _ = True
+
+(<#$>) :: !Bool !Bool -> Bool
+(<#$>) _ _ = True

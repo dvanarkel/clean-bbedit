@@ -17,4 +17,4 @@ class classMultipleResults a where
 	fooMultipleResultsFunc :: !a -> Bool
 
 //* Used multiple
-(#$$) infixl 4 :: !Bool !Bool -> !Bool
+(<#$$) infixl 4 :: !Bool !Bool -> !Bool
