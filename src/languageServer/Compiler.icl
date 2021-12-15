@@ -5,6 +5,7 @@ import Data.Error
 import Data.Maybe
 import Data.Func
 import Data.Functor
+import Data.Tuple
 import Data.List
 import qualified Data.Map
 from Data.Map import :: Map
@@ -16,16 +17,19 @@ from Eastwood.Diagnostic import
 	:: Position
 import qualified Eastwood.Diagnostic
 import Eastwood.Range
+import Eastwood.Util.FileFinder
 
 WARNING_LOWER :== "warning"
 WARNING_UPPER :== "Warning"
 
 runCompiler :: !FilePath !String !CompilerSettings !*World -> (!MaybeError String (Map FilePath [!Diagnostic]), !*World)
-runCompiler moduleFile moduleName config world
+runCompiler moduleFile moduleName config=:{searchPaths} world
 	# (mbCoclResult, world) = callCocl moduleName config world
 	| isError mbCoclResult = (liftError mbCoclResult, world)
 	# (retCode, output) = fromOk mbCoclResult
-	# diagnostics = diagnosticsFor (moduleName <.> takeExtension moduleFile) output
+	// If the moduleFile is a .icl, otherFileExists indicates whether a .dcl exists or if it is a module.
+	# (otherModuleFileExists, world) = appFst isJust $ findSearchPath moduleFile searchPaths world
+	# diagnostics = diagnosticsFor (moduleName <.> takeExtension moduleFile) output otherModuleFileExists
 	// If the return code is not 0, either problems have been detected in the file or the file could not be processed.
 	// In the later case (no diagnostics could be extracted from the output)
 	// we generate an error instead of diagnostics.
@@ -70,15 +74,17 @@ where
  * diagnosticsFor moduleFile output = diagnostics:
  *     `diagnostics` are the diagnostics in the compiler output `output` for `moduleFile`.
  */
-diagnosticsFor :: !FilePath !String -> Map FilePath [!Diagnostic]
-diagnosticsFor moduleFile output =
+diagnosticsFor :: !FilePath !String !Bool -> Map FilePath [!Diagnostic]
+diagnosticsFor moduleFile output otherModuleFileExists
+	# otherModuleFile = replaceExtension moduleFile (if (takeExtension moduleFile == "dcl") "icl" "dcl")
+	=
 	// The compiler has filenames with . instead of / (e.g. Data.Error.icl); we
 	// need to convert these to real filenames.
 	'Data.Map'.foldrWithKey ('Data.Map'.put o fixFileName) 'Data.Map'.newMap $
 	diagnosticsForAccum 0 ?None $
 	// We always have to generate a result for `moduleFile`.
 	// If there are no diagnostics we have to report that to the client to clear possibly present diagnostics.
-	'Data.Map'.singleton moduleFile [!]
+	'Data.Map'.fromList [(moduleFile, [!]) : if otherModuleFileExists [(otherModuleFile, [!])] []]
 where
 	// accumulates diagnostics, we go through the string using `idx` to avoid constructing intermediate strings
 	// the previously found file (module.icl or module.dcl), starting index and line number is provided,
