@@ -22,7 +22,7 @@ WARNING_UPPER :== "Warning"
 
 runCompiler :: !FilePath !String !CompilerSettings !*World -> (!MaybeError String (Map FilePath [!Diagnostic]), !*World)
 runCompiler moduleFile moduleName config world
-	# (mbCoclResult, world) = callCocl moduleFile moduleName config world
+	# (mbCoclResult, world) = callCocl moduleName config world
 	| isError mbCoclResult = (liftError mbCoclResult, world)
 	# (retCode, output) = fromOk mbCoclResult
 	# diagnostics = diagnosticsFor (moduleName <.> takeExtension moduleFile) output
@@ -44,8 +44,8 @@ where
  * @param The settings for the compiler, contains mostly the search path
  * @result Either an error or cocl's output
  */
-callCocl :: !FilePath !String !CompilerSettings !*World -> (!MaybeError String (Int, String), !*World)
-callCocl moduleFile moduleName {compilerPath, searchPaths} world
+callCocl :: !String !CompilerSettings !*World -> (!MaybeError String (Int, String), !*World)
+callCocl moduleName {compilerPath, searchPaths} world
 	// Call cocl
 	# (mbHandle, world) =
 		// -saw is added because the compiler does not provide error information for strictness export warnings.
