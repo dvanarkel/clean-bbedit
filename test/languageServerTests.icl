@@ -3,6 +3,7 @@ module languageServerTests
 import StdEnv
 import StdOverloadedList
 import StdMaybe
+import Data.List
 import Data.Func, Data.Error
 import Data.Tuple
 import Data.Either
@@ -16,7 +17,7 @@ import System._Unsafe
 import Text
 from Gast import
 	:: Property, :: Testoption (Bent), =.=, generic genShow, as, name, :: PrintOption (OutputTestEvents),
-	instance Testable Property, instance Testable Bool,
+	instance Testable Property, instance Testable Bool, ExistsIn, class TestArg,
 	class /\(..), instance /\ Property Property
 import Gast.CommandLine
 import Common
@@ -376,6 +377,9 @@ didCloseNotificationBodyFor file =
 		file
 		"\"}}}"
 
+derive gPrint UInt
+derive genShow UInt
+derive ggen UInt
 
 goToDeclarationTest :: !String !String !Position ![!(String,UInt)!] -> Property
 goToDeclarationTest suite fileName position expectedFileNamesAndLineNumbers = accUnsafe goToDeclarationTest`
@@ -384,17 +388,28 @@ where
 		# (Ok currentDirectory, world) = getCurrentDirectory world
 		# expectedFilePathsAndLineNumbers
 			= Map (appFst (\s -> currentDirectory </> suite </> s)) expectedFileNamesAndLineNumbers
+		# expectedFilePathsAndLineNumbersPerms
+			= map (\e -> [!x \\ x <- e!]) $
+				permutations
+					[expectedFilePathAndLineNumber \\ expectedFilePathAndLineNumber <- expectedFilePathsAndLineNumbers]
 		# (response, finalOut, world) =
 			singleMessageResponse
 				suite
 				(goToDeclarationRequestBodyFor (currentDirectory </> suite </> fileName) position)
 				world
-		=	(
-				(generateMessage $
-					"{\"jsonrpc\":2.0," +++
-					dropChars 1 (toString $ serialize $ goToDeclarationResponseBodyFor expectedFilePathsAndLineNumbers)
-				)
-					=.= response
+		=	( 	ExistsIn
+					(\expectedFilePathsAndLineNumbersPerm ->
+						(generateMessage $
+							"{\"jsonrpc\":2.0," +++
+							dropChars
+								1
+								(toString $ serialize $
+									goToDeclarationResponseBodyFor expectedFilePathsAndLineNumbersPerm
+								)
+						)
+						=.= response
+					)
+					expectedFilePathsAndLineNumbersPerms
 				/\
 				finalOut =.= ?None
 			,	world
