@@ -33,11 +33,11 @@ class classMultipleResults a where
 	fooMultipleResultsFunc :: !a -> Bool
 
 //* Used single.
-(<#$) infixl 4 :: !Bool !Bool -> !Bool
+(<#$) infixl 4 :: !Bool !Bool -> Bool
 //* Used multiple
-(<#$$) infixl 4 :: !Bool !Bool -> !Bool
+(<#$$) infixl 4 :: !Bool !Bool -> Bool
 
-(#$>) infixr 4 :: !Bool !Bool -> !Bool
+(#$>) infixr 4 :: !Bool !Bool -> Bool
 
-(<#$>) infix 4 :: !Bool !Bool -> !Bool
+(<#$>) infix 4 :: !Bool !Bool -> Bool
 

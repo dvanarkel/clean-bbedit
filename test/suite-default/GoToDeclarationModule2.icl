@@ -3,5 +3,5 @@ implementation module GoToDeclarationModule2
 funcMultipleResults :: Bool
 funcMultipleResults = True
 
-(<#$$) :: !Bool !Bool -> Bool
+(<#$$) infixl 4 :: !Bool !Bool -> Bool
 (<#$$) _ _ = True

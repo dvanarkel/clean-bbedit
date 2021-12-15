@@ -1,7 +1,7 @@
 implementation module GoToDeclarationModule1
 
 funcSingleResult :: Bool
-funcSingleResult = True <#$> True #$> True
+funcSingleResult = (True <#$> True) #$> True
 
 funcMultipleResults :: Bool
 funcMultipleResults = (<#$$) True (True <#$$ True)
@@ -9,14 +9,14 @@ funcMultipleResults = (<#$$) True (True <#$$ True)
 FunctionThatStartsWithCapitalLetter :: Bool
 FunctionThatStartsWithCapitalLetter = (<#$) True (True <#$ True)
 
-(<#$) :: !Bool !Bool -> Bool
+(<#$) infixl 4 :: !Bool !Bool -> Bool
 (<#$) _ _ = True
 
-(<#$$) :: !Bool !Bool -> Bool
+(<#$$) infixl 4 :: !Bool !Bool -> Bool
 (<#$$) _ _ = True
 
-(#$>) :: !Bool !Bool -> Bool
+(#$>) infixr 4 :: !Bool !Bool -> Bool
 (#$>) _ _ = True
 
-(<#$>) :: !Bool !Bool -> Bool
+(<#$>) infix 4 :: !Bool !Bool -> Bool
 (<#$>) _ _ = True
