@@ -238,10 +238,12 @@ onGotoDeclaration req=:{RequestMessage|id, params=(?Just json)} st=:{EastwoodSta
 	// E.g tab = x cols 1 char.
 	# charNr = position.'LSP.Position'.character
 	// Parse the grep search term for which a declaration was requested.
-	# mbSearchTerm = grepSearchTermFor line charNr
-	| isError mbSearchTerm = (fromError mbSearchTerm, st, world)
+	# mbSearchTerms = grepSearchTermFor line charNr
+	| isError mbSearchTerms = (fromError mbSearchTerms, st, world)
 	// Using the searchString, grep is executed to find the file names and line numbers of the definitions that match.
-	# searchTerm = fromOk mbSearchTerm
+	// There is a special case constructors which have the preceding | or = on the preceding line.
+	// This requires checking the previous line, hence there is a seperate search term for efficiency reasons.
+	# (searchTermReg, searchTermConstructorSpecialCase)  = fromOk mbSearchTerms
 	// The root path is necessary because otherwise grep returns relative paths and the client needs absolute paths.
 	// The config path is the root path.
 	# (mbConfigPath, world) = findSearchPath PROJECT_FILENAME workspaceFolders world
@@ -258,25 +260,64 @@ onGotoDeclaration req=:{RequestMessage|id, params=(?Just json)} st=:{EastwoodSta
 	| isNone mbCleanHome
 		= (errorResponse id UnknownErrorCode "Could not find CLEAN_HOME environment variable.", st, world)
 	# cleanHomePath = fromJust mbCleanHome
-	// Call grep using the search term to find the matching declarations.
+	// Call grep using the regular (non special constructor case) search term to find the matching declarations.
 	// -P enables perl regexp, -r recurses through all files, -n gives line number,
 	// -w matches whole words only (e.g: :: Maybe matches :: Maybe but not :: MaybeOSError).
 	//--include \*.dcl makes sure only dcl files are examined by grep.
-	# (mbGrepResultTypeDef, world)
+	# (mbGrepResultRegSearchTerm, world)
 		= callProcessWithOutput
 			"grep"
-			["-P", searchTerm, "-r", "-n", "-w", "--include", "\*.dcl", rootPath, cleanHomePath]
+			["-P", searchTermReg, "-r", "-n", "-w", "--include", "\*.dcl", rootPath, cleanHomePath]
 			?None
 			world
-	| isError mbGrepResultTypeDef
+	| isError mbGrepResultRegSearchTerm
 		= (errorResponse id InternalError "grep failed when searching for type definitions.", st, world)
-	# {stdout} = fromOk mbGrepResultTypeDef
+	# {stdout} = fromOk mbGrepResultRegSearchTerm
+	# stdoutRegSearchTerm = stdout
+	// The stdout for the special constructor case is processed using grep again to find the locations of the
+	// Constructors which are preceded by | and = on the preceding line.
+	# (mbGrepResultSpecialConstructorCase, world) = case searchTermConstructorSpecialCase of
+		?None = (?None, world)
+		?Just searchTerm =
+			appFst ?Just $
+				callProcessWithOutput
+					"grep"
+					// -B 1 also selects the previous line.
+					[ "-P", searchTerm
+					 , "-B", "1"
+					 , "-r"
+					 , "-n"
+					 , "-w"
+					 , "--include", "\*.dcl"
+					 , rootPath
+					 , cleanHomePath
+					 ]
+					?None
+					world
+	| isJust mbGrepResultSpecialConstructorCase && (isError $ fromJust mbGrepResultSpecialConstructorCase)
+		= (errorResponse id InternalError "grep failed when searching for special constructor case.", st, world)
+	# stdoutSpecialConstructorCase = case mbGrepResultSpecialConstructorCase of
+		// No need to search for a constructor since the searchTerm can not be a constructor.
+		?None = ""
+		// There is a need to search for a constructor since the searchTerm could be a constructor.
+		?Just grepResult = (fromOk grepResult).ProcessResult.stdout
 	// List of lists of string containing the results, grep separates file name/line number by : and results by \n.
 	// grep adds an empty newline at the end of the results which is removed by init.
 	// The first two results are the file name and line number.
 	// This is transformed into a list of tuples of filename and linenumber for convenience.
-	# results
-		= (\[fileName, lineNr] -> ([(fileName, toInt lineNr)])) o take 2 o split ":" <$> (init $ split "\n" stdout)
+	// ?None and ?Just are currently exceptions.
+	# results =
+		(	(\[fileName, lineNr] -> ([(fileName, toInt lineNr)])) o take 2 o split ":" <$>
+				(init $ split "\n" stdoutRegSearchTerm)
+		)
+		++
+		// - is used as a seperator for the specialConstructorCase results, as grep uses - as a group seperator.
+		// when previous lines are shown instead of :.
+		// In the special constructor case the previous line will be found so +1 is added to the line number.
+		(	(\[fileName, lineNr] -> ([(fileName, toInt lineNr + 1)])) o take 2 o split "-" <$>
+				(filterConstuctorCaseResults $ init $ split "\n" stdoutSpecialConstructorCase)
+		)
+
 	// // For every tuple of fileName and lineNumber, a Location is generated to be sent back to the client.
 	# locations = [! l \\ l <- catMaybes $ fileAndLineToLocation <$> flatten results !]
 	= (locationResponse id locations, st, world)
@@ -314,12 +355,17 @@ where
 
 	/**
 	 * This function retrieves the search term that is passed to grep which is used for finding the declaration.
+	 * If the function succeeds, two search terms (String, ?String) are returned.
+	 * The first one (String) is the general search term.
+	 * The second search term (?String) is for constructors where the preceding = or | is on the previous line.
+	 * If the second search term is ?None, the search term can not possibly be a constructor.
+	 * grep only handles one line at a time so therefore we need to process this case differently.
 	 *
 	 * @param The line number for which a declaration was requested.
 	 * @param The character number that was selected when a declaration request was made.
-	 * @result an error response to be sent back to the client or the search term used by grep.
+	 * @result an error response to be sent back to the client or the search terms used by grep.
 	 */
-	grepSearchTermFor :: !String !UInt -> MaybeError ResponseMessage String
+	grepSearchTermFor :: !String !UInt -> MaybeError ResponseMessage (String,?String)
 	grepSearchTermFor line (UInt charNr)
 		# firstUnicodeChar = fromChar $ select line charNr
 		// If the first char is a space, comma, \n, or \t, go backwards
@@ -352,7 +398,9 @@ where
 			// The ^ indicates that the term that follows should not be preceded by any characters.
 			// This is used to avoid finding imports as declarations terms are never preceded by characters.
 			# avoidImports = "^"
-			# grepTypeSearchTerm = concat3 avoidImports ":: " searchTerm
+			# startsWithUpper = isUpper $ select searchTerm 0
+			// Types always start with a uppercase character.
+			# grepTypeSearchTerm = if (startsWithUpper) (concat3 avoidImports ":: " searchTerm) ""
 			// The grep func definition search pattern is adjusted based on
 			// whether an infix function or a prefix function was parsed.
 			# grepFuncSearchTerm =
@@ -374,16 +422,55 @@ where
 					(concat3 searchTerm atleastOneWhiteSpace "::" )
 			# grepGenericSearchTerm = concat4 avoidImports "generic" atleastOneWhiteSpace searchTerm
 			# grepClassSearchTerm = concat4 avoidImports "class" atleastOneWhiteSpace searchTerm
+			// For clarity we define this variable as a duplicate of avoidImports.
+			# stringStartsWith = "^"
+			# anyAmountOfCharacters = ".*"
+			# atleastOneCharacter = ".+"
+			# pipeOrEquals ="\\||="
+			# grepConstructorSearchTerm
+				// Constructors always start with a uppercase letter, so do not search if this is not the case.
+				// The pipe or = preceding the constructor may be preceded by either
+				// 1: :: followed by any combination of characters followed by | or = followed by
+				// at least one whitespace followed by the search term
+				// 2: At least one white space followed by any combination of characters followed by | or = followed by
+				// at least one whitespace followed by the search term.
+				= if (startsWithUpper)
+					(concat
+						[ stringStartsWith
+						, "("
+						, 	"("
+						, 	atleastOneWhiteSpace
+						, 	anyAmountOfCharacters
+						, 	")"
+						, 	"|" // OR.
+						,   "::"
+						,   atleastOneCharacter
+						, ")"
+						, "("
+						, pipeOrEquals
+						, ")"
+						, atleastOneWhiteSpace
+						, searchTerm
+						]
+					)
+					""
+			// Further processing has to be done for constructors that have the | or = on the previous line.
+			// In this case, the constructor has to be preceded by at least one whitespace only.
+			// For this we return a seperate search term since we have to process the previous line.
+			# grepConstructorSearchTermSpecialCase = if (startsWithUpper) (?Just $ "^\\s+" +++ searchTerm) ?None
 			= Ok $
-				concat
-					[ grepTypeSearchTerm
-					, "|"
+				(concat
+					// Only search for types when the term starts with a capital.
+					[ if (grepTypeSearchTerm == "") "" (grepTypeSearchTerm +++ "|")
 					, grepFuncSearchTerm
 					, "|"
 					, grepGenericSearchTerm
 					, "|"
 					, grepClassSearchTerm
+					// Only search for constructors if the term starts with a capital.
+					, if (grepConstructorSearchTerm == "") "" ("|" +++ grepConstructorSearchTerm)
 					]
+				, grepConstructorSearchTermSpecialCase)
 		= 'Data.Error'.Error $
 			errorResponse
 			id
@@ -425,6 +512,36 @@ where
 
 		isSpecialSymbol :: !UChar -> Bool
 		isSpecialSymbol uc = elem uc specialSymbols
+
+	//* Filename/line/match is separated by : for actual matches and - for previous lines.
+	parseGrepResults :: !String !String -> [[String]]
+	parseGrepResults sep stdoutH = split ":" <$> (init $ split "\n" stdoutH)
+
+	filterConstuctorCaseResults :: ![String] -> [String]
+	filterConstuctorCaseResults strs =
+		[previousLine
+		\\ previousLine
+			<- filter
+				(\str
+					# lastHyphen = lastIndexOf "-" str
+					// string has to contain no : before the last hyphen (since this means it is the actual match).
+					// and not the previous line. There has to be a hyphen in the line since otherwise it can not
+					// be a previous line to begin with.
+					-> if (lastHyphen == -1) False (if (indexOf ":" str == -1) True (indexOf ":" str > lastHyphen))
+				)
+				strs
+		| hasPipeOrEqualsAtEnd previousLine
+		]
+	where
+		hasPipeOrEqualsAtEnd :: !String -> Bool
+		hasPipeOrEqualsAtEnd str = hasOnlyWhiteSpaceBeforePipe $ reverse [c \\ c <-:str]
+		where
+			hasOnlyWhiteSpaceBeforePipe :: ![Char] -> Bool
+			hasOnlyWhiteSpaceBeforePipe ['|':_] = True
+			hasOnlyWhiteSpaceBeforePipe ['=':_] = True
+			hasOnlyWhiteSpaceBeforePipe [' ':cs] = hasOnlyWhiteSpaceBeforePipe cs
+			hasOnlyWhiteSpaceBeforePipe ['\t':cs] = hasOnlyWhiteSpaceBeforePipe cs
+			hasOnlyWhiteSpaceBeforePipe _ = False
 
 	errorResponse :: !RequestId !ErrorCode !String -> ResponseMessage
 	errorResponse id err msg =
