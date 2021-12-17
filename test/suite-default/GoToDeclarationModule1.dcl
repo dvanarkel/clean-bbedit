@@ -41,3 +41,15 @@ class classMultipleResults a where
 
 (<#$>) infix 4 :: !Bool !Bool -> Bool
 
+:: ConstructorTestOne arg1 arg2 = FooOne | FooTwo |
+	FooThree |
+	FooFour
+	| FooFive
+    | FooSix arg1 arg2 | FooSeven arg2 arg1 | FooEight
+
+:: ConstructorTestTwo
+	= FooNine
+
+:: ConstructorTestThree =
+	FooTen
+

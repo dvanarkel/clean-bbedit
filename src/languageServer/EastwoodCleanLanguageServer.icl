@@ -282,8 +282,8 @@ onGotoDeclaration req=:{RequestMessage|id, params=(?Just json)} st=:{EastwoodSta
 			appFst ?Just $
 				callProcessWithOutput
 					"grep"
-					// -B 1 also selects the previous line.
 					[ "-P", searchTerm
+					// -B 1 also selects the previous line.
 					 , "-B", "1"
 					 , "-r"
 					 , "-n"
@@ -317,8 +317,7 @@ onGotoDeclaration req=:{RequestMessage|id, params=(?Just json)} st=:{EastwoodSta
 		(	(\[fileName, lineNr] -> ([(fileName, toInt lineNr + 1)])) o take 2 o split "-" <$>
 				(filterConstuctorCaseResults $ init $ split "\n" stdoutSpecialConstructorCase)
 		)
-
-	// // For every tuple of fileName and lineNumber, a Location is generated to be sent back to the client.
+	// For every tuple of fileName and lineNumber, a Location is generated to be sent back to the client.
 	# locations = [! l \\ l <- catMaybes $ fileAndLineToLocation <$> flatten results !]
 	= (locationResponse id locations, st, world)
 where
@@ -400,7 +399,7 @@ where
 			# avoidImports = "^"
 			# startsWithUpper = isUpper $ select searchTerm 0
 			// Types always start with a uppercase character.
-			# grepTypeSearchTerm = if (startsWithUpper) (concat3 avoidImports ":: " searchTerm) ""
+			# grepTypeSearchTerm = if startsWithUpper (concat3 avoidImports ":: " searchTerm) ""
 			// The grep func definition search pattern is adjusted based on
 			// whether an infix function or a prefix function was parsed.
 			# grepFuncSearchTerm =
@@ -434,7 +433,7 @@ where
 				// at least one whitespace followed by the search term
 				// 2: At least one white space followed by any combination of characters followed by | or = followed by
 				// at least one whitespace followed by the search term.
-				= if (startsWithUpper)
+				= if startsWithUpper
 					(concat
 						[ stringStartsWith
 						, "("
@@ -457,17 +456,18 @@ where
 			// Further processing has to be done for constructors that have the | or = on the previous line.
 			// In this case, the constructor has to be preceded by at least one whitespace only.
 			// For this we return a seperate search term since we have to process the previous line.
-			# grepConstructorSearchTermSpecialCase = if (startsWithUpper) (?Just $ "^\\s+" +++ searchTerm) ?None
+			# grepConstructorSearchTermSpecialCase =
+				if (startsWithUpper) (?Just $ concat3 stringStartsWith atleastOneWhiteSpace searchTerm) ?None
 			= Ok $
 				(concat
-					// Only search for types when the term starts with a capital.
+					// Only search for types when the term starts with an uppercase character.
 					[ if (grepTypeSearchTerm == "") "" (grepTypeSearchTerm +++ "|")
 					, grepFuncSearchTerm
 					, "|"
 					, grepGenericSearchTerm
 					, "|"
 					, grepClassSearchTerm
-					// Only search for constructors if the term starts with a capital.
+					// Only search for constructors if the term starts with an uppercase character.
 					, if (grepConstructorSearchTerm == "") "" ("|" +++ grepConstructorSearchTerm)
 					]
 				, grepConstructorSearchTermSpecialCase)
