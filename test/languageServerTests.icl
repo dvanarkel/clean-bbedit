@@ -141,6 +141,24 @@ properties =:
 		as "go to declaration of a class function with a single result is correctly handled"
 	, goToDeclarationOfClassFuncMultipleResultsIsCorrectlyHandledFor
 		as "go to declaration of a class function with multiple results is correctly handled"
+	, goToDeclarationOfFirstConstructorSameLineAsTypeDefCorrectlyHandledFor
+		as "go to declaration of the first constructor on the same line as the type def is correctly handled"
+	, goToDeclarationOfSecondConstructorSameLineAsTypeDefCorrectlyHandledFor
+		as "go to declaration of the second constructor on the same line as the type def is correctly handled"
+	, goToDeclarationOfConstructorPrecededByPipeOnPreviousLineWithTypeDefCorrectlyHandledFor
+		as "go to declaration of constructor which is preceded by a pipe in the previous line with a type def is correctly handled"
+	, goToDeclarationOfConstructorPrecededByPipeOnPreviousLineWithoutTypeDefCorrectlyHandledFor
+		as "go to declaration of constructor which is preceded by a pipe in the previous line without a type def is correctly handled"
+	, goToDeclarationOfConstructorPrecededByPipeOnSameLineWithoutTypeDefCorrectlyHandledFor
+		as "go to declaration of constructor which is preceded by a pipe on the same line without a type def is correctly handled"
+	, goToDeclarationOfConstructorWithArgsPrecededByPipeOnSameLineWithoutTypeDefCorrectlyHandledFor
+		as "go to declaration of constructor with arguments preceded by a pipe on the same line without a type def is correctly handled"
+	, goToDeclarationOfConstructorWithArgsPrecededByOtherConstructorOnSameLineWithoutTypeDefCorrectlyHandledFor
+		as "go to declaration of constructor with arguments preceded by another constructor is correctly handled for"
+	, goToDeclarationOfConstructorPrecededByEqualsOnPreviousLineWithTypeDefCorrectlyHandledFor
+		as "go to declaration of constructor preceded by an equals sign on the previous line which contains a type def is correctly handled for"
+	, goToDeclarationOfConstructorPrecededByEqualsOnSameLineWithoutTypeDefCorrectlyHandledFor
+		as "go to declaraiton of constructor preceded by an equals sigh on the same line without a type def is correctly handled"
 	]
 where
 	diagnosticsForErrors =
@@ -661,3 +679,102 @@ goToDeclarationOfClassMultipleResultsIsCorrectlyHandledFor =
 where
 	classMultipleResultsPosition :: Position
 	classMultipleResultsPosition = {line=uint 15, character=uint 12}
+
+goToDeclarationOfFirstConstructorSameLineAsTypeDefCorrectlyHandledFor :: Property
+goToDeclarationOfFirstConstructorSameLineAsTypeDefCorrectlyHandledFor =
+	goToDeclarationTest
+		SUITE_DEFAULT
+		FILE_GO_TO_DECLARATION_DCL_1
+		constructorPosition
+		[!(FILE_GO_TO_DECLARATION_DCL_1, uint 43)!]
+where
+	constructorPosition :: Position
+	constructorPosition = {line=uint 43, character=uint 39}
+
+goToDeclarationOfSecondConstructorSameLineAsTypeDefCorrectlyHandledFor :: Property
+goToDeclarationOfSecondConstructorSameLineAsTypeDefCorrectlyHandledFor =
+	goToDeclarationTest
+		SUITE_DEFAULT
+		FILE_GO_TO_DECLARATION_DCL_1
+		constructorPosition
+		[!(FILE_GO_TO_DECLARATION_DCL_1, uint 43)!]
+where
+	constructorPosition :: Position
+	constructorPosition = {line=uint 43, character=uint 47}
+
+goToDeclarationOfConstructorPrecededByPipeOnPreviousLineWithTypeDefCorrectlyHandledFor :: Property
+goToDeclarationOfConstructorPrecededByPipeOnPreviousLineWithTypeDefCorrectlyHandledFor =
+	goToDeclarationTest
+		SUITE_DEFAULT
+		FILE_GO_TO_DECLARATION_DCL_1
+		constructorPosition
+		[!(FILE_GO_TO_DECLARATION_DCL_1, uint 44)!]
+where
+	constructorPosition :: Position
+	constructorPosition = {line=uint 44, character=uint 7}
+
+goToDeclarationOfConstructorPrecededByPipeOnPreviousLineWithoutTypeDefCorrectlyHandledFor :: Property
+goToDeclarationOfConstructorPrecededByPipeOnPreviousLineWithoutTypeDefCorrectlyHandledFor =
+	goToDeclarationTest
+		SUITE_DEFAULT
+		FILE_GO_TO_DECLARATION_DCL_1
+		constructorPosition
+		[!(FILE_GO_TO_DECLARATION_DCL_1, uint 45)!]
+where
+	constructorPosition :: Position
+	constructorPosition = {line=uint 45, character=uint 7}
+
+goToDeclarationOfConstructorPrecededByPipeOnSameLineWithoutTypeDefCorrectlyHandledFor :: Property
+goToDeclarationOfConstructorPrecededByPipeOnSameLineWithoutTypeDefCorrectlyHandledFor =
+	goToDeclarationTest
+		SUITE_DEFAULT
+		FILE_GO_TO_DECLARATION_DCL_1
+		constructorPosition
+		[!(FILE_GO_TO_DECLARATION_DCL_1, uint 46)!]
+where
+	constructorPosition :: Position
+	constructorPosition = {line=uint 46, character=uint 7}
+
+goToDeclarationOfConstructorWithArgsPrecededByPipeOnSameLineWithoutTypeDefCorrectlyHandledFor :: Property
+goToDeclarationOfConstructorWithArgsPrecededByPipeOnSameLineWithoutTypeDefCorrectlyHandledFor =
+	goToDeclarationTest
+		SUITE_DEFAULT
+		FILE_GO_TO_DECLARATION_DCL_1
+		constructorPosition
+		[!(FILE_GO_TO_DECLARATION_DCL_1, uint 47)!]
+where
+	constructorPosition :: Position
+	constructorPosition = {line=uint 47, character=uint 7}
+
+goToDeclarationOfConstructorWithArgsPrecededByOtherConstructorOnSameLineWithoutTypeDefCorrectlyHandledFor :: Property
+goToDeclarationOfConstructorWithArgsPrecededByOtherConstructorOnSameLineWithoutTypeDefCorrectlyHandledFor =
+	goToDeclarationTest
+		SUITE_DEFAULT
+		FILE_GO_TO_DECLARATION_DCL_1
+		constructorPosition
+		[!(FILE_GO_TO_DECLARATION_DCL_1, uint 47)!]
+where
+	constructorPosition :: Position
+	constructorPosition = {line=uint 47, character=uint 30}
+
+goToDeclarationOfConstructorPrecededByEqualsOnSameLineWithoutTypeDefCorrectlyHandledFor :: Property
+goToDeclarationOfConstructorPrecededByEqualsOnSameLineWithoutTypeDefCorrectlyHandledFor =
+	goToDeclarationTest
+		SUITE_DEFAULT
+		FILE_GO_TO_DECLARATION_DCL_1
+		constructorPosition
+		[!(FILE_GO_TO_DECLARATION_DCL_1, uint 50)!]
+where
+	constructorPosition :: Position
+	constructorPosition = {line=uint 50, character=uint 10}
+
+goToDeclarationOfConstructorPrecededByEqualsOnPreviousLineWithTypeDefCorrectlyHandledFor :: Property
+goToDeclarationOfConstructorPrecededByEqualsOnPreviousLineWithTypeDefCorrectlyHandledFor =
+	goToDeclarationTest
+		SUITE_DEFAULT
+		FILE_GO_TO_DECLARATION_DCL_1
+		constructorPosition
+		[!(FILE_GO_TO_DECLARATION_DCL_1, uint 53)!]
+where
+	constructorPosition :: Position
+	constructorPosition = {line=uint 53, character=uint 7}

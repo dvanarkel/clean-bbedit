@@ -45,11 +45,11 @@ class classMultipleResults a where
 	FooThree |
 	FooFour
 	| FooFive
-    | FooSix arg1 arg2 | FooSeven arg2 arg1 | FooEight
+	| FooSix arg1 arg2 | FooSeven arg2 arg1
 
 :: ConstructorTestTwo
-	= FooNine
+	= FooEight
 
 :: ConstructorTestThree =
-	FooTen
+	FooNine
 
