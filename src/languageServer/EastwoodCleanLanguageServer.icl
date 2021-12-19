@@ -314,7 +314,11 @@ onGotoDeclaration req=:{RequestMessage|id, params=(?Just json)} st=:{EastwoodSta
 		// - is used as a seperator for the specialConstructorCase results, as grep uses - as a group seperator.
 		// when previous lines are shown instead of :.
 		// In the special constructor case the previous line will be found so +1 is added to the line number.
-		(	(\[fileName, lineNr] -> ([(fileName, toInt lineNr + 1)])) o take 2 o split "-" <$>
+		// Filename can contain - itself so this is accounted for.
+		// The actual match is at the end so this is dropped, this is followed by the lineNr and strs that when
+		// concatenated form the filename, this does not account for the match containing -.
+		// So if the constructor definition itself contains hyphens in comments this breaks.
+		(	(\[lineNr:fileName] -> ([(join "-" $ reverse $ fileName, toInt lineNr + 1)])) o drop 1 o reverse o split "-" <$>
 				(filterConstuctorCaseResults $ init $ split "\n" stdoutSpecialConstructorCase)
 		)
 	// For every tuple of fileName and lineNumber, a Location is generated to be sent back to the client.
@@ -524,10 +528,13 @@ where
 			<- filter
 				(\str
 					# lastHyphen = lastIndexOf "-" str
-					// string has to contain no : before the last hyphen (since this means it is the actual match).
-					// and not the previous line. There has to be a hyphen in the line since otherwise it can not
-					// be a previous line to begin with.
-					-> if (lastHyphen == -1) False (if (indexOf ":" str == -1) True (indexOf ":" str > lastHyphen))
+					# firstColon = indexOf ":" str
+					// If the string does not contain a hyphen at all we filter it since it cannot be the previous line.
+					// If the string does not contain a column then it is a result.
+					// If the string does not contain a hyphen one index before the first colon we filter it.
+					// This filter has problems when - or : are added as comments in the same line as the previous line
+					// of the constructor, this can be the case due to comments.
+					-> if (lastHyphen == -1) False (if (indexOf ":" str == -1) True (lastHyphen == firstColon - 1))
 				)
 				strs
 		| hasPipeOrEqualsAtEnd previousLine
@@ -541,6 +548,7 @@ where
 			hasOnlyWhiteSpaceBeforePipe ['=':_] = True
 			hasOnlyWhiteSpaceBeforePipe [' ':cs] = hasOnlyWhiteSpaceBeforePipe cs
 			hasOnlyWhiteSpaceBeforePipe ['\t':cs] = hasOnlyWhiteSpaceBeforePipe cs
+			hasOnlyWhiteSpaceBeforePipe ['\n':cs] = hasOnlyWhiteSpaceBeforePipe cs
 			hasOnlyWhiteSpaceBeforePipe _ = False
 
 	errorResponse :: !RequestId !ErrorCode !String -> ResponseMessage
