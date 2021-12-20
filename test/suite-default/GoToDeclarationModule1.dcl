@@ -53,3 +53,6 @@ class classMultipleResults a where
 :: ConstructorTestThree =
 	FooNine
 
+macroOne arg1 arg2 arg3 :== True
+
+macroTwo :== True

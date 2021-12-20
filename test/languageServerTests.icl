@@ -159,6 +159,10 @@ properties =:
 		as "go to declaration of constructor preceded by an equals sign on the previous line which contains a type def is correctly handled for"
 	, goToDeclarationOfConstructorPrecededByEqualsOnSameLineWithoutTypeDefCorrectlyHandledFor
 		as "go to declaraiton of constructor preceded by an equals sigh on the same line without a type def is correctly handled"
+	, goToDeclarationOfMacroWithoutArgsCorrectlyHandledFor
+		as "go to declaration of a macro without arguments is correctly handled"
+	, goToDeclarationOfMacroWithArgsCorrectlyHandledFor
+		as "go to declaration of a macro with arguments is correctly handled"
 	]
 where
 	diagnosticsForErrors =
@@ -778,3 +782,25 @@ goToDeclarationOfConstructorPrecededByEqualsOnPreviousLineWithTypeDefCorrectlyHa
 where
 	constructorPosition :: Position
 	constructorPosition = {line=uint 53, character=uint 7}
+
+goToDeclarationOfMacroWithArgsCorrectlyHandledFor :: Property
+goToDeclarationOfMacroWithArgsCorrectlyHandledFor =
+	goToDeclarationTest
+		SUITE_DEFAULT
+		FILE_GO_TO_DECLARATION_DCL_1
+		macroPosition
+		[!(FILE_GO_TO_DECLARATION_DCL_1, uint 55)!]
+where
+	macroPosition :: Position
+	macroPosition = {line=uint 55, character=uint 7}
+
+goToDeclarationOfMacroWithoutArgsCorrectlyHandledFor :: Property
+goToDeclarationOfMacroWithoutArgsCorrectlyHandledFor =
+	goToDeclarationTest
+		SUITE_DEFAULT
+		FILE_GO_TO_DECLARATION_DCL_1
+		macroPosition
+		[!(FILE_GO_TO_DECLARATION_DCL_1, uint 57)!]
+where
+	macroPosition :: Position
+	macroPosition = {line=uint 57, character=uint 5}
