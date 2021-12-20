@@ -402,6 +402,8 @@ where
 			// This is used to avoid finding imports as declarations terms are never preceded by characters.
 			# avoidImports = "^"
 			# startsWithUpper = isUpper $ select searchTerm 0
+			# atleastOneCharacter = ".+"
+			# anyAmountOfCharacters = ".*"
 			// Types always start with a uppercase character.
 			# grepTypeSearchTerm = if startsWithUpper (concat3 avoidImports ":: " searchTerm) ""
 			// The grep func definition search pattern is adjusted based on
@@ -425,10 +427,9 @@ where
 					(concat3 searchTerm atleastOneWhiteSpace "::" )
 			# grepGenericSearchTerm = concat4 avoidImports "generic" atleastOneWhiteSpace searchTerm
 			# grepClassSearchTerm = concat4 avoidImports "class" atleastOneWhiteSpace searchTerm
+			# grepMacroSearchTerm = concat5 avoidImports searchTerm atleastOneWhiteSpace anyAmountOfCharacters ":=="
 			// For clarity we define this variable as a duplicate of avoidImports.
 			# stringStartsWith = "^"
-			# anyAmountOfCharacters = ".*"
-			# atleastOneCharacter = ".+"
 			# pipeOrEquals ="\\||="
 			# grepConstructorSearchTerm
 				// Constructors always start with a uppercase letter, so do not search if this is not the case.
@@ -471,6 +472,8 @@ where
 					, grepGenericSearchTerm
 					, "|"
 					, grepClassSearchTerm
+					, "|"
+					, grepMacroSearchTerm
 					// Only search for constructors if the term starts with an uppercase character.
 					, if (grepConstructorSearchTerm == "") "" ("|" +++ grepConstructorSearchTerm)
 					]
