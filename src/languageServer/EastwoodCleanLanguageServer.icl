@@ -91,6 +91,30 @@ capabilities =
 
 derive gConstructFromYAML CompilerSettingsConfig
 
+compilerSettingsConfigToCompilerSettings :: !CompilerSettingsConfig !*World -> (!MaybeError String CompilerSettings, !*World)
+compilerSettingsConfigToCompilerSettings {compiler, libraries, paths} world
+	# (mbCleanHome, world) = getEnvironmentVariable CLEAN_HOME_ENV_VAR world
+	  cleanHome = fromJust mbCleanHome
+	| isNone mbCleanHome =
+		( 'Data.Error'.Error $ concat3 "Could not get " CLEAN_HOME_ENV_VAR " environment variable", world)
+	# searchPaths = (libPathFor cleanHome <$> libraries) ++ paths
+	# (fullSearchPaths, world) = mapSt getFullPathName searchPaths world
+	# mbErr = firstSearchPathError searchPaths fullSearchPaths
+	| isJust mbErr = ('Data.Error'.Error $ fromJust mbErr, world)
+	= (Ok {compilerPath= cleanHome </> EXE_PATH </> compiler, searchPaths=fromOk <$> fullSearchPaths}, world)
+where
+	libPathFor :: !FilePath !FilePath -> FilePath
+	libPathFor cleanHome lib = cleanHome </> LIBS_PATH </> lib
+
+	firstSearchPathError :: ![FilePath] ![MaybeOSError FilePath] -> ?String
+	firstSearchPathError paths fullPaths = case filter ('Data.Error'.isError o snd) $ zip2 paths fullPaths of
+		[] -> ?None
+		[(path, 'Data.Error'.Error (_, error)):_] -> ?Just $ concat
+			[ "Failed to find full path of ", path
+			, " mentioned in ", PROJECT_FILENAME
+			, ": ", error
+			]
+
 cleanLanguageServer :: LanguageServer EastwoodState
 cleanLanguageServer = {onInitialize = onInitialize, onRequest = onRequest, onNotification = onNotification}
 
@@ -110,7 +134,7 @@ where
 		// Strip the file:// prefix; this is needed for `readFile` etc. to work
 		uriToString uri = toString {uri & uriScheme = ?None}
 
-fetchConfig :: ![!FilePath] !*World -> (!'Data.Error'.MaybeError String CompilerSettings, !*World)
+fetchConfig :: ![!FilePath] !*World -> (!'Data.Error'.MaybeError String CompilerSettingsConfig, !*World)
 fetchConfig workspaceFolders world
 	# (mbConfigPath, world) = findSearchPath PROJECT_FILENAME workspaceFolders world
 	| isNone mbConfigPath
@@ -158,27 +182,7 @@ fetchConfig workspaceFolders world
 	  cleanHome = fromJust mbCleanHome
 	| isNone mbCleanHome =
 		( 'Data.Error'.Error $ concat3 "Could not get " CLEAN_HOME_ENV_VAR " environment variable", world)
-	# searchPaths = (libPathFor cleanHome <$> config.libraries) ++ config.paths
-	# (fullSearchPaths, world) = mapSt getFullPathName searchPaths world
-	# mbErr = firstSearchPathError searchPaths fullSearchPaths
-	| isJust mbErr = ('Data.Error'.Error $ fromJust mbErr, world)
-	# config =
-		{ compilerPath = cleanHome </> EXE_PATH </> config.compiler
-		, searchPaths = map 'Data.Error'.fromOk fullSearchPaths
-		}
 	= ('Data.Error'.Ok config, world)
-where
-	libPathFor :: !FilePath !FilePath -> FilePath
-	libPathFor cleanHome lib = cleanHome </> LIBS_PATH </> lib
-
-	firstSearchPathError :: ![FilePath] ![MaybeOSError FilePath] -> ?String
-	firstSearchPathError paths fullPaths = case filter ('Data.Error'.isError o snd) $ zip2 paths fullPaths of
-		[] -> ?None
-		[(path, 'Data.Error'.Error (_, error)):_] -> ?Just $ concat
-			[ "Failed to find full path of ", path
-			, " mentioned in ", PROJECT_FILENAME
-			, ": ", error
-			]
 
 onRequest :: !RequestMessage !EastwoodState !*World -> (!ResponseMessage, !EastwoodState, !*World)
 onRequest msg=:{RequestMessage | id, method} st world =
@@ -255,11 +259,23 @@ onGotoDeclaration req=:{RequestMessage|id, params=(?Just json)} st=:{EastwoodSta
 	| isError mbRootPath =
 		(errorResponse id InternalError ("Could not find absolute path of " +++ PROJECT_FILENAME), st, world)
 	# rootPath = fromOk mbRootPath
-	// CLEAN_HOME_ENV_VAR is also searched by grep so the value is retrieved to get the path.
+	// The libraries in CLEAN_HOME_ENV_VAR/LIBS_PATH included in Eastwood.yml are searched by grep so CLEAN_HOME_ENV_VAR
+	// is retrieved.
 	# (mbCleanHome, world) = getEnvironmentVariable CLEAN_HOME_ENV_VAR world
 	| isNone mbCleanHome
 		= (errorResponse id UnknownErrorCode "Could not find CLEAN_HOME environment variable.", st, world)
 	# cleanHomePath = fromJust mbCleanHome
+	// The CLEAN_HOME libraries included in Eastwood.yml are searched by grep so Eastwood.yml is fetched.
+	# (mbConfig, world) = fetchConfig workspaceFolders world
+	| isError mbConfig
+		= (errorResponse id UnknownErrorCode (fromError mbConfig), st, world)
+	# {libraries} = fromOk mbConfig
+	// The libraries in Eastwood.yml are transformed to their full paths.
+	# (mbCleanHomeLibs, world)
+		= mapSt (\l -> getFullPathName (cleanHomePath </> LIBS_PATH </> l)) libraries world
+	| any 'Data.Error'.isError mbCleanHomeLibs
+		= (errorResponse id UnknownErrorCode "Could not get full path of library included in Eastwood.yml.", st, world)
+	# cleanHomeLibs = map fromOk mbCleanHomeLibs
 	// Call grep using the regular (non special constructor case) search term to find the matching declarations.
 	// -P enables perl regexp, -r recurses through all files, -n gives line number,
 	// -w matches whole words only (e.g: :: Maybe matches :: Maybe but not :: MaybeOSError).
@@ -267,7 +283,7 @@ onGotoDeclaration req=:{RequestMessage|id, params=(?Just json)} st=:{EastwoodSta
 	# (mbGrepResultRegSearchTerm, world)
 		= callProcessWithOutput
 			"grep"
-			["-P", searchTermReg, "-r", "-n", "-w", "--include", "\*.dcl", rootPath, cleanHomePath]
+			(["-P", searchTermReg, "-r", "-n", "-w", "--include", "\*.dcl", rootPath] ++ cleanHomeLibs)
 			?None
 			world
 	| isError mbGrepResultRegSearchTerm
@@ -282,16 +298,17 @@ onGotoDeclaration req=:{RequestMessage|id, params=(?Just json)} st=:{EastwoodSta
 			appFst ?Just $
 				callProcessWithOutput
 					"grep"
-					[ "-P", searchTerm
-					// -B 1 also selects the previous line.
-					 , "-B", "1"
-					 , "-r"
-					 , "-n"
-					 , "-w"
-					 , "--include", "\*.dcl"
-					 , rootPath
-					 , cleanHomePath
-					 ]
+						([ "-P", searchTerm
+						// -B 1 also selects the previous line.
+						, "-B", "1"
+						, "-r"
+						, "-n"
+						, "-w"
+						, "--include", "\*.dcl"
+						, rootPath
+						]
+						++ cleanHomeLibs
+						)
 					?None
 					world
 	| isJust mbGrepResultSpecialConstructorCase && (isError $ fromJust mbGrepResultSpecialConstructorCase)
@@ -318,8 +335,8 @@ onGotoDeclaration req=:{RequestMessage|id, params=(?Just json)} st=:{EastwoodSta
 		// The actual match is at the end so this is dropped, this is followed by the lineNr and strs that when
 		// concatenated form the filename, this does not account for the match containing -.
 		// So if the constructor definition itself contains hyphens in comments this breaks.
-		(	(\[lineNr:fileName] -> ([(join "-" $ reverse $ fileName, toInt lineNr + 1)])) o drop 1 o reverse o split "-" <$>
-				(filterConstuctorCaseResults $ init $ split "\n" stdoutSpecialConstructorCase)
+		(	(\[lineNr:fileName] -> ([(join "-" $ reverse $ fileName, toInt lineNr + 1)])) o drop 1 o reverse o split "-"
+				<$> (filterConstuctorCaseResults $ init $ split "\n" stdoutSpecialConstructorCase)
 		)
 	// For every tuple of fileName and lineNumber, a Location is generated to be sent back to the client.
 	# locations = [! l \\ l <- catMaybes $ fileAndLineToLocation <$> flatten results !]
@@ -604,9 +621,12 @@ diagnosticsFor ::
 	!TextDocumentIdentifier !EastwoodState !*World
 	-> (!MaybeError String ([!NotificationMessage], [!'LSP.PublishDiagnosticsParams'.PublishDiagnosticsParams]), !*World)
 diagnosticsFor {TextDocumentIdentifier| uri = uri=:{uriPath}} {EastwoodState|workspaceFolders} world
-	# (mbCompilerSettings, world) = fetchConfig workspaceFolders world
+	# (mbCompilerSettingsConfig, world) = fetchConfig workspaceFolders world
+	| 'Data.Error'.isError mbCompilerSettingsConfig
+		= ('Data.Error'.Ok $ ([!errorLogMessage $ 'Data.Error'.fromError mbCompilerSettingsConfig], [!]), world)
+	# (mbCompilerSettings, world) = compilerSettingsConfigToCompilerSettings (fromOk mbCompilerSettingsConfig) world
 	| 'Data.Error'.isError mbCompilerSettings
-		= ('Data.Error'.Ok $ ([!errorLogMessage $ 'Data.Error'.fromError mbCompilerSettings], [!]), world)
+		= ('Data.Error'.Ok ([! errorLogMessage $ 'Data.Error'.fromError mbCompilerSettings], [!]), world)
 	# compilerSettings = fromOk mbCompilerSettings
 	# (mbModuleName, world) = resolveModuleName uriPath compilerSettings.searchPaths world
 	  moduleName = fromOk mbModuleName

@@ -242,7 +242,6 @@ where
 		(curDir </> suite </> "Eastwood.yml")
 		": Error occurred while constructing YAML: invalid content: required key paths is not specified.The following hints were provided for solving the error: Error occurred while parsing record \\\"CompilerSettingsConfig\\\". The expected format of the project file is described in https://gitlab.com/top-software/eastwood/-/blob/main/README.md\"}}"
 
-
 configIsMissingResultsInErrorLogOnSave :: !String !String -> Property
 configIsMissingResultsInErrorLogOnSave suite file
 	= accUnsafe $ assertResponseForSaveNotification suite file expectedDiagnosticsResponseBody
