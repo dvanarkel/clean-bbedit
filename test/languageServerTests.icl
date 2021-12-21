@@ -134,6 +134,14 @@ properties =:
 		as "go to declaration of a generic function that is only declared in one module is correctly handled (derive)"
 	, goToDeclarationOfDeriveGenericFuncMultipleResultsIsCorrectlyHandledFor
 		as "go to declaration of a generic function that is declared in two modules is correctly handled (derive)"
+	, goToDeclarationOfUsageOfMonoKindedGenericFuncSelectingKindSpecificationIsCorrectlyHandledFor
+		as "go to declaration of a generic function when selecting the mono kinded specification of the usage is correctly handled (usage, non special syntax symbol)"
+	, goToDeclarationOfUsageOfMonoKindedGenericFuncSelectingSpecialSyntaxSymbolOfKindSpecificationIsCorrectlyHandledFor
+		as "go to declaration of a generic function when selecting the mono kinded specification of the usage is correctly handled (usage, special syntax symbol)"
+	, goToDeclarationOfUsageOfHigherKindedGenericFuncSelectingKindSpecificationIsCorrectlyHandledFor
+		as "go to declaration of a generic function when selecting the higher kinded specification of the usage is correctly handled (usage, non special syntax symbol)"
+	, goToDeclarationOfUsageOfHigherKindedGenericFuncSelectingSpecialSyntaxSymbolWithinKindSpecificationIsCorrectlyHandledFor
+		as "go to declaration of a generic function when selecting the higher kinded specification of the usage is correctly handled (usage, special syntax symbol)"
 	, goToDeclarationOfRecordFieldSingleResultIsCorrectlyHandledFor
 		as "go to declaration of a record field that is only declared in one module is correctly handled"
 	, goToDeclarationOfRecordFieldMultipleResultsIsCorrectlyHandledFor
@@ -638,6 +646,53 @@ where
 	genericDeriveMultipleResultsPosition :: Position
 	genericDeriveMultipleResultsPosition = {line=uint 8, character=uint 12}
 
+goToDeclarationOfUsageOfMonoKindedGenericFuncSelectingKindSpecificationIsCorrectlyHandledFor :: Property
+goToDeclarationOfUsageOfMonoKindedGenericFuncSelectingKindSpecificationIsCorrectlyHandledFor =
+	goToDeclarationTest
+		SUITE_DEFAULT
+		FILE_GO_TO_DECLARATION_ICL_1
+		genericFuncUsagePosition
+		[!(FILE_GO_TO_DECLARATION_DCL_1, uint 59)!]
+where
+	genericFuncUsagePosition :: Position
+	genericFuncUsagePosition = {line=uint 26, character=uint 33}
+
+goToDeclarationOfUsageOfMonoKindedGenericFuncSelectingSpecialSyntaxSymbolOfKindSpecificationIsCorrectlyHandledFor
+	:: Property
+goToDeclarationOfUsageOfMonoKindedGenericFuncSelectingSpecialSyntaxSymbolOfKindSpecificationIsCorrectlyHandledFor
+	=	goToDeclarationTest
+			SUITE_DEFAULT
+			FILE_GO_TO_DECLARATION_ICL_1
+			genericFuncUsagePosition
+			[!(FILE_GO_TO_DECLARATION_DCL_1, uint 59)!]
+where
+	genericFuncUsagePosition :: Position
+	genericFuncUsagePosition = {line=uint 26, character=uint 34}
+
+goToDeclarationOfUsageOfHigherKindedGenericFuncSelectingKindSpecificationIsCorrectlyHandledFor :: Property
+goToDeclarationOfUsageOfHigherKindedGenericFuncSelectingKindSpecificationIsCorrectlyHandledFor =
+	goToDeclarationTest
+		SUITE_DEFAULT
+		FILE_GO_TO_DECLARATION_ICL_1
+		genericFuncUsagePosition
+		[!(FILE_GO_TO_DECLARATION_DCL_1, uint 59)!]
+where
+	genericFuncUsagePosition :: Position
+	genericFuncUsagePosition = {line=uint 31, character=uint 49}
+
+goToDeclarationOfUsageOfHigherKindedGenericFuncSelectingSpecialSyntaxSymbolWithinKindSpecificationIsCorrectlyHandledFor
+	:: Property
+goToDeclarationOfUsageOfHigherKindedGenericFuncSelectingSpecialSyntaxSymbolWithinKindSpecificationIsCorrectlyHandledFor
+	=	goToDeclarationTest
+			SUITE_DEFAULT
+			FILE_GO_TO_DECLARATION_ICL_1
+			genericFuncUsagePosition
+			[!(FILE_GO_TO_DECLARATION_DCL_1, uint 59)!]
+where
+	genericFuncUsagePosition :: Position
+	genericFuncUsagePosition = {line=uint 31, character=uint 50}
+
+
 goToDeclarationOfRecordFieldSingleResultIsCorrectlyHandledFor :: Property
 goToDeclarationOfRecordFieldSingleResultIsCorrectlyHandledFor =
 	goToDeclarationTest
@@ -809,10 +864,10 @@ goToDeclarationOfMacroWithArgsCorrectlyHandledFor =
 		SUITE_DEFAULT
 		FILE_GO_TO_DECLARATION_DCL_1
 		macroPosition
-		[!(FILE_GO_TO_DECLARATION_DCL_1, uint 55)!]
+		[!(FILE_GO_TO_DECLARATION_DCL_1, uint 81)!]
 where
 	macroPosition :: Position
-	macroPosition = {line=uint 55, character=uint 7}
+	macroPosition = {line=uint 81, character=uint 7}
 
 goToDeclarationOfMacroWithoutArgsCorrectlyHandledFor :: Property
 goToDeclarationOfMacroWithoutArgsCorrectlyHandledFor =
@@ -820,10 +875,10 @@ goToDeclarationOfMacroWithoutArgsCorrectlyHandledFor =
 		SUITE_DEFAULT
 		FILE_GO_TO_DECLARATION_DCL_1
 		macroPosition
-		[!(FILE_GO_TO_DECLARATION_DCL_1, uint 57)!]
+		[!(FILE_GO_TO_DECLARATION_DCL_1, uint 83)!]
 where
 	macroPosition :: Position
-	macroPosition = {line=uint 57, character=uint 5}
+	macroPosition = {line=uint 83, character=uint 5}
 
 goToDeclarationOfStdEnvFuncWhenLibraryIsPartOfConfig :: Property
 goToDeclarationOfStdEnvFuncWhenLibraryIsPartOfConfig =
@@ -837,7 +892,7 @@ goToDeclarationOfStdEnvFuncWhenLibraryIsPartOfConfig =
 			[(cleanHomePath </> LIBS_PATH </> "StdEnv" </> "StdBool" <.> "dcl", uint 18)], w)
 where
 	stdEnvFuncPosition :: Position
-	stdEnvFuncPosition = {line=uint 26, character=uint 15}
+	stdEnvFuncPosition = {line=uint 64, character=uint 15}
 
 goToDeclarationOfStdEnvFuncWhenLibraryIsMissingInConfig :: Property
 goToDeclarationOfStdEnvFuncWhenLibraryIsMissingInConfig =
