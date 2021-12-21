@@ -20,3 +20,8 @@ FunctionThatStartsWithCapitalLetter = (<#$) True (True <#$ True)
 
 (<#$>) infix 4 :: !Bool !Bool -> Bool
 (<#$>) _ _ = True
+
+import StdEnv
+
+stdEnvFunc :: Bool
+stdEnvFunc = not False

@@ -1,0 +1,5 @@
+compiler: cocl-itasks
+libraries:
+  - Platform
+paths:
+  - someLib

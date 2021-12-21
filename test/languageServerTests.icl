@@ -10,9 +10,10 @@ import Data.Either
 import Data.Maybe.Gast
 import Data.Maybe.GenPrint
 import System.Directory
-from System.FilePath import </>
+from System.FilePath import </>, <.>, addExtension
 from System.Process import :: ProcessIO {..}, checkProcess
 import System.Time
+import System.Environment
 import System._Unsafe
 import Text
 from Gast import
@@ -38,6 +39,10 @@ SUITE_CONFIG_NON_EXISTING_PATHS :== "suite-config-non-existing-paths"
 SUITE_CONFIG_MISSING_PATHS :== "suite-config-missing-paths"
 SUITE_CONFIG_NO_PATHS_KEY :== "suite-config-no-paths-key"
 SUITE_CONFIG_EMPTY_PATHS :== "suite-config-empty-paths"
+SUITE_CONFIG_MISSING_STDENV :== "suite-config-missing-stdenv"
+
+CLEAN_HOME_ENV_VAR :== "CLEAN_HOME"
+LIBS_PATH :== "lib"
 
 // A non-existing file. Used when the actual file doesn't matter, because Eastwood is expected to run into a more
 // fundamental edge-case.
@@ -163,6 +168,10 @@ properties =:
 		as "go to declaration of a macro without arguments is correctly handled"
 	, goToDeclarationOfMacroWithArgsCorrectlyHandledFor
 		as "go to declaration of a macro with arguments is correctly handled"
+	, goToDeclarationOfStdEnvFuncWhenLibraryIsPartOfConfig
+		as "go to declaration of function defined in StdEnv when the StdEnv library is included in Eastwood.yml"
+	, goToDeclarationOfStdEnvFuncWhenLibraryIsMissingInConfig
+		as "go to declaration of function defined in StdEnv when the StdEnv library is not included in Eastwood.yml"
 	]
 where
 	diagnosticsForErrors =
@@ -403,12 +412,24 @@ derive genShow UInt
 derive ggen UInt
 
 goToDeclarationTest :: !String !String !Position ![!(String,UInt)!] -> Property
-goToDeclarationTest suite fileName position expectedFileNamesAndLineNumbers = accUnsafe goToDeclarationTest`
+goToDeclarationTest suite fileName position expectedFileNamesAndLineNumbers
+	= accUnsafe goToDeclarationTest`
 where
 	goToDeclarationTest` world
 		# (Ok currentDirectory, world) = getCurrentDirectory world
 		# expectedFilePathsAndLineNumbers
 			= Map (appFst (\s -> currentDirectory </> suite </> s)) expectedFileNamesAndLineNumbers
+		= (goToDeclarationTestAbsolutePaths
+			suite
+			(currentDirectory </> suite </> fileName)
+			position
+			expectedFilePathsAndLineNumbers, world)
+
+goToDeclarationTestAbsolutePaths :: !String !FilePath !Position ![(FilePath,UInt)] -> Property
+goToDeclarationTestAbsolutePaths suite pathForRequest position expectedFilePathsAndLineNumbers
+	= accUnsafe goToDeclarationTestAbsolutePaths`
+where
+	goToDeclarationTestAbsolutePaths` world
 		# expectedFilePathsAndLineNumbersPerms
 			= map (\e -> [!x \\ x <- e!]) $
 				permutations
@@ -416,7 +437,7 @@ where
 		# (response, finalOut, world) =
 			singleMessageResponse
 				suite
-				(goToDeclarationRequestBodyFor (currentDirectory </> suite </> fileName) position)
+				(goToDeclarationRequestBodyFor pathForRequest position)
 				world
 		=	( 	ExistsIn
 					(\expectedFilePathsAndLineNumbersPerm ->
@@ -803,3 +824,31 @@ goToDeclarationOfMacroWithoutArgsCorrectlyHandledFor =
 where
 	macroPosition :: Position
 	macroPosition = {line=uint 57, character=uint 5}
+
+goToDeclarationOfStdEnvFuncWhenLibraryIsPartOfConfig :: Property
+goToDeclarationOfStdEnvFuncWhenLibraryIsPartOfConfig =
+	accUnsafe \w
+	# (currentDirectory, w) = appFst fromOk $ getCurrentDirectory w
+	# (cleanHomePath, w) = appFst fromJust $ getEnvironmentVariable CLEAN_HOME_ENV_VAR w
+	->	(goToDeclarationTestAbsolutePaths
+			SUITE_DEFAULT
+			(currentDirectory </> SUITE_DEFAULT </> FILE_GO_TO_DECLARATION_ICL_1)
+			stdEnvFuncPosition
+			[(cleanHomePath </> LIBS_PATH </> "StdEnv" </> "StdBool" <.> "dcl", uint 18)], w)
+where
+	stdEnvFuncPosition :: Position
+	stdEnvFuncPosition = {line=uint 26, character=uint 15}
+
+goToDeclarationOfStdEnvFuncWhenLibraryIsMissingInConfig :: Property
+goToDeclarationOfStdEnvFuncWhenLibraryIsMissingInConfig =
+	accUnsafe \w
+	# (currentDirectory, w) = appFst fromOk $ getCurrentDirectory w
+	# (cleanHomePath, w) = appFst fromJust $ getEnvironmentVariable CLEAN_HOME_ENV_VAR w
+	->	(goToDeclarationTestAbsolutePaths
+			SUITE_CONFIG_MISSING_STDENV
+			(currentDirectory </> SUITE_CONFIG_MISSING_STDENV </> FILE_GO_TO_DECLARATION_ICL_1)
+			stdEnvFuncPosition
+			[], w)
+where
+	stdEnvFuncPosition :: Position
+	stdEnvFuncPosition = {line=uint 5, character=uint 15}

@@ -56,3 +56,5 @@ class classMultipleResults a where
 macroOne arg1 arg2 arg3 :== True
 
 macroTwo :== True
+
+stdEnvFunc :: Bool
