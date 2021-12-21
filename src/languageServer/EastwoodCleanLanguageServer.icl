@@ -177,11 +177,6 @@ fetchConfig workspaceFolders world
 	// The config file path is included by default, so that a developer doesn't have to explicitly add `.` in the config
 	// file to include the root directory.
 	# config & paths = [takeDirectory configPath : [takeDirectory configPath </> p \\ p <- config.paths]]
-	// Get CLEAN_HOME
-	# (mbCleanHome, world) = getEnvironmentVariable CLEAN_HOME_ENV_VAR world
-	  cleanHome = fromJust mbCleanHome
-	| isNone mbCleanHome =
-		( 'Data.Error'.Error $ concat3 "Could not get " CLEAN_HOME_ENV_VAR " environment variable", world)
 	= ('Data.Error'.Ok config, world)
 
 onRequest :: !RequestMessage !EastwoodState !*World -> (!ResponseMessage, !EastwoodState, !*World)
