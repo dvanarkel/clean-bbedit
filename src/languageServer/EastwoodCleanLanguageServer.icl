@@ -398,17 +398,13 @@ where
 				errorResponse id ParseError "it is not possible to go to the definition of a special syntax symbol."
 		// This is the general case.
 		| isSymbol firstUnicodeChar || isAlphaNum firstUnicodeChar || isPunctuation firstUnicodeChar
-			# stopPredicate =
-				// The parser stops parsing based on a different condition if an infix function is parsed.
-				if (isSymbol firstUnicodeChar || isPunctuation firstUnicodeChar)
-					symbolPuncStopPredicate
-					alphaNumStopPredicate
 			// Parse backwards and forwards until a char that triggers the stopPredicate is found
 			// or when we run out of chars to parse.
 			# searchTerm =
 				toString $
 					(Reverse $ parseSearchTerm line stopPredicate (Reverse [!0..charNr-1!])) ++|
 					parseSearchTerm line stopPredicate [!charNr..size line!]
+		 	# searchTerm = adjustSearchTermForGenericKindSpecification searchTerm
 			# atleastOneWhiteSpace = "(\\s+)"
 			// The ^ indicates that the term that follows should not be preceded by any characters.
 			// This is used to avoid finding imports as declarations terms are never preceded by characters.
@@ -517,17 +513,33 @@ where
 			// If there are no indexes left, we return the accumlator of characters for which the filter holds.
 			parseSearchTerm` _ _ [!!] acc = Reverse acc
 
-		symbolPuncStopPredicate :: !UChar -> Bool
-		symbolPuncStopPredicate uc
-			= not (isSymbol uc || isPunctuation uc) || isSpecialSymbol uc || elem uc (fromChar <$> ['(', ')'])
+		stopPredicate :: !UChar -> Bool
+		stopPredicate uc =
+			not (isAlphaNum uc) && not (elem uc genericKindSpecificationChars)
+			&& not (isSymbol uc || isPunctuation uc) || isSpecialSymbol uc
 
-		alphaNumStopPredicate :: !UChar -> Bool
-		alphaNumStopPredicate uc = not (isAlphaNum uc)
+		genericKindSpecificationChars :: [UChar]
+		genericKindSpecificationChars = fromChar <$> ['{', '(', '|', '*', '-', '>' ,')','}']
+
+		adjustSearchTermForGenericKindSpecification :: !String -> String
+		// Unless an infix function is being parsed we remove the generic kind specification symbols from the string.
+		// If an infix function is being parsed we remove the parenthesis surrounding the infix function.
+		// As ( and ) are special syntax symbols they may not be used within infix functions to begin with.
+		adjustSearchTermForGenericKindSpecification s =
+			{c \\ c <-: s |
+				isNotInfix --> (not $ elem (fromChar c) genericKindSpecificationChars) &&
+				isInfix --> (not $ elem (fromChar c) ['(', ')'])
+			}
+		where
+			isNotInfix = any isAlphaNum [fromChar c \\ c <-: s]
+			isInfix = not isNotInfix
+			(-->) x y = not x || y
 
 		// Not possible to retrieve a declaration for these symbols are they are special syntax characters.
 		// Not strict because there is currently no Elem in StdOverloadedList.
+		// {, } are not included because they can occur in a generic kind specification e.g: {|*|}
 		specialSymbols :: [UChar]
-		specialSymbols = map fromChar ['{', '}', '[', ']', ';', '\"', '\'', '_']
+		specialSymbols = map fromChar ['[', ']', ';', '\"', '\'', '_', ',']
 
 		isSpecialSymbol :: !UChar -> Bool
 		isSpecialSymbol uc = elem uc specialSymbols
