@@ -439,6 +439,18 @@ where
 			# grepGenericSearchTerm = concat4 lineStartsWith "generic" atleastOneWhiteSpace searchTerm
 			# grepClassSearchTerm = concat4 lineStartsWith "class" atleastOneWhiteSpace searchTerm
 			# grepMacroSearchTerm = concat5 lineStartsWith searchTerm atleastOneWhiteSpace anyAmountOfCharacters ":=="
+			# grepNewOrAbstractTypeSearchTerm
+				= concat
+					[ lineStartsWith
+					, "::"
+					, anyAmountOfWhitespace
+					, maybeBang
+					, maybeUniqOrCoercible
+					, anyAmountOfWhitespace
+					, searchTerm
+					, anyAmountOfCharacters
+					, "=:"
+					]
 			# grepTypeSynonymSearchTerm
 				= concat
 					[ lineStartsWith
@@ -498,6 +510,8 @@ where
 					, grepMacroSearchTerm
 					, "|"
 					, grepTypeSynonymSearchTerm
+					, "|"
+					, grepNewOrAbstractTypeSearchTerm
 					// Only search for constructors if the term starts with an uppercase character.
 					, if (grepConstructorSearchTerm == "") "" ("|" +++ grepConstructorSearchTerm)
 					]

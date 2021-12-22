@@ -65,3 +65,4 @@ stdEnvFunc :: Bool
 stdEnvFunc = not False
 
 :: *AbstractTypeSynonym :== Bool
+:: *AbstractNewType =: AbstractNewType Bool

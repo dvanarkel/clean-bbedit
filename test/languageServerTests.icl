@@ -184,6 +184,10 @@ properties =:
 		as "go to declaration of a type synonym is correctly handled"
 	, goToDeclarationOfAbstractTypeSynonymCorrectlyHandledFor
 		as "go to declaration of an abstract type synonym is correctly handled"
+	, goToDeclarationOfNewTypeCorrectlyHandledFor
+		as "go to declaration of a newtype is correctly handled"
+	, goToDeclarationOfAbstractNewTypeCorrectlyHandledFor
+		as "go to declaration of an abstract newtype is correctly handled"
 	]
 where
 	diagnosticsForErrors =
@@ -937,3 +941,25 @@ goToDeclarationOfAbstractTypeSynonymCorrectlyHandledFor =
 where
 	typeSynonymPosition :: Position
 	typeSynonymPosition = {line=uint 88, character=uint 10}
+
+goToDeclarationOfNewTypeCorrectlyHandledFor :: Property
+goToDeclarationOfNewTypeCorrectlyHandledFor =
+	goToDeclarationTest
+		SUITE_DEFAULT
+		FILE_GO_TO_DECLARATION_DCL_1
+		newtypePosition
+		[!(FILE_GO_TO_DECLARATION_DCL_1, uint 90)!]
+where
+	newtypePosition :: Position
+	newtypePosition = {line=uint 90, character=uint 8}
+
+goToDeclarationOfAbstractNewTypeCorrectlyHandledFor :: Property
+goToDeclarationOfAbstractNewTypeCorrectlyHandledFor =
+	goToDeclarationTest
+		SUITE_DEFAULT
+		FILE_GO_TO_DECLARATION_DCL_1
+		newtypePosition
+		[!(FILE_GO_TO_DECLARATION_DCL_1, uint 91)!]
+where
+	newtypePosition :: Position
+	newtypePosition = {line=uint 91, character=uint 8}

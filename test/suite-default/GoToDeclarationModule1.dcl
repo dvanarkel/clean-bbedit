@@ -87,3 +87,6 @@ stdEnvFunc :: Bool
 
 :: TypeSynonym :== Bool
 :: !*AbstractTypeSynonym (:== Bool)
+
+:: NewType =: NewType Bool
+:: !*AbstractNewType (=: AbstractNewType Bool)
