@@ -67,5 +67,38 @@ stdEnvFunc = not False
 :: *AbstractTypeSynonym :== Bool
 :: *AbstractNewType =: AbstractNewType Bool
 
-filterSymbolsInSearchTerm :: !*(TypeSingleResult) -> TypeSingleResult
-filterSymbolsInSearchTerm b = Bar
+:: RecordTestOne a =
+	{
+		testOneFieldOne :: !(a a -> Bool),
+		testOneFieldTwo :: !Bool
+		,testOneFieldFour :: !Bool
+	}
+
+:: RecordTestTwo = {testTwoFieldOne :: !Bool, testTwoFieldTwo :: !Bool}
+
+zipTwo::![.a] [.b] -> [(.a,.b)]
+zipTwo [a:as] [b:bs]	= [(a,b):zipTwo as bs]
+zipTwo as bs			= []
+
+:: NewTypeIcl =: NewTypeIcl Int
+
+MACRO_ICL :== 5
+
+:: TypeSynonymIcl :== Bool
+
+class classIcl a where
+	foo :: !a -> Bool
+
+class classIcl2 a :: !a -> Bool
+
+:: ConstructorIclOne arg1 arg2 = FooIclOne | FooIclTwo |
+	FooIclThree |
+	FooIclFour
+	| FooIclFive
+	| FooIclSix arg1 arg2 | FooIclSeven arg2 arg1
+
+:: ConstructorIclTwo
+	= FooIclEight
+
+:: ConstructorIclThree =
+	FooIclNine

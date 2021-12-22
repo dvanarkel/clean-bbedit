@@ -48,9 +48,10 @@ LIBS_PATH :== "lib"
 // fundamental edge-case.
 FILE_DONT_CARE :== "dontcare.icl"
 FILE_OK :== "ok.icl"
-FILE_GO_TO_DECLARATION_DCL_1 :== "GoToDeclarationModule1.dcl"
-FILE_GO_TO_DECLARATION_ICL_1 :== "GoToDeclarationModule1.icl"
-FILE_GO_TO_DECLARATION_DCL_2 :== "GoToDeclarationModule2.dcl"
+FILE_GO_TO_DCL_1 :== "GoToDeclarationModule1.dcl"
+FILE_GO_TO_ICL_1 :== "GoToDeclarationModule1.icl"
+FILE_GO_TO_DCL_2 :== "GoToDeclarationModule2.dcl"
+FILE_GO_TO_ICL_2 :== "GoToDeclarationModule2.icl"
 
 Start :: *World -> *World
 Start world = exposeProperties [OutputTestEvents] [Bent] properties world
@@ -171,7 +172,7 @@ properties =:
 	, goToDeclarationOfConstructorPrecededByEqualsOnPreviousLineWithTypeDefCorrectlyHandledFor
 		as "go to declaration of constructor preceded by an equals sign on the previous line which contains a type def is correctly handled for"
 	, goToDeclarationOfConstructorPrecededByEqualsOnSameLineWithoutTypeDefCorrectlyHandledFor
-		as "go to declaraiton of constructor preceded by an equals sigh on the same line without a type def is correctly handled"
+		as "go to declaration of constructor preceded by an equals sign on the same line without a type def is correctly handled"
 	, goToDeclarationOfMacroWithoutArgsCorrectlyHandledFor
 		as "go to declaration of a macro without arguments is correctly handled"
 	, goToDeclarationOfMacroWithArgsCorrectlyHandledFor
@@ -188,8 +189,51 @@ properties =:
 		as "go to declaration of a newtype is correctly handled"
 	, goToDeclarationOfAbstractNewTypeCorrectlyHandledFor
 		as "go to declaration of an abstract newtype is correctly handled"
-	, goToDeclarationSymbolsInSearchTermCorrectlyFiltered
-		as "go to declaration of type with symbols surrounding the type constructor has the symbols fltered from the search term"
+	, goToDefinitionOfRecordFieldPrecededByBraceOnPreviousLineCorrectlyHandledFor
+		as "go to definition of record field preceded by { on the previous line is correctly handled"
+	, goToDefinitionOfRecordFieldPrecededByCommaOnPreviousLineCorrectlyHandledFor
+		as "go to definition of record field preceded by , on the previous line is correctly handled"
+	, goToDefinitionOfRecordFieldPrecededByCommaOnSameLineCorrectlyHandledFor
+		as "go to definition of record field preceded by , on the same line is correctly handled"
+	, goToDefinitionOfRecordFieldPrecededByBraceAndRecordDefinitionOnSameLineCorrectlyHandledFor
+		as "go to definition of record field preceded by { and record definition on the same line is correctly handled"
+	, goToDefinitionOfRecordFieldPrecededByCommaAndRecordDefinitionOnSameLineCorrectlyHandledFor
+		as "go to definition of record field preceded by , and record definition on the same line is correctly handled"
+	// There is a still an edge case here with lets say [(a,b):gFunc{|*|}] unless a space is added before gFunc.
+	, goToDefinitionStopParsingSymbolsOfPrefixFunctionWhenSearchTermDoesNotContainGenericKindSpecificationCorrectlyRemovedFor
+		as "go to definition stop parsing symbols when function is prefix and does not contain generic kind specification is correctly handled"
+	, goToDefinitionOfTypeAlsoDefinedInOtherIclCorrectlyHandledFor
+		as "go to definition of type which is also defined module local in another .icl module is correctly handled for"
+	, goToDefinitionOfGenericCorrectlyHandledFor
+		as "go to definition of a generic is correctly handled for"
+	, goToDefinitionOfNewtypeCorrectlyHandledFor
+		as "go to definition of a newtype is correctly handled for"
+	, goToDefinitionOfMacroCorrectlyHandledFor
+		as "go to definition of a macro is correctly handled for"
+	, goToDefinitionOfTypeSynonymCorrectlyHandledFor
+		as "go to definition of a type synonym is correctly handled for"
+	, goToDefinitionOfClassCorrectlyHandledFor
+		as "go to definition of a class is correctly handled for"
+	, goToDefinitionOfClassSingleFunctionSyntaxCorrectlyHandledFor
+		as "go to definition of a class which has one function and uses special syntax for this reason is correctly handled for"
+	, goToDefinitionOfConstructorPrecededByTypeDefCorrectlyHandledFor
+		as "go to definition of a constructor which is preceded by a type definition on the same line is correctly handled for"
+	, goToDefinitionOfConstructorPrecededByTypeDefAndOtherConstructorCorrectlyHandledFor
+		as "go to definition of a constructor which is a preceded by a type definition and another constructor on the same line is correctly handled for"
+	, goToDefinitionOfConstructorPrecededByTypeDefAndPipeOnPreviousLineCorrectlyHandledFor
+		as "go to definition of a constructor which is preceded by a type def and pipe on the previous line is correctly handled for"
+	, goToDefinitionOfConstructorPrecededByPipeOnPreviousLineCorrectlyHandledFor
+		as "go to definition of a constructor preceded by pipe on the previous line is correctly handled for"
+	, goToDefinitionOfConstructorPrecededByPipeOnSameLineCorrectlyHandledFor
+		as "go to definition of a constructor preceded by pipe on the same line is correctly handled for"
+	, goToDefinitionOfConstructorWithArgsPrecededByPipeOnSameLineCorrectlyHandledFor
+		as "go to definition of a constructor with args that is preceded by a pipe on the same line is correctly handled for"
+	, goToDefinitionOfConstructorWithArgsPrecededByPipeAndOtherConstructorOnSameLineCorrectlyHandledFor
+		as "go to definition of a constructor with args that is preceded by a pipe and another constructor on the same line is correctly handled for"
+	, goToDefinitionOfConstructorPrecededByEqualsOnPreviousLineCorrectlyHandledFor
+		as "go to definition of a constructor that is preceded by = (no type def) on the previous line is correctly handled for"
+	, goToDefinitionOfConstructorPrecededByEqualsOnSameLineCorrectlyHandledFor
+		as "go to definition of a constructor that is preceded by = (no type def) on the same line is correctly handled for"
 	]
 where
 	diagnosticsForErrors =
@@ -394,7 +438,7 @@ initializeRequestBody currentPath = concat3
 	currentPath
 	"\", \"clientInfo\": {\"version\": \"0.6.0\", \"name\": \"Neovim\"}, \"processId\": 55832, \"trace\": \"off\", \"capabilities\": {\"callHierarchy\": {\"dynamicRegistration\": false}, \"window\": {\"showDocument\": {\"support\": false}, \"showMessage\": {\"messageActionItem\": {\"additionalPropertiesSupport\": false}}, \"workDoneProgress\": true}, \"workspace\": {\"workspaceFolders\": true, \"applyEdit\": true, \"workspaceEdit\": {\"resourceOperations\": [\"rename\", \"create\", \"delete\"]}, \"symbol\": {\"symbolKind\": {\"valueSet\": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26]}, \"dynamicRegistration\": false, \"hierarchicalWorkspaceSymbolSupport\": true}, \"configuration\": true}, \"textDocument\": {\"documentSymbol\": {\"symbolKind\": {\"valueSet\": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26]}, \"dynamicRegistration\": false, \"hierarchicalDocumentSymbolSupport\": true}, \"completion\": {\"completionItem\": {\"snippetSupport\": false, \"commitCharactersSupport\": false, \"preselectSupport\": false, \"deprecatedSupport\": false, \"documentationFormat\": [\"markdown\", \"plaintext\"]}, \"contextSupport\": false, \"dynamicRegistration\": false, \"completionItemKind\": {\"valueSet\": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25]}}, \"publishDiagnostics\": {\"relatedInformation\": true, \"tagSupport\": {\"valueSet\": [1, 2]}}, \"rename\": {\"prepareSupport\": true, \"dynamicRegistration\": false}, \"definition\": {\"linkSupport\": true}, \"references\": {\"dynamicRegistration\": false}, \"codeAction\": {\"codeActionLiteralSupport\": {\"codeActionKind\": {\"valueSet\": [\"\", \"Empty\", \"QuickFix\", \"Refactor\", \"RefactorExtract\", \"RefactorInline\", \"RefactorRewrite\", \"Source\", \"SourceOrganizeImports\", \"quickfix\", \"refactor\", \"refactor.extract\", \"refactor.inline\", \"refactor.rewrite\", \"source\", \"source.organizeImports\"]}}, \"dynamicRegistration\": false}, \"declaration\": {\"linkSupport\": true}, \"signatureHelp\": {\"signatureInformation\": {\"documentationFormat\": [\"markdown\", \"plaintext\"]}, \"dynamicRegistration\": false}, \"documentHighlight\": {\"dynamicRegistration\": false}, \"hover\": {\"dynamicRegistration\": false, \"contentFormat\": [\"markdown\", \"plaintext\"]}, \"synchronization\": {\"didSave\": true, \"willSaveWaitUntil\": false, \"willSave\": false, \"dynamicRegistration\": false}, \"implementation\": {\"linkSupport\": true}, \"typeDefinition\": {\"linkSupport\": true}}}}}"
 
-expectedInitializeResponseBody = "{\"jsonrpc\":2.0,\"id\":1,\"result\":{\"capabilities\":{\"textDocumentSync\":{\"openClose\":true,\"save\":true},\"declarationProvider\":true},\"serverInfo\":{\"name\":\"Eastwood\",\"version\":\"WIP\"}}}"
+expectedInitializeResponseBody = "{\"jsonrpc\":2.0,\"id\":1,\"result\":{\"capabilities\":{\"textDocumentSync\":{\"openClose\":true,\"save\":true},\"declarationProvider\":true,\"definitionProvider\":true},\"serverInfo\":{\"name\":\"Eastwood\",\"version\":\"WIP\"}}}"
 
 initializedNotificationBody = "{\"jsonrpc\": \"2.0\", \"method\": \"initialized\", \"params\": {}}"
 
@@ -429,25 +473,28 @@ derive gPrint UInt
 derive genShow UInt
 derive ggen UInt
 
-goToDeclarationTest :: !String !String !Position ![!(String,UInt)!] -> Property
-goToDeclarationTest suite fileName position expectedFileNamesAndLineNumbers
-	= accUnsafe goToDeclarationTest`
+:: GotoKind = Declaration | Definition
+
+goToTest :: !GotoKind !String !String !Position ![!(String,UInt)!] -> Property
+goToTest gotoKind suite fileName position expectedFileNamesAndLineNumbers
+	= accUnsafe goToTest`
 where
-	goToDeclarationTest` world
+	goToTest` world
 		# (Ok currentDirectory, world) = getCurrentDirectory world
 		# expectedFilePathsAndLineNumbers
 			= Map (appFst (\s -> currentDirectory </> suite </> s)) expectedFileNamesAndLineNumbers
-		= (goToDeclarationTestAbsolutePaths
+		= (goToTestAbsolutePaths
+			gotoKind
 			suite
 			(currentDirectory </> suite </> fileName)
 			position
 			expectedFilePathsAndLineNumbers, world)
 
-goToDeclarationTestAbsolutePaths :: !String !FilePath !Position ![(FilePath,UInt)] -> Property
-goToDeclarationTestAbsolutePaths suite pathForRequest position expectedFilePathsAndLineNumbers
-	= accUnsafe goToDeclarationTestAbsolutePaths`
+goToTestAbsolutePaths :: !GotoKind !String !FilePath !Position ![(FilePath,UInt)] -> Property
+goToTestAbsolutePaths gotoKind suite pathForRequest position expectedFilePathsAndLineNumbers
+	= accUnsafe goToTestAbsolutePaths`
 where
-	goToDeclarationTestAbsolutePaths` world
+	goToTestAbsolutePaths` world
 		# expectedFilePathsAndLineNumbersPerms
 			= map (\e -> [!x \\ x <- e!]) $
 				permutations
@@ -455,7 +502,7 @@ where
 		# (response, finalOut, world) =
 			singleMessageResponse
 				suite
-				(goToDeclarationRequestBodyFor pathForRequest position)
+				(goToRequestBodyFor gotoKind pathForRequest position)
 				world
 		=	( 	ExistsIn
 					(\expectedFilePathsAndLineNumbersPerm ->
@@ -464,7 +511,7 @@ where
 							dropChars
 								1
 								(toString $ serialize $
-									goToDeclarationResponseBodyFor expectedFilePathsAndLineNumbersPerm
+									goToResponseBodyFor expectedFilePathsAndLineNumbersPerm
 								)
 						)
 						=.= response
@@ -475,9 +522,13 @@ where
 			,	world
 			)
 
-	goToDeclarationRequestBodyFor filePath {line=(UInt line),character=(UInt char)} =
+	goToRequestBodyFor :: !GotoKind !String !Position -> String
+	goToRequestBodyFor gotoKind filePath {line=(UInt line),character=(UInt char)} =
 		concat
-			[ "{\"jsonrpc\": \"2.0\", \"id\":\"5\", \"method\":\"textDocument/declaration\",\"params\":{\"textDocument\":{\"uri\":\"file://"
+			[ "{\"jsonrpc\": \"2.0\", \"id\":\"5\", \"method\":\""
+			,"textDocument/"
+			, if (gotoKind=:Declaration) "declaration" "definition"
+			, "\",\"params\":{\"textDocument\":{\"uri\":\"file://"
 			, filePath
 			, "\"},\"position\":{\"line\":"
 			, toString line
@@ -486,8 +537,8 @@ where
 			,"}}}"
 			]
 
-	goToDeclarationResponseBodyFor :: ![!(String, UInt)!] -> ResponseMessage
-	goToDeclarationResponseBodyFor filesAndLineNumbers =
+	goToResponseBodyFor :: ![!(String, UInt)!] -> ResponseMessage
+	goToResponseBodyFor filesAndLineNumbers =
 		{ ResponseMessage
 		| id = ?Just $ RequestId (Right "5")
 		, result =
@@ -515,154 +566,168 @@ where
 
 goToDeclarationOfTypeSingleResultIsCorrectlyHandledFor :: Property
 goToDeclarationOfTypeSingleResultIsCorrectlyHandledFor =
-	goToDeclarationTest
+	goToTest
+		Declaration
 		SUITE_DEFAULT
-		FILE_GO_TO_DECLARATION_DCL_1
+		FILE_GO_TO_DCL_1
 		typeSingleResultPosition
-		[!(FILE_GO_TO_DECLARATION_DCL_1, uint 6)!]
+		[!(FILE_GO_TO_DCL_1, uint 6)!]
 where
 	typeSingleResultPosition :: Position
 	typeSingleResultPosition = {line=uint 6, character=uint 6}
 
 goToDeclarationOfTypeMultipleResultsIsCorrectlyHandledFor :: Property
 goToDeclarationOfTypeMultipleResultsIsCorrectlyHandledFor =
-	goToDeclarationTest
+	goToTest
+		Declaration
 		SUITE_DEFAULT
-		FILE_GO_TO_DECLARATION_DCL_1
+		FILE_GO_TO_DCL_1
 		typeMultipleResultsPosition
-		[!(FILE_GO_TO_DECLARATION_DCL_1, uint 4), (FILE_GO_TO_DECLARATION_DCL_2, uint 4)!]
+		[!(FILE_GO_TO_DCL_1, uint 4), (FILE_GO_TO_DCL_2, uint 4)!]
 where
 	typeMultipleResultsPosition :: Position
 	typeMultipleResultsPosition = {line=uint 4, character=uint 12}
 
 goToDeclarationOfFuncSingleResultIsCorrectlyHandledFor :: Property
 goToDeclarationOfFuncSingleResultIsCorrectlyHandledFor =
-	goToDeclarationTest
+	goToTest
+		Declaration
 		SUITE_DEFAULT
-		FILE_GO_TO_DECLARATION_DCL_1
+		FILE_GO_TO_DCL_1
 		funcSingleResultPosition
-		[!(FILE_GO_TO_DECLARATION_DCL_1, uint 8)!]
+		[!(FILE_GO_TO_DCL_1, uint 8)!]
 where
 	funcSingleResultPosition :: Position
 	funcSingleResultPosition = {line=uint 8, character=uint 5}
 
 goToDeclarationOfFuncMultipleResultsIsCorrectlyHandledFor :: Property
 goToDeclarationOfFuncMultipleResultsIsCorrectlyHandledFor =
-	goToDeclarationTest
+	goToTest
+		Declaration
 		SUITE_DEFAULT
-		FILE_GO_TO_DECLARATION_DCL_2
+		FILE_GO_TO_DCL_2
 		funcMultipleResultsPosition
-		[!(FILE_GO_TO_DECLARATION_DCL_1, uint 10), (FILE_GO_TO_DECLARATION_DCL_2, uint 6)!]
+		[!(FILE_GO_TO_DCL_1, uint 10), (FILE_GO_TO_DCL_2, uint 6)!]
 where
 	funcMultipleResultsPosition :: Position
 	funcMultipleResultsPosition = {line=uint 6, character=uint 5}
 
 goToDeclarationOfInfixlFuncSingleResultIsCorrectlyHandledFor :: Property
 goToDeclarationOfInfixlFuncSingleResultIsCorrectlyHandledFor =
-	goToDeclarationTest
+	goToTest
+		Declaration
 		SUITE_DEFAULT
-		FILE_GO_TO_DECLARATION_ICL_1
+		FILE_GO_TO_ICL_1
 		infixFuncSingleResultPosition
-		[!(FILE_GO_TO_DECLARATION_DCL_1, uint 35)!]
+		[!(FILE_GO_TO_DCL_1, uint 35)!]
 where
 	infixFuncSingleResultPosition :: Position
 	infixFuncSingleResultPosition = {line=uint 9, character = uint 56}
 
 goToDeclarationOfInfixrFuncSingleResultIsCorrectlyHandledFor :: Property
 goToDeclarationOfInfixrFuncSingleResultIsCorrectlyHandledFor =
-	goToDeclarationTest
+	goToTest
+		Declaration
 		SUITE_DEFAULT
-		FILE_GO_TO_DECLARATION_ICL_1
+		FILE_GO_TO_ICL_1
 		infixrFuncSingleResultPosition
-		[!(FILE_GO_TO_DECLARATION_DCL_1, uint 39)!]
+		[!(FILE_GO_TO_DCL_1, uint 39)!]
 where
 	infixrFuncSingleResultPosition :: Position
 	infixrFuncSingleResultPosition = {line=uint 3, character = uint 36}
 
 goToDeclarationOfInfixFuncSingleResultIsCorrectlyHandledFor :: Property
 goToDeclarationOfInfixFuncSingleResultIsCorrectlyHandledFor =
-	goToDeclarationTest
+	goToTest
+		Declaration
 		SUITE_DEFAULT
-		FILE_GO_TO_DECLARATION_ICL_1
+		FILE_GO_TO_ICL_1
 		infixFuncSingleResultPosition
-		[!(FILE_GO_TO_DECLARATION_DCL_1, uint 41)!]
+		[!(FILE_GO_TO_DCL_1, uint 41)!]
 where
 	infixFuncSingleResultPosition :: Position
 	infixFuncSingleResultPosition = {line=uint 3, character = uint 27}
 
 goToDeclarationOfInfixlFuncMultipleResultsIsCorrectlyHandledFor :: Property
 goToDeclarationOfInfixlFuncMultipleResultsIsCorrectlyHandledFor =
-	goToDeclarationTest
+	goToTest
+		Declaration
 		SUITE_DEFAULT
-		FILE_GO_TO_DECLARATION_ICL_1
+		FILE_GO_TO_ICL_1
 		infixFuncMultipleResultsPosition
-		[!(FILE_GO_TO_DECLARATION_DCL_1, uint 37), (FILE_GO_TO_DECLARATION_DCL_2, uint 19)!]
+		[!(FILE_GO_TO_DCL_1, uint 37), (FILE_GO_TO_DCL_2, uint 19)!]
 where
 	infixFuncMultipleResultsPosition :: Position
 	infixFuncMultipleResultsPosition = {line=uint 6, character = uint 41}
 
 goToDeclarationOfInfixlFuncUsedPrefixSingleResultIsCorrectlyHandledFor :: Property
 goToDeclarationOfInfixlFuncUsedPrefixSingleResultIsCorrectlyHandledFor =
-	goToDeclarationTest
+	goToTest
+		Declaration
 		SUITE_DEFAULT
-		FILE_GO_TO_DECLARATION_ICL_1
+		FILE_GO_TO_ICL_1
 		infixFuncSingleResultPosition
-		[!(FILE_GO_TO_DECLARATION_DCL_1, uint 35)!]
+		[!(FILE_GO_TO_DCL_1, uint 35)!]
 where
 	infixFuncSingleResultPosition :: Position
 	infixFuncSingleResultPosition = {line=uint 9, character = uint 41}
 
 goToDeclarationOfInfixlFuncUsedPrefixMultipleResultsIsCorrectlyHandledFor :: Property
 goToDeclarationOfInfixlFuncUsedPrefixMultipleResultsIsCorrectlyHandledFor =
-	goToDeclarationTest
+	goToTest
+		Declaration
 		SUITE_DEFAULT
-		FILE_GO_TO_DECLARATION_ICL_1
+		FILE_GO_TO_ICL_1
 		infixFuncMultipleResultsPosition
-		[!(FILE_GO_TO_DECLARATION_DCL_1, uint 37), (FILE_GO_TO_DECLARATION_DCL_2, uint 19)!]
+		[!(FILE_GO_TO_DCL_1, uint 37), (FILE_GO_TO_DCL_2, uint 19)!]
 where
 	infixFuncMultipleResultsPosition :: Position
 	infixFuncMultipleResultsPosition = {line=uint 6, character = uint 25}
 
 goToDeclarationOfFuncThatStartsWithUppercaseIsCorrectlyHandledFor :: Property
 goToDeclarationOfFuncThatStartsWithUppercaseIsCorrectlyHandledFor =
-	goToDeclarationTest
+	goToTest
+		Declaration
 		SUITE_DEFAULT
-		FILE_GO_TO_DECLARATION_DCL_1
+		FILE_GO_TO_DCL_1
 		funcThatStartsWithUppercasePosition
-		[!(FILE_GO_TO_DECLARATION_DCL_1, uint 12)!]
+		[!(FILE_GO_TO_DCL_1, uint 12)!]
 where
 	funcThatStartsWithUppercasePosition :: Position
 	funcThatStartsWithUppercasePosition = {line=uint 12, character=uint 6}
 
 goToDeclarationOfDeriveGenericFuncSingleResultIsCorrectlyHandledFor :: Property
 goToDeclarationOfDeriveGenericFuncSingleResultIsCorrectlyHandledFor =
-	goToDeclarationTest
+	goToTest
+		Declaration
 		SUITE_DEFAULT
-		FILE_GO_TO_DECLARATION_DCL_1
+		FILE_GO_TO_DCL_1
 		genericDeriveSingleResultPosition
-		[!(FILE_GO_TO_DECLARATION_DCL_1, uint 14)!]
+		[!(FILE_GO_TO_DCL_1, uint 14)!]
 where
 	genericDeriveSingleResultPosition :: Position
 	genericDeriveSingleResultPosition = {line=uint 14, character=uint 12}
 
 goToDeclarationOfDeriveGenericFuncMultipleResultsIsCorrectlyHandledFor :: Property
 goToDeclarationOfDeriveGenericFuncMultipleResultsIsCorrectlyHandledFor =
-	goToDeclarationTest
+	goToTest
+		Declaration
 		SUITE_DEFAULT
-		FILE_GO_TO_DECLARATION_DCL_2
+		FILE_GO_TO_DCL_2
 		genericDeriveMultipleResultsPosition
-		[!(FILE_GO_TO_DECLARATION_DCL_1, uint 16), (FILE_GO_TO_DECLARATION_DCL_2, uint 8)!]
+		[!(FILE_GO_TO_DCL_1, uint 16), (FILE_GO_TO_DCL_2, uint 8)!]
 where
 	genericDeriveMultipleResultsPosition :: Position
 	genericDeriveMultipleResultsPosition = {line=uint 8, character=uint 12}
 
 goToDeclarationOfUsageOfMonoKindedGenericFuncSelectingKindSpecificationIsCorrectlyHandledFor :: Property
 goToDeclarationOfUsageOfMonoKindedGenericFuncSelectingKindSpecificationIsCorrectlyHandledFor =
-	goToDeclarationTest
+	goToTest
+		Declaration
 		SUITE_DEFAULT
-		FILE_GO_TO_DECLARATION_ICL_1
+		FILE_GO_TO_ICL_1
 		genericFuncUsagePosition
-		[!(FILE_GO_TO_DECLARATION_DCL_1, uint 59)!]
+		[!(FILE_GO_TO_DCL_1, uint 59)!]
 where
 	genericFuncUsagePosition :: Position
 	genericFuncUsagePosition = {line=uint 26, character=uint 33}
@@ -670,22 +735,24 @@ where
 goToDeclarationOfUsageOfMonoKindedGenericFuncSelectingSpecialSyntaxSymbolOfKindSpecificationIsCorrectlyHandledFor
 	:: Property
 goToDeclarationOfUsageOfMonoKindedGenericFuncSelectingSpecialSyntaxSymbolOfKindSpecificationIsCorrectlyHandledFor
-	=	goToDeclarationTest
+	=	goToTest
+			Declaration
 			SUITE_DEFAULT
-			FILE_GO_TO_DECLARATION_ICL_1
+			FILE_GO_TO_ICL_1
 			genericFuncUsagePosition
-			[!(FILE_GO_TO_DECLARATION_DCL_1, uint 59)!]
+			[!(FILE_GO_TO_DCL_1, uint 59)!]
 where
 	genericFuncUsagePosition :: Position
 	genericFuncUsagePosition = {line=uint 26, character=uint 34}
 
 goToDeclarationOfUsageOfHigherKindedGenericFuncSelectingKindSpecificationIsCorrectlyHandledFor :: Property
 goToDeclarationOfUsageOfHigherKindedGenericFuncSelectingKindSpecificationIsCorrectlyHandledFor =
-	goToDeclarationTest
+	goToTest
+		Declaration
 		SUITE_DEFAULT
-		FILE_GO_TO_DECLARATION_ICL_1
+		FILE_GO_TO_ICL_1
 		genericFuncUsagePosition
-		[!(FILE_GO_TO_DECLARATION_DCL_1, uint 59)!]
+		[!(FILE_GO_TO_DCL_1, uint 59)!]
 where
 	genericFuncUsagePosition :: Position
 	genericFuncUsagePosition = {line=uint 31, character=uint 49}
@@ -693,11 +760,12 @@ where
 goToDeclarationOfUsageOfHigherKindedGenericFuncSelectingSpecialSyntaxSymbolWithinKindSpecificationIsCorrectlyHandledFor
 	:: Property
 goToDeclarationOfUsageOfHigherKindedGenericFuncSelectingSpecialSyntaxSymbolWithinKindSpecificationIsCorrectlyHandledFor
-	=	goToDeclarationTest
+	=	goToTest
+			Declaration
 			SUITE_DEFAULT
-			FILE_GO_TO_DECLARATION_ICL_1
+			FILE_GO_TO_ICL_1
 			genericFuncUsagePosition
-			[!(FILE_GO_TO_DECLARATION_DCL_1, uint 59)!]
+			[!(FILE_GO_TO_DCL_1, uint 59)!]
 where
 	genericFuncUsagePosition :: Position
 	genericFuncUsagePosition = {line=uint 31, character=uint 50}
@@ -705,187 +773,204 @@ where
 
 goToDeclarationOfRecordFieldSingleResultIsCorrectlyHandledFor :: Property
 goToDeclarationOfRecordFieldSingleResultIsCorrectlyHandledFor =
-	goToDeclarationTest
+	goToTest
+		Declaration
 		SUITE_DEFAULT
-		FILE_GO_TO_DECLARATION_DCL_1
+		FILE_GO_TO_DCL_1
 		recordFieldSingleResultPosition
-		[!(FILE_GO_TO_DECLARATION_DCL_1, uint 19)!]
+		[!(FILE_GO_TO_DCL_1, uint 19)!]
 where
 	recordFieldSingleResultPosition :: Position
 	recordFieldSingleResultPosition = {line=uint 19, character=uint 6}
 
 goToDeclarationOfRecordFieldMultipleResultsIsCorrectlyHandledFor :: Property
 goToDeclarationOfRecordFieldMultipleResultsIsCorrectlyHandledFor =
-	goToDeclarationTest
+	goToTest
+		Declaration
 		SUITE_DEFAULT
-		FILE_GO_TO_DECLARATION_DCL_1
+		FILE_GO_TO_DCL_1
 		recordFieldMultipleResultsPosition
-		[!(FILE_GO_TO_DECLARATION_DCL_1, uint 25),(FILE_GO_TO_DECLARATION_DCL_2, uint 12)!]
+		[!(FILE_GO_TO_DCL_1, uint 25),(FILE_GO_TO_DCL_2, uint 12)!]
 where
 	recordFieldMultipleResultsPosition :: Position
 	recordFieldMultipleResultsPosition = {line=uint 25, character=uint 6}
 
 goToDeclarationOfClassFuncSingleResultIsCorrectlyHandledFor :: Property
 goToDeclarationOfClassFuncSingleResultIsCorrectlyHandledFor =
-	goToDeclarationTest
+	goToTest
+		Declaration
 		SUITE_DEFAULT
-		FILE_GO_TO_DECLARATION_DCL_1
+		FILE_GO_TO_DCL_1
 		classFuncSingleResultPosition
-		[!(FILE_GO_TO_DECLARATION_DCL_1, uint 29)!]
+		[!(FILE_GO_TO_DCL_1, uint 29)!]
 where
 	classFuncSingleResultPosition :: Position
 	classFuncSingleResultPosition = {line=uint 29, character = uint 6}
 
 goToDeclarationOfClassFuncMultipleResultsIsCorrectlyHandledFor :: Property
 goToDeclarationOfClassFuncMultipleResultsIsCorrectlyHandledFor =
-	goToDeclarationTest
+	goToTest
+		Declaration
 		SUITE_DEFAULT
-		FILE_GO_TO_DECLARATION_DCL_2
+		FILE_GO_TO_DCL_2
 		classFuncMultipleResultsPosition
-		[!(FILE_GO_TO_DECLARATION_DCL_1, uint 32), (FILE_GO_TO_DECLARATION_DCL_2, uint 16)!]
+		[!(FILE_GO_TO_DCL_1, uint 32), (FILE_GO_TO_DCL_2, uint 16)!]
 where
 	classFuncMultipleResultsPosition :: Position
 	classFuncMultipleResultsPosition = {line=uint 16, character = uint 6}
 
 goToDeclarationOfClassSingleResultIsCorrectlyHandledFor :: Property
 goToDeclarationOfClassSingleResultIsCorrectlyHandledFor =
-	goToDeclarationTest
+	goToTest
+		Declaration
 		SUITE_DEFAULT
-		FILE_GO_TO_DECLARATION_DCL_1
+		FILE_GO_TO_DCL_1
 		classSingleResultPosition
-		[!(FILE_GO_TO_DECLARATION_DCL_1, uint 28)!]
+		[!(FILE_GO_TO_DCL_1, uint 28)!]
 where
 	classSingleResultPosition :: Position
 	classSingleResultPosition = {line=uint 28, character=uint 12}
 
 goToDeclarationOfClassMultipleResultsIsCorrectlyHandledFor :: Property
 goToDeclarationOfClassMultipleResultsIsCorrectlyHandledFor =
-	goToDeclarationTest
+	goToTest
+		Declaration
 		SUITE_DEFAULT
-		FILE_GO_TO_DECLARATION_DCL_2
+		FILE_GO_TO_DCL_2
 		classMultipleResultsPosition
-		[!(FILE_GO_TO_DECLARATION_DCL_1, uint 31),(FILE_GO_TO_DECLARATION_DCL_2, uint 15)!]
+		[!(FILE_GO_TO_DCL_1, uint 31),(FILE_GO_TO_DCL_2, uint 15)!]
 where
 	classMultipleResultsPosition :: Position
 	classMultipleResultsPosition = {line=uint 15, character=uint 12}
 
 goToDeclarationOfFirstConstructorSameLineAsTypeDefCorrectlyHandledFor :: Property
 goToDeclarationOfFirstConstructorSameLineAsTypeDefCorrectlyHandledFor =
-	goToDeclarationTest
+	goToTest
+		Declaration
 		SUITE_DEFAULT
-		FILE_GO_TO_DECLARATION_DCL_1
+		FILE_GO_TO_DCL_1
 		constructorPosition
-		[!(FILE_GO_TO_DECLARATION_DCL_1, uint 43)!]
+		[!(FILE_GO_TO_DCL_1, uint 43)!]
 where
 	constructorPosition :: Position
 	constructorPosition = {line=uint 43, character=uint 39}
 
 goToDeclarationOfSecondConstructorSameLineAsTypeDefCorrectlyHandledFor :: Property
 goToDeclarationOfSecondConstructorSameLineAsTypeDefCorrectlyHandledFor =
-	goToDeclarationTest
+	goToTest
+		Declaration
 		SUITE_DEFAULT
-		FILE_GO_TO_DECLARATION_DCL_1
+		FILE_GO_TO_DCL_1
 		constructorPosition
-		[!(FILE_GO_TO_DECLARATION_DCL_1, uint 43)!]
+		[!(FILE_GO_TO_DCL_1, uint 43)!]
 where
 	constructorPosition :: Position
 	constructorPosition = {line=uint 43, character=uint 47}
 
 goToDeclarationOfConstructorPrecededByPipeOnPreviousLineWithTypeDefCorrectlyHandledFor :: Property
 goToDeclarationOfConstructorPrecededByPipeOnPreviousLineWithTypeDefCorrectlyHandledFor =
-	goToDeclarationTest
+	goToTest
+		Declaration
 		SUITE_DEFAULT
-		FILE_GO_TO_DECLARATION_DCL_1
+		FILE_GO_TO_DCL_1
 		constructorPosition
-		[!(FILE_GO_TO_DECLARATION_DCL_1, uint 44)!]
+		[!(FILE_GO_TO_DCL_1, uint 44)!]
 where
 	constructorPosition :: Position
 	constructorPosition = {line=uint 44, character=uint 7}
 
 goToDeclarationOfConstructorPrecededByPipeOnPreviousLineWithoutTypeDefCorrectlyHandledFor :: Property
 goToDeclarationOfConstructorPrecededByPipeOnPreviousLineWithoutTypeDefCorrectlyHandledFor =
-	goToDeclarationTest
+	goToTest
+		Declaration
 		SUITE_DEFAULT
-		FILE_GO_TO_DECLARATION_DCL_1
+		FILE_GO_TO_DCL_1
 		constructorPosition
-		[!(FILE_GO_TO_DECLARATION_DCL_1, uint 45)!]
+		[!(FILE_GO_TO_DCL_1, uint 45)!]
 where
 	constructorPosition :: Position
 	constructorPosition = {line=uint 45, character=uint 7}
 
 goToDeclarationOfConstructorPrecededByPipeOnSameLineWithoutTypeDefCorrectlyHandledFor :: Property
 goToDeclarationOfConstructorPrecededByPipeOnSameLineWithoutTypeDefCorrectlyHandledFor =
-	goToDeclarationTest
+	goToTest
+		Declaration
 		SUITE_DEFAULT
-		FILE_GO_TO_DECLARATION_DCL_1
+		FILE_GO_TO_DCL_1
 		constructorPosition
-		[!(FILE_GO_TO_DECLARATION_DCL_1, uint 46)!]
+		[!(FILE_GO_TO_DCL_1, uint 46)!]
 where
 	constructorPosition :: Position
 	constructorPosition = {line=uint 46, character=uint 7}
 
 goToDeclarationOfConstructorWithArgsPrecededByPipeOnSameLineWithoutTypeDefCorrectlyHandledFor :: Property
 goToDeclarationOfConstructorWithArgsPrecededByPipeOnSameLineWithoutTypeDefCorrectlyHandledFor =
-	goToDeclarationTest
+	goToTest
+		Declaration
 		SUITE_DEFAULT
-		FILE_GO_TO_DECLARATION_DCL_1
+		FILE_GO_TO_DCL_1
 		constructorPosition
-		[!(FILE_GO_TO_DECLARATION_DCL_1, uint 47)!]
+		[!(FILE_GO_TO_DCL_1, uint 47)!]
 where
 	constructorPosition :: Position
 	constructorPosition = {line=uint 47, character=uint 7}
 
 goToDeclarationOfConstructorWithArgsPrecededByOtherConstructorOnSameLineWithoutTypeDefCorrectlyHandledFor :: Property
 goToDeclarationOfConstructorWithArgsPrecededByOtherConstructorOnSameLineWithoutTypeDefCorrectlyHandledFor =
-	goToDeclarationTest
+	goToTest
+		Declaration
 		SUITE_DEFAULT
-		FILE_GO_TO_DECLARATION_DCL_1
+		FILE_GO_TO_DCL_1
 		constructorPosition
-		[!(FILE_GO_TO_DECLARATION_DCL_1, uint 47)!]
+		[!(FILE_GO_TO_DCL_1, uint 47)!]
 where
 	constructorPosition :: Position
 	constructorPosition = {line=uint 47, character=uint 30}
 
 goToDeclarationOfConstructorPrecededByEqualsOnSameLineWithoutTypeDefCorrectlyHandledFor :: Property
 goToDeclarationOfConstructorPrecededByEqualsOnSameLineWithoutTypeDefCorrectlyHandledFor =
-	goToDeclarationTest
+	goToTest
+		Declaration
 		SUITE_DEFAULT
-		FILE_GO_TO_DECLARATION_DCL_1
+		FILE_GO_TO_DCL_1
 		constructorPosition
-		[!(FILE_GO_TO_DECLARATION_DCL_1, uint 50)!]
+		[!(FILE_GO_TO_DCL_1, uint 50)!]
 where
 	constructorPosition :: Position
 	constructorPosition = {line=uint 50, character=uint 10}
 
 goToDeclarationOfConstructorPrecededByEqualsOnPreviousLineWithTypeDefCorrectlyHandledFor :: Property
 goToDeclarationOfConstructorPrecededByEqualsOnPreviousLineWithTypeDefCorrectlyHandledFor =
-	goToDeclarationTest
+	goToTest
+		Declaration
 		SUITE_DEFAULT
-		FILE_GO_TO_DECLARATION_DCL_1
+		FILE_GO_TO_DCL_1
 		constructorPosition
-		[!(FILE_GO_TO_DECLARATION_DCL_1, uint 53)!]
+		[!(FILE_GO_TO_DCL_1, uint 53)!]
 where
 	constructorPosition :: Position
 	constructorPosition = {line=uint 53, character=uint 7}
 
 goToDeclarationOfMacroWithArgsCorrectlyHandledFor :: Property
 goToDeclarationOfMacroWithArgsCorrectlyHandledFor =
-	goToDeclarationTest
+	goToTest
+		Declaration
 		SUITE_DEFAULT
-		FILE_GO_TO_DECLARATION_DCL_1
+		FILE_GO_TO_DCL_1
 		macroPosition
-		[!(FILE_GO_TO_DECLARATION_DCL_1, uint 81)!]
+		[!(FILE_GO_TO_DCL_1, uint 81)!]
 where
 	macroPosition :: Position
 	macroPosition = {line=uint 81, character=uint 7}
 
 goToDeclarationOfMacroWithoutArgsCorrectlyHandledFor :: Property
 goToDeclarationOfMacroWithoutArgsCorrectlyHandledFor =
-	goToDeclarationTest
+	goToTest
+		Declaration
 		SUITE_DEFAULT
-		FILE_GO_TO_DECLARATION_DCL_1
+		FILE_GO_TO_DCL_1
 		macroPosition
-		[!(FILE_GO_TO_DECLARATION_DCL_1, uint 83)!]
+		[!(FILE_GO_TO_DCL_1, uint 83)!]
 where
 	macroPosition :: Position
 	macroPosition = {line=uint 83, character=uint 5}
@@ -895,9 +980,10 @@ goToDeclarationOfStdEnvFuncWhenLibraryIsPartOfConfig =
 	accUnsafe \w
 	# (currentDirectory, w) = appFst fromOk $ getCurrentDirectory w
 	# (cleanHomePath, w) = appFst fromJust $ getEnvironmentVariable CLEAN_HOME_ENV_VAR w
-	->	(goToDeclarationTestAbsolutePaths
+	->	(goToTestAbsolutePaths
+			Declaration
 			SUITE_DEFAULT
-			(currentDirectory </> SUITE_DEFAULT </> FILE_GO_TO_DECLARATION_ICL_1)
+			(currentDirectory </> SUITE_DEFAULT </> FILE_GO_TO_ICL_1)
 			stdEnvFuncPosition
 			[(cleanHomePath </> LIBS_PATH </> "StdEnv" </> "StdBool" <.> "dcl", uint 18)]
 		, w
@@ -911,9 +997,10 @@ goToDeclarationOfStdEnvFuncWhenLibraryIsMissingInConfig =
 	accUnsafe \w
 	# (currentDirectory, w) = appFst fromOk $ getCurrentDirectory w
 	# (cleanHomePath, w) = appFst fromJust $ getEnvironmentVariable CLEAN_HOME_ENV_VAR w
-	->	(goToDeclarationTestAbsolutePaths
+	->	(goToTestAbsolutePaths
+			Declaration
 			SUITE_CONFIG_MISSING_STDENV
-			(currentDirectory </> SUITE_CONFIG_MISSING_STDENV </> FILE_GO_TO_DECLARATION_ICL_1)
+			(currentDirectory </> SUITE_CONFIG_MISSING_STDENV </> FILE_GO_TO_ICL_1)
 			stdEnvFuncPosition
 			[]
 		, w
@@ -924,55 +1011,314 @@ where
 
 goToDeclarationOfTypeSynonymCorrectlyHandledFor :: Property
 goToDeclarationOfTypeSynonymCorrectlyHandledFor =
-	goToDeclarationTest
+	goToTest
+		Declaration
 		SUITE_DEFAULT
-		FILE_GO_TO_DECLARATION_DCL_1
+		FILE_GO_TO_DCL_1
 		typeSynonymPosition
-		[!(FILE_GO_TO_DECLARATION_DCL_1, uint 87)!]
+		[!(FILE_GO_TO_DCL_1, uint 87)!]
 where
 	typeSynonymPosition :: Position
 	typeSynonymPosition = {line=uint 87, character=uint 10}
 
 goToDeclarationOfAbstractTypeSynonymCorrectlyHandledFor :: Property
 goToDeclarationOfAbstractTypeSynonymCorrectlyHandledFor =
-	goToDeclarationTest
+	goToTest
+		Declaration
 		SUITE_DEFAULT
-		FILE_GO_TO_DECLARATION_DCL_1
+		FILE_GO_TO_DCL_1
 		typeSynonymPosition
-		[!(FILE_GO_TO_DECLARATION_DCL_1, uint 88)!]
+		[!(FILE_GO_TO_DCL_1, uint 88)!]
 where
 	typeSynonymPosition :: Position
 	typeSynonymPosition = {line=uint 88, character=uint 10}
 
 goToDeclarationOfNewTypeCorrectlyHandledFor :: Property
 goToDeclarationOfNewTypeCorrectlyHandledFor =
-	goToDeclarationTest
+	goToTest
+		Declaration
 		SUITE_DEFAULT
-		FILE_GO_TO_DECLARATION_DCL_1
+		FILE_GO_TO_DCL_1
 		newtypePosition
-		[!(FILE_GO_TO_DECLARATION_DCL_1, uint 90)!]
+		[!(FILE_GO_TO_DCL_1, uint 90)!]
 where
 	newtypePosition :: Position
 	newtypePosition = {line=uint 90, character=uint 8}
 
 goToDeclarationOfAbstractNewTypeCorrectlyHandledFor :: Property
 goToDeclarationOfAbstractNewTypeCorrectlyHandledFor =
-	goToDeclarationTest
+	goToTest
+		Declaration
 		SUITE_DEFAULT
-		FILE_GO_TO_DECLARATION_DCL_1
+		FILE_GO_TO_DCL_1
 		newtypePosition
-		[!(FILE_GO_TO_DECLARATION_DCL_1, uint 91)!]
+		[!(FILE_GO_TO_DCL_1, uint 91)!]
 where
 	newtypePosition :: Position
 	newtypePosition = {line=uint 91, character=uint 8}
 
-goToDeclarationSymbolsInSearchTermCorrectlyFiltered :: Property
-goToDeclarationSymbolsInSearchTermCorrectlyFiltered =
-	goToDeclarationTest
+goToDefinitionOfRecordFieldPrecededByBraceOnPreviousLineCorrectlyHandledFor :: Property
+goToDefinitionOfRecordFieldPrecededByBraceOnPreviousLineCorrectlyHandledFor =
+	goToTest
+		Definition
 		SUITE_DEFAULT
-		FILE_GO_TO_DECLARATION_ICL_1
-		typeWithSurroundingSymbolsPosition
-		[!(FILE_GO_TO_DECLARATION_DCL_1, uint 6)!]
+		FILE_GO_TO_ICL_1
+		recordFieldPosition
+		[!(FILE_GO_TO_ICL_1, uint 71)!]
 where
-	typeWithSurroundingSymbolsPosition :: Position
-	typeWithSurroundingSymbolsPosition = {line=uint 69, character=uint 37}
+	recordFieldPosition :: Position
+	recordFieldPosition = {line=uint 71, character=uint 13}
+
+goToDefinitionOfRecordFieldPrecededByCommaOnPreviousLineCorrectlyHandledFor :: Property
+goToDefinitionOfRecordFieldPrecededByCommaOnPreviousLineCorrectlyHandledFor =
+	goToTest
+		Definition
+		SUITE_DEFAULT
+		FILE_GO_TO_ICL_1
+		recordFieldPosition
+		[!(FILE_GO_TO_ICL_1, uint 72)!]
+where
+	recordFieldPosition :: Position
+	recordFieldPosition = {line=uint 72, character=uint 13}
+
+goToDefinitionOfRecordFieldPrecededByCommaOnSameLineCorrectlyHandledFor :: Property
+goToDefinitionOfRecordFieldPrecededByCommaOnSameLineCorrectlyHandledFor =
+	goToTest
+		Definition
+		SUITE_DEFAULT
+		FILE_GO_TO_ICL_1
+		recordFieldPosition
+		[!(FILE_GO_TO_ICL_1, uint 73)!]
+where
+	recordFieldPosition :: Position
+	recordFieldPosition = {line=uint 73, character=uint 13}
+
+goToDefinitionOfRecordFieldPrecededByBraceAndRecordDefinitionOnSameLineCorrectlyHandledFor :: Property
+goToDefinitionOfRecordFieldPrecededByBraceAndRecordDefinitionOnSameLineCorrectlyHandledFor =
+	goToTest
+		Definition
+		SUITE_DEFAULT
+		FILE_GO_TO_ICL_1
+		recordFieldPosition
+		[!(FILE_GO_TO_ICL_1, uint 76)!]
+where
+	recordFieldPosition :: Position
+	recordFieldPosition = {line=uint 76, character=uint 25}
+
+goToDefinitionOfRecordFieldPrecededByCommaAndRecordDefinitionOnSameLineCorrectlyHandledFor :: Property
+goToDefinitionOfRecordFieldPrecededByCommaAndRecordDefinitionOnSameLineCorrectlyHandledFor =
+	goToTest
+		Definition
+		SUITE_DEFAULT
+		FILE_GO_TO_ICL_1
+		recordFieldPosition
+		[!(FILE_GO_TO_ICL_1, uint 76)!]
+where
+	recordFieldPosition :: Position
+	recordFieldPosition = {line=uint 76, character=uint 54}
+
+goToDefinitionStopParsingSymbolsOfPrefixFunctionWhenSearchTermDoesNotContainGenericKindSpecificationCorrectlyRemovedFor
+	:: Property
+goToDefinitionStopParsingSymbolsOfPrefixFunctionWhenSearchTermDoesNotContainGenericKindSpecificationCorrectlyRemovedFor
+	=
+		goToTest
+			Definition
+			SUITE_DEFAULT
+			FILE_GO_TO_ICL_1
+			recordFieldPosition
+			[!(FILE_GO_TO_ICL_1, uint 79), (FILE_GO_TO_ICL_1, uint 80)!]
+where
+	recordFieldPosition :: Position
+	recordFieldPosition = {line=uint 79, character=uint 34}
+
+goToDefinitionOfTypeAlsoDefinedInOtherIclCorrectlyHandledFor :: Property
+goToDefinitionOfTypeAlsoDefinedInOtherIclCorrectlyHandledFor =
+	goToTest
+		Definition
+		SUITE_DEFAULT
+		FILE_GO_TO_ICL_1
+		typePosition
+		[!(FILE_GO_TO_ICL_1, uint 76), (FILE_GO_TO_ICL_2, uint 8)!]
+where
+	typePosition :: Position
+	typePosition = {line=uint 76, character=uint 10}
+
+goToDefinitionOfGenericCorrectlyHandledFor :: Property
+goToDefinitionOfGenericCorrectlyHandledFor =
+	goToTest
+		Definition
+		SUITE_DEFAULT
+		FILE_GO_TO_ICL_1
+		genericPosition
+		[!(FILE_GO_TO_ICL_1, uint 34)!]
+where
+	genericPosition :: Position
+	genericPosition = {line=uint 34, character=uint 11}
+
+goToDefinitionOfNewtypeCorrectlyHandledFor :: Property
+goToDefinitionOfNewtypeCorrectlyHandledFor =
+	goToTest
+		Definition
+		SUITE_DEFAULT
+		FILE_GO_TO_ICL_1
+		newtypePosition
+		[!(FILE_GO_TO_ICL_1, uint 82)!]
+where
+	newtypePosition :: Position
+	newtypePosition = {line=uint 82, character=uint 8}
+
+goToDefinitionOfMacroCorrectlyHandledFor :: Property
+goToDefinitionOfMacroCorrectlyHandledFor =
+	goToTest
+		Definition
+		SUITE_DEFAULT
+		FILE_GO_TO_ICL_1
+		macroPosition
+		[!(FILE_GO_TO_ICL_1, uint 84)!]
+where
+	macroPosition :: Position
+	macroPosition = {line=uint 84, character=uint 5}
+
+goToDefinitionOfTypeSynonymCorrectlyHandledFor :: Property
+goToDefinitionOfTypeSynonymCorrectlyHandledFor =
+	goToTest
+		Definition
+		SUITE_DEFAULT
+		FILE_GO_TO_ICL_1
+		typeSynonymPosition
+		[!(FILE_GO_TO_ICL_1, uint 86)!]
+where
+	typeSynonymPosition :: Position
+	typeSynonymPosition = {line=uint 86, character=uint 8}
+
+goToDefinitionOfClassCorrectlyHandledFor :: Property
+goToDefinitionOfClassCorrectlyHandledFor =
+	goToTest
+		Definition
+		SUITE_DEFAULT
+		FILE_GO_TO_ICL_1
+		classPosition
+		[!(FILE_GO_TO_ICL_1, uint 88)!]
+where
+	classPosition :: Position
+	classPosition = {line=uint 88, character=uint 11}
+
+goToDefinitionOfClassSingleFunctionSyntaxCorrectlyHandledFor :: Property
+goToDefinitionOfClassSingleFunctionSyntaxCorrectlyHandledFor =
+	goToTest
+		Definition
+		SUITE_DEFAULT
+		FILE_GO_TO_ICL_1
+		classPosition
+		[!(FILE_GO_TO_ICL_1, uint 91)!]
+where
+	classPosition :: Position
+	classPosition = {line=uint 91, character=uint 11}
+
+goToDefinitionOfConstructorPrecededByTypeDefCorrectlyHandledFor :: Property
+goToDefinitionOfConstructorPrecededByTypeDefCorrectlyHandledFor =
+	goToTest
+		Definition
+		SUITE_DEFAULT
+		FILE_GO_TO_ICL_1
+		constructorPosition
+		[!(FILE_GO_TO_ICL_1, uint 93)!]
+where
+	constructorPosition :: Position
+	constructorPosition = {line=uint 93, character=uint 34}
+
+goToDefinitionOfConstructorPrecededByTypeDefAndOtherConstructorCorrectlyHandledFor :: Property
+goToDefinitionOfConstructorPrecededByTypeDefAndOtherConstructorCorrectlyHandledFor =
+	goToTest
+		Definition
+		SUITE_DEFAULT
+		FILE_GO_TO_ICL_1
+		constructorPosition
+		[!(FILE_GO_TO_ICL_1, uint 93)!]
+where
+	constructorPosition :: Position
+	constructorPosition = {line=uint 93, character=uint 47}
+
+goToDefinitionOfConstructorPrecededByTypeDefAndPipeOnPreviousLineCorrectlyHandledFor :: Property
+goToDefinitionOfConstructorPrecededByTypeDefAndPipeOnPreviousLineCorrectlyHandledFor =
+	goToTest
+		Definition
+		SUITE_DEFAULT
+		FILE_GO_TO_ICL_1
+		constructorPosition
+		[!(FILE_GO_TO_ICL_1, uint 94)!]
+where
+	constructorPosition :: Position
+	constructorPosition = {line=uint 94, character=uint 8}
+
+goToDefinitionOfConstructorPrecededByPipeOnPreviousLineCorrectlyHandledFor :: Property
+goToDefinitionOfConstructorPrecededByPipeOnPreviousLineCorrectlyHandledFor =
+	goToTest
+		Definition
+		SUITE_DEFAULT
+		FILE_GO_TO_ICL_1
+		constructorPosition
+		[!(FILE_GO_TO_ICL_1, uint 95)!]
+where
+	constructorPosition :: Position
+	constructorPosition = {line=uint 95, character=uint 8}
+
+goToDefinitionOfConstructorPrecededByPipeOnSameLineCorrectlyHandledFor :: Property
+goToDefinitionOfConstructorPrecededByPipeOnSameLineCorrectlyHandledFor =
+	goToTest
+		Definition
+		SUITE_DEFAULT
+		FILE_GO_TO_ICL_1
+		constructorPosition
+		[!(FILE_GO_TO_ICL_1, uint 96)!]
+where
+	constructorPosition :: Position
+	constructorPosition = {line=uint 96, character=uint 8}
+
+goToDefinitionOfConstructorWithArgsPrecededByPipeOnSameLineCorrectlyHandledFor :: Property
+goToDefinitionOfConstructorWithArgsPrecededByPipeOnSameLineCorrectlyHandledFor =
+	goToTest
+		Definition
+		SUITE_DEFAULT
+		FILE_GO_TO_ICL_1
+		constructorPosition
+		[!(FILE_GO_TO_ICL_1, uint 97)!]
+where
+	constructorPosition :: Position
+	constructorPosition = {line=uint 97, character=uint 8}
+
+goToDefinitionOfConstructorWithArgsPrecededByPipeAndOtherConstructorOnSameLineCorrectlyHandledFor :: Property
+goToDefinitionOfConstructorWithArgsPrecededByPipeAndOtherConstructorOnSameLineCorrectlyHandledFor =
+	goToTest
+		Definition
+		SUITE_DEFAULT
+		FILE_GO_TO_ICL_1
+		constructorPosition
+		[!(FILE_GO_TO_ICL_1, uint 97)!]
+where
+	constructorPosition :: Position
+	constructorPosition = {line=uint 97, character=uint 36}
+
+goToDefinitionOfConstructorPrecededByEqualsOnSameLineCorrectlyHandledFor :: Property
+goToDefinitionOfConstructorPrecededByEqualsOnSameLineCorrectlyHandledFor =
+	goToTest
+		Definition
+		SUITE_DEFAULT
+		FILE_GO_TO_ICL_1
+		constructorPosition
+		[!(FILE_GO_TO_ICL_1, uint 100)!]
+where
+	constructorPosition :: Position
+	constructorPosition = {line=uint 100, character=uint 8}
+
+goToDefinitionOfConstructorPrecededByEqualsOnPreviousLineCorrectlyHandledFor :: Property
+goToDefinitionOfConstructorPrecededByEqualsOnPreviousLineCorrectlyHandledFor =
+	goToTest
+		Definition
+		SUITE_DEFAULT
+		FILE_GO_TO_ICL_1
+		constructorPosition
+		[!(FILE_GO_TO_ICL_1, uint 103)!]
+where
+	constructorPosition :: Position
+	constructorPosition = {line=uint 103, character=uint 8}
