@@ -188,6 +188,8 @@ properties =:
 		as "go to declaration of a newtype is correctly handled"
 	, goToDeclarationOfAbstractNewTypeCorrectlyHandledFor
 		as "go to declaration of an abstract newtype is correctly handled"
+	, goToDeclarationSymbolsInSearchTermCorrectlyFiltered
+		as "go to declaration of type with symbols surrounding the type constructor has the symbols fltered from the search term"
 	]
 where
 	diagnosticsForErrors =
@@ -963,3 +965,14 @@ goToDeclarationOfAbstractNewTypeCorrectlyHandledFor =
 where
 	newtypePosition :: Position
 	newtypePosition = {line=uint 91, character=uint 8}
+
+goToDeclarationSymbolsInSearchTermCorrectlyFiltered :: Property
+goToDeclarationSymbolsInSearchTermCorrectlyFiltered =
+	goToDeclarationTest
+		SUITE_DEFAULT
+		FILE_GO_TO_DECLARATION_ICL_1
+		typeWithSurroundingSymbolsPosition
+		[!(FILE_GO_TO_DECLARATION_DCL_1, uint 6)!]
+where
+	typeWithSurroundingSymbolsPosition :: Position
+	typeWithSurroundingSymbolsPosition = {line=uint 69, character=uint 37}

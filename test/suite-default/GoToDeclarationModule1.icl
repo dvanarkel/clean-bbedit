@@ -66,3 +66,6 @@ stdEnvFunc = not False
 
 :: *AbstractTypeSynonym :== Bool
 :: *AbstractNewType =: AbstractNewType Bool
+
+filterSymbolsInSearchTerm :: !*(TypeSingleResult) -> TypeSingleResult
+filterSymbolsInSearchTerm b = Bar
