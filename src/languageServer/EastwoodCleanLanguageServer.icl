@@ -406,12 +406,15 @@ where
 					parseSearchTerm line stopPredicate [!charNr..size line!]
 		 	# searchTerm = adjustSearchTermForGenericKindSpecification searchTerm
 			# atleastOneWhiteSpace = "(\\s+)"
+			# anyAmountOfWhitespace = "(\\s*)"
 			// The ^ indicates that the term that follows should not be preceded by any characters.
 			// This is used to avoid finding imports as declarations terms are never preceded by characters.
 			# lineStartsWith = "^"
 			# startsWithUpper = isUpper $ select searchTerm 0
 			# atleastOneCharacter = ".+"
 			# anyAmountOfCharacters = ".*"
+			# maybeBang = "(!?)"
+			# maybeUniqOrCoercible = "(\\*|\\.)?"
 			// Types always start with a uppercase character.
 			# grepTypeSearchTerm = if startsWithUpper (concat3 lineStartsWith ":: " searchTerm) ""
 			// The grep func definition search pattern is adjusted based on
@@ -440,9 +443,11 @@ where
 				= concat
 					[ lineStartsWith
 					, "::"
-					, atleastOneWhiteSpace
+					, anyAmountOfWhitespace
+					, maybeBang
+					, maybeUniqOrCoercible
+					, anyAmountOfWhitespace
 					, searchTerm
-					, atleastOneWhiteSpace
 					, anyAmountOfCharacters
 					, ":=="
 					]
@@ -526,11 +531,7 @@ where
 
 		stopPredicate :: !UChar -> Bool
 		stopPredicate uc =
-			not (isAlphaNum uc) && not (elem uc genericKindSpecificationChars)
-			&& not (isSymbol uc || isPunctuation uc) || isSpecialSymbol uc
-
-		genericKindSpecificationChars :: [UChar]
-		genericKindSpecificationChars = fromChar <$> ['{', '(', '|', '*', '-', '>' ,')','}']
+			not (isAlphaNum uc) && not (isSymbol uc || isPunctuation uc) || isSpecialSymbol uc
 
 		adjustSearchTermForGenericKindSpecification :: !String -> String
 		// Unless an infix function is being parsed we remove the generic kind specification symbols from the string.
@@ -538,7 +539,7 @@ where
 		// As ( and ) are special syntax symbols they may not be used within infix functions to begin with.
 		adjustSearchTermForGenericKindSpecification s =
 			{c \\ c <-: s |
-				isNotInfix --> (not $ elem (fromChar c) genericKindSpecificationChars) &&
+				isNotInfix --> (not (isSymbol (fromChar c) || isPunctuation (fromChar c))) &&
 				isInfix --> (not $ elem (fromChar c) ['(', ')'])
 			}
 		where

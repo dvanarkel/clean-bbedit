@@ -86,4 +86,4 @@ macroTwo :== True
 stdEnvFunc :: Bool
 
 :: TypeSynonym :== Bool
-:: AbstractTypeSynonym (:== Bool)
+:: !*AbstractTypeSynonym (:== Bool)
