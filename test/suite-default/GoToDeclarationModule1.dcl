@@ -84,3 +84,6 @@ macroOne arg1 arg2 arg3 :== True
 macroTwo :== True
 
 stdEnvFunc :: Bool
+
+:: TypeSynonym :== Bool
+:: AbstractTypeSynonym (:== Bool)

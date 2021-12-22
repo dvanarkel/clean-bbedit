@@ -180,6 +180,10 @@ properties =:
 		as "go to declaration of function defined in StdEnv when the StdEnv library is included in Eastwood.yml"
 	, goToDeclarationOfStdEnvFuncWhenLibraryIsMissingInConfig
 		as "go to declaration of function defined in StdEnv when the StdEnv library is not included in Eastwood.yml"
+	, goToDeclarationOfTypeSynonymCorrectlyHandledFor
+		as "go to declaration of a type synonym is correctly handled"
+	, goToDeclarationOfAbstractTypeSynonymCorrectlyHandledFor
+		as "go to declaration of an abstract type synonym is correctly handled"
 	]
 where
 	diagnosticsForErrors =
@@ -889,7 +893,9 @@ goToDeclarationOfStdEnvFuncWhenLibraryIsPartOfConfig =
 			SUITE_DEFAULT
 			(currentDirectory </> SUITE_DEFAULT </> FILE_GO_TO_DECLARATION_ICL_1)
 			stdEnvFuncPosition
-			[(cleanHomePath </> LIBS_PATH </> "StdEnv" </> "StdBool" <.> "dcl", uint 18)], w)
+			[(cleanHomePath </> LIBS_PATH </> "StdEnv" </> "StdBool" <.> "dcl", uint 18)]
+		, w
+		)
 where
 	stdEnvFuncPosition :: Position
 	stdEnvFuncPosition = {line=uint 64, character=uint 15}
@@ -903,7 +909,31 @@ goToDeclarationOfStdEnvFuncWhenLibraryIsMissingInConfig =
 			SUITE_CONFIG_MISSING_STDENV
 			(currentDirectory </> SUITE_CONFIG_MISSING_STDENV </> FILE_GO_TO_DECLARATION_ICL_1)
 			stdEnvFuncPosition
-			[], w)
+			[]
+		, w
+		)
 where
 	stdEnvFuncPosition :: Position
 	stdEnvFuncPosition = {line=uint 5, character=uint 15}
+
+goToDeclarationOfTypeSynonymCorrectlyHandledFor :: Property
+goToDeclarationOfTypeSynonymCorrectlyHandledFor =
+	goToDeclarationTest
+		SUITE_DEFAULT
+		FILE_GO_TO_DECLARATION_DCL_1
+		typeSynonymPosition
+		[!(FILE_GO_TO_DECLARATION_DCL_1, uint 87)!]
+where
+	typeSynonymPosition :: Position
+	typeSynonymPosition = {line=uint 87, character=uint 10}
+
+goToDeclarationOfAbstractTypeSynonymCorrectlyHandledFor :: Property
+goToDeclarationOfAbstractTypeSynonymCorrectlyHandledFor =
+	goToDeclarationTest
+		SUITE_DEFAULT
+		FILE_GO_TO_DECLARATION_DCL_1
+		typeSynonymPosition
+		[!(FILE_GO_TO_DECLARATION_DCL_1, uint 88)!]
+where
+	typeSynonymPosition :: Position
+	typeSynonymPosition = {line=uint 88, character=uint 10}

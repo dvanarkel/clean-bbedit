@@ -63,3 +63,5 @@ import StdEnv
 
 stdEnvFunc :: Bool
 stdEnvFunc = not False
+
+:: AbstractTypeSynonym :== Bool

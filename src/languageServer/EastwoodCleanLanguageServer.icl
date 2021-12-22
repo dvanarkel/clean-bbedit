@@ -408,12 +408,12 @@ where
 			# atleastOneWhiteSpace = "(\\s+)"
 			// The ^ indicates that the term that follows should not be preceded by any characters.
 			// This is used to avoid finding imports as declarations terms are never preceded by characters.
-			# avoidImports = "^"
+			# lineStartsWith = "^"
 			# startsWithUpper = isUpper $ select searchTerm 0
 			# atleastOneCharacter = ".+"
 			# anyAmountOfCharacters = ".*"
 			// Types always start with a uppercase character.
-			# grepTypeSearchTerm = if startsWithUpper (concat3 avoidImports ":: " searchTerm) ""
+			# grepTypeSearchTerm = if startsWithUpper (concat3 lineStartsWith ":: " searchTerm) ""
 			// The grep func definition search pattern is adjusted based on
 			// whether an infix function or a prefix function was parsed.
 			# grepFuncSearchTerm =
@@ -433,11 +433,20 @@ where
 						in concat5 "\\(" escapedSearchTerm "\\)" atleastOneWhiteSpace "infix[lr]?"
 					)
 					(concat3 searchTerm atleastOneWhiteSpace "::" )
-			# grepGenericSearchTerm = concat4 avoidImports "generic" atleastOneWhiteSpace searchTerm
-			# grepClassSearchTerm = concat4 avoidImports "class" atleastOneWhiteSpace searchTerm
-			# grepMacroSearchTerm = concat5 avoidImports searchTerm atleastOneWhiteSpace anyAmountOfCharacters ":=="
+			# grepGenericSearchTerm = concat4 lineStartsWith "generic" atleastOneWhiteSpace searchTerm
+			# grepClassSearchTerm = concat4 lineStartsWith "class" atleastOneWhiteSpace searchTerm
+			# grepMacroSearchTerm = concat5 lineStartsWith searchTerm atleastOneWhiteSpace anyAmountOfCharacters ":=="
+			# grepTypeSynonymSearchTerm
+				= concat
+					[ lineStartsWith
+					, "::"
+					, atleastOneWhiteSpace
+					, searchTerm
+					, atleastOneWhiteSpace
+					, anyAmountOfCharacters
+					, ":=="
+					]
 			// For clarity we define this variable as a duplicate of avoidImports.
-			# stringStartsWith = "^"
 			# pipeOrEquals ="\\||="
 			# grepConstructorSearchTerm
 				// Constructors always start with a uppercase letter, so do not search if this is not the case.
@@ -448,7 +457,7 @@ where
 				// at least one whitespace followed by the search term.
 				= if startsWithUpper
 					(concat
-						[ stringStartsWith
+						[ lineStartsWith
 						, "("
 						, 	"("
 						, 	atleastOneWhiteSpace
@@ -470,7 +479,7 @@ where
 			// In this case, the constructor has to be preceded by at least one whitespace only.
 			// For this we return a seperate search term since we have to process the previous line.
 			# grepConstructorSearchTermSpecialCase =
-				if (startsWithUpper) (?Just $ concat3 stringStartsWith atleastOneWhiteSpace searchTerm) ?None
+				if (startsWithUpper) (?Just $ concat3 lineStartsWith atleastOneWhiteSpace searchTerm) ?None
 			= Ok $
 				(concat
 					// Only search for types when the term starts with an uppercase character.
@@ -482,6 +491,8 @@ where
 					, grepClassSearchTerm
 					, "|"
 					, grepMacroSearchTerm
+					, "|"
+					, grepTypeSynonymSearchTerm
 					// Only search for constructors if the term starts with an uppercase character.
 					, if (grepConstructorSearchTerm == "") "" ("|" +++ grepConstructorSearchTerm)
 					]
