@@ -91,7 +91,7 @@ properties =:
 		as "notifications for non-existing modules yield an error"
 	, didSaveNotificationCorrectlyHandledFor SUITE_DEFAULT
 		("someLib" </> "TestModule")
-		[!("someLib" </> "TestModule.icl", noDiagnostics)]
+		[!("someLib" </> "TestModule.dcl", noDiagnostics), ("someLib" </> "TestModule.icl", noDiagnostics)]
 		as "hierarchical modules are correctly compiled"
 	, didSaveNotificationCorrectlyHandledFor SUITE_DEFAULT
 		("someLib" </> "MainModule")

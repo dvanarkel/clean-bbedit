@@ -10,6 +10,7 @@ import Data.List
 import qualified Data.Map
 from Data.Map import :: Map
 import System.OS
+import System.File
 import System.Process
 import Text
 from Eastwood.Diagnostic import
@@ -28,7 +29,7 @@ runCompiler moduleFile moduleName config=:{searchPaths} world
 	| isError mbCoclResult = (liftError mbCoclResult, world)
 	# (retCode, output) = fromOk mbCoclResult
 	// If the moduleFile is a .icl, otherFileExists indicates whether a .dcl exists or if it is a module.
-	# (otherModuleFileExists, world) = appFst isJust $ findSearchPath moduleFile searchPaths world
+	# (otherModuleFileExists, world) = fileExists (replaceExtension moduleFile "dcl") world
 	# diagnostics = diagnosticsFor (moduleName <.> takeExtension moduleFile) output otherModuleFileExists
 	// If the return code is not 0, either problems have been detected in the file or the file could not be processed.
 	// In the later case (no diagnostics could be extracted from the output)
@@ -77,14 +78,13 @@ where
 diagnosticsFor :: !FilePath !String !Bool -> Map FilePath [!Diagnostic]
 diagnosticsFor moduleFile output otherModuleFileExists
 	# otherModuleFile = replaceExtension moduleFile (if (takeExtension moduleFile == "dcl") "icl" "dcl")
-	=
-	// The compiler has filenames with . instead of / (e.g. Data.Error.icl); we
-	// need to convert these to real filenames.
-	'Data.Map'.foldrWithKey ('Data.Map'.put o fixFileName) 'Data.Map'.newMap $
-	diagnosticsForAccum 0 ?None $
-	// We always have to generate a result for `moduleFile`.
-	// If there are no diagnostics we have to report that to the client to clear possibly present diagnostics.
-	'Data.Map'.fromList [(moduleFile, [!]) : if otherModuleFileExists [(otherModuleFile, [!])] []]
+	=	// The compiler has filenames with . instead of / (e.g. Data.Error.icl); we
+		// need to convert these to real filenames.
+		'Data.Map'.foldrWithKey ('Data.Map'.put o fixFileName) 'Data.Map'.newMap $
+		diagnosticsForAccum 0 ?None $
+		// We always have to generate a result for `moduleFile`.
+		// If there are no diagnostics we have to report that to the client to clear possibly present diagnostics.
+		'Data.Map'.fromList [(moduleFile, [!]) : if otherModuleFileExists [(otherModuleFile, [!])] []]
 where
 	// accumulates diagnostics, we go through the string using `idx` to avoid constructing intermediate strings
 	// the previously found file (module.icl or module.dcl), starting index and line number is provided,
