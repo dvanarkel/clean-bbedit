@@ -1,4 +1,4 @@
-implementation module GoToDeclarationModule
+implementation module GoToModule
 
 import StdEnv
 

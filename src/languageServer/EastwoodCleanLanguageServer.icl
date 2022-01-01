@@ -348,7 +348,17 @@ where
 				errorResponse id ParseError "it is not possible to go to the definition of a special syntax symbol."
 		// This is the general case.
 		| isSymbol firstUnicodeChar || isAlphaNum firstUnicodeChar || isPunctuation firstUnicodeChar
+			# stopPredicate = if (isAlphaNum firstUnicodeChar) stopPredicatePrefix stopPredicateInfixOrGenericKindSpec
 		 	# searchTerm = removeUnwantedSymbolsFromSearchTerm $ (retrieveSearchTerm stopPredicate) line uIntChar
+			# searchTerm =
+				if (isInfixOf [c \\ c <-:"{|"] [c \\ c <-: searchTerm] || not (isAlphaNum firstUnicodeChar))
+					searchTerm
+					// If the search term does not contain a generic kind specification, we parse again using a
+					// more strict predicate to avoid a problem with [(a,b):f].
+					// If this is not done the search term for [(a,b):f] would become abf instead of f.
+					(removeUnwantedSymbolsFromSearchTerm
+						$ retrieveSearchTerm stopPredicateAfterGenericKindSpecificationWasNotFound line uIntChar
+					)
 			= Ok $
 				(concat
 					// Only search for types when the term starts with an uppercase character.
@@ -586,7 +596,9 @@ where
 				errorResponse id ParseError "it is not possible to go to the definition of a special syntax symbol."
 		// This is the general case.
 		| isSymbol firstUnicodeChar || isAlphaNum firstUnicodeChar || isPunctuation firstUnicodeChar
-		 	# searchTerm = removeUnwantedSymbolsFromSearchTerm $ retrieveSearchTerm stopPredicate line uIntChar
+			# stopPredicate = if (isAlphaNum firstUnicodeChar) stopPredicatePrefix stopPredicateInfixOrGenericKindSpec
+			# searchTerm =
+				removeUnwantedSymbolsFromSearchTerm $ retrieveSearchTerm stopPredicate line uIntChar
 			# searchTerm =
 				if (isInfixOf [c \\ c <-:"{|"] [c \\ c <-: searchTerm])
 					searchTerm
@@ -789,7 +801,7 @@ retrieveSearchTerm :: !(UChar -> Bool) !String !UInt -> String
 retrieveSearchTerm predicate line (UInt charNr) =
 	toString $
 		(Reverse $ parseSearchTerm line predicate (Reverse [!0..charNr-1!])) ++|
-		parseSearchTerm line stopPredicate [!charNr..size line - 1!]
+		parseSearchTerm line predicate [!charNr..size line - 1!]
 
 /**
  * Unless an infix function is being parsed this function removes the symbols surrounding the function from the string.
@@ -875,13 +887,19 @@ where
 			// Look for line number seperator starting at the following hyphen.
 			= -1 // indexOfLastHyphenLineNumberSeperator` (dropChars indexFollowingHyphen reversedLine)
 
-stopPredicate :: !UChar -> Bool
-stopPredicate uc =
+stopPredicateInfixOrGenericKindSpec :: !UChar -> Bool
+stopPredicateInfixOrGenericKindSpec uc =
 	not (isAlphaNum uc) && not (isSymbol uc || isPunctuation uc) || isSpecialSymbol uc
+
+stopPredicatePrefix :: !UChar -> Bool
+stopPredicatePrefix uc = not (isAlphaNum uc) && not (isMember uc [fromChar '_':genericKindSpecificationSymbols])
 
 stopPredicateAfterGenericKindSpecificationWasNotFound :: !UChar -> Bool
 stopPredicateAfterGenericKindSpecificationWasNotFound uc
-	= stopPredicate uc || isMember uc (map fromChar ['{', '|', '*', '|', '}', '(', ')'])
+	= stopPredicatePrefix uc || isMember uc (map fromChar ['{', '|', '*', '|', '}', '(', ')'])
+
+genericKindSpecificationSymbols :: [UChar]
+genericKindSpecificationSymbols = (map fromChar ['{', '|', '*', '|', '}', '(', ')'])
 
 isNotInfix :: !String -> Bool
 isNotInfix searchTerm = any isAlphaNum [fromChar c \\ c <-: searchTerm]

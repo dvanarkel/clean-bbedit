@@ -1,4 +1,4 @@
-definition module GoToDeclarationModule2
+definition module GoToModule2
 
 import StdGeneric
 

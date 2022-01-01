@@ -1,4 +1,4 @@
-implementation module GoToDeclarationModule2
+implementation module GoToModule2
 
 funcMultipleResults :: Bool
 funcMultipleResults = True

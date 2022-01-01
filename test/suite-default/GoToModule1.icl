@@ -1,4 +1,4 @@
-implementation module GoToDeclarationModule1
+implementation module GoToModule1
 
 funcSingleResult :: Bool
 funcSingleResult = (True <#$> True) #$> True
@@ -102,3 +102,6 @@ class classIcl2 a :: !a -> Bool
 
 :: ConstructorIclThree =
 	FooIclNine
+
+goToRecordFieldTest :: RecordFieldsSingleResult -> Bool
+goToRecordFieldTest rf = rf.RecordFieldsSingleResult.foo

@@ -48,10 +48,10 @@ LIBS_PATH :== "lib"
 // fundamental edge-case.
 FILE_DONT_CARE :== "dontcare.icl"
 FILE_OK :== "ok.icl"
-FILE_GO_TO_DCL_1 :== "GoToDeclarationModule1.dcl"
-FILE_GO_TO_ICL_1 :== "GoToDeclarationModule1.icl"
-FILE_GO_TO_DCL_2 :== "GoToDeclarationModule2.dcl"
-FILE_GO_TO_ICL_2 :== "GoToDeclarationModule2.icl"
+FILE_GO_TO_DCL_1 :== "GoToModule1.dcl"
+FILE_GO_TO_ICL_1 :== "GoToModule1.icl"
+FILE_GO_TO_DCL_2 :== "GoToModule2.dcl"
+FILE_GO_TO_ICL_2 :== "GoToModule2.icl"
 
 Start :: *World -> *World
 Start world = exposeProperties [OutputTestEvents] [Bent] properties world
@@ -189,6 +189,8 @@ properties =:
 		as "go to declaration of a newtype is correctly handled"
 	, goToDeclarationOfAbstractNewTypeCorrectlyHandledFor
 		as "go to declaration of an abstract newtype is correctly handled"
+	, goToDeclarationOfRecordTypeInTypeSpecificationForRecordFieldCorrectlyHandledFor
+		as "go to declaration of a record field access type specification is correctly handled"
 	, goToDefinitionOfRecordFieldPrecededByBraceOnPreviousLineCorrectlyHandledFor
 		as "go to definition of record field preceded by { on the previous line is correctly handled"
 	, goToDefinitionOfRecordFieldPrecededByCommaOnPreviousLineCorrectlyHandledFor
@@ -1057,6 +1059,18 @@ where
 	newtypePosition :: Position
 	newtypePosition = {line=uint 91, character=uint 8}
 
+goToDeclarationOfRecordTypeInTypeSpecificationForRecordFieldCorrectlyHandledFor :: Property
+goToDeclarationOfRecordTypeInTypeSpecificationForRecordFieldCorrectlyHandledFor =
+	goToTest
+		Declaration
+		SUITE_DEFAULT
+		FILE_GO_TO_ICL_1
+		recordFieldTypeSpecificationPosition
+		[!(FILE_GO_TO_DCL_1, uint 18)!]
+where
+	recordFieldTypeSpecificationPosition :: Position
+	recordFieldTypeSpecificationPosition = {line=uint 106, character=uint 37}
+
 goToDefinitionOfRecordFieldPrecededByBraceOnPreviousLineCorrectlyHandledFor :: Property
 goToDefinitionOfRecordFieldPrecededByBraceOnPreviousLineCorrectlyHandledFor =
 	goToTest
@@ -1177,7 +1191,7 @@ goToDefinitionOfMacroCorrectlyHandledFor =
 		[!(FILE_GO_TO_ICL_1, uint 84)!]
 where
 	macroPosition :: Position
-	macroPosition = {line=uint 84, character=uint 5}
+	macroPosition = {line=uint 84, character=uint 1}
 
 goToDefinitionOfTypeSynonymCorrectlyHandledFor :: Property
 goToDefinitionOfTypeSynonymCorrectlyHandledFor =
