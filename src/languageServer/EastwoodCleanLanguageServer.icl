@@ -1038,8 +1038,18 @@ grepClassSearchTerm :: !String -> String
 grepClassSearchTerm searchTerm = concat4 lineStartsWith "class" atleastOneWhiteSpace searchTerm
 
 grepMacroSearchTerm :: !String -> String
-grepMacroSearchTerm searchTerm = concat5 lineStartsWith searchTerm atleastOneWhiteSpace anyAmountOfCharacters ":=="
-
+grepMacroSearchTerm searchTerm =
+	concat
+		[ lineStartsWith
+		, searchTerm
+		, "("
+		, atleastOneWhiteSpace
+		, anyAmountOfCharacters
+		, ":=="
+		, "|"
+		, ":=="
+		, ")"
+		]
 grepNewOrAbstractTypeSearchTerm :: !String -> String
 grepNewOrAbstractTypeSearchTerm searchTerm
 	= concat
@@ -1050,8 +1060,13 @@ grepNewOrAbstractTypeSearchTerm searchTerm
 		, maybeUniqOrCoercible
 		, anyAmountOfWhitespace
 		, searchTerm
+		, "("
+		, atleastOneWhiteSpace
 		, anyAmountOfCharacters
 		, "=:"
+		, "|"
+		, "=:"
+		, ")"
 		]
 
 grepTypeSynonymSearchTerm :: !String -> String
@@ -1064,8 +1079,13 @@ grepTypeSynonymSearchTerm searchTerm
 		, maybeUniqOrCoercible
 		, anyAmountOfWhitespace
 		, searchTerm
+		, "("
+		, atleastOneWhiteSpace
 		, anyAmountOfCharacters
 		, ":=="
+		, "|"
+		, ":=="
+		, ")"
 		]
 
 grepConstructorSearchTerm :: !String -> String
