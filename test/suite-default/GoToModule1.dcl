@@ -90,3 +90,7 @@ stdEnvFunc :: Bool
 
 :: NewType =: NewType Bool
 :: !*AbstractNewType (=: AbstractNewType Bool)
+
+:: User = FooUser
+
+:: UserList =: UserList Int

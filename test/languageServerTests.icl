@@ -191,6 +191,8 @@ properties =:
 		as "go to declaration of an abstract newtype is correctly handled"
 	, goToDeclarationOfRecordTypeInTypeSpecificationForRecordFieldCorrectlyHandledFor
 		as "go to declaration of a record field access type specification is correctly handled"
+	, goToDeclarationOfTypeDoesNotFindNewTypeWhenNameOfTypeIsInfixOfButDoesNotEqualNewTypeName
+		as "go to declaration of a type does not find a newtype when the type name is infix of the newtype name."
 	, goToDefinitionOfRecordFieldPrecededByBraceOnPreviousLineCorrectlyHandledFor
 		as "go to definition of record field preceded by { on the previous line is correctly handled"
 	, goToDefinitionOfRecordFieldPrecededByCommaOnPreviousLineCorrectlyHandledFor
@@ -1070,6 +1072,18 @@ goToDeclarationOfRecordTypeInTypeSpecificationForRecordFieldCorrectlyHandledFor 
 where
 	recordFieldTypeSpecificationPosition :: Position
 	recordFieldTypeSpecificationPosition = {line=uint 106, character=uint 37}
+
+goToDeclarationOfTypeDoesNotFindNewTypeWhenNameOfTypeIsInfixOfButDoesNotEqualNewTypeName :: Property
+goToDeclarationOfTypeDoesNotFindNewTypeWhenNameOfTypeIsInfixOfButDoesNotEqualNewTypeName =
+	goToTest
+		Declaration
+		SUITE_DEFAULT
+		FILE_GO_TO_DCL_1
+		typeDefPosition
+		[!(FILE_GO_TO_DCL_1, uint 93)!]
+where
+	typeDefPosition :: Position
+	typeDefPosition = {line=uint 93, character=uint 6}
 
 goToDefinitionOfRecordFieldPrecededByBraceOnPreviousLineCorrectlyHandledFor :: Property
 goToDefinitionOfRecordFieldPrecededByBraceOnPreviousLineCorrectlyHandledFor =
