@@ -22,6 +22,7 @@ import System.OS
 from System.Process import :: ProcessResult {..}, callProcessWithOutput
 import Text
 import Text.GenJSON
+import Text.Encodings.UrlEncoding
 import Text.URI
 import Text.YAML
 from Text.Unicode.UChar import isSymbol, :: UChar, instance fromChar UChar, instance toChar UChar, instance == UChar
@@ -769,7 +770,8 @@ where
 getLineOfDeclarationRequest
 	:: !RequestId !URI 'LSP.Position'.Position !*World -> (!MaybeError ResponseMessage String, !*World)
 getLineOfDeclarationRequest id uri position world
-	# (mbLines, world) = readFileLines uri.uriPath world
+	// Decode URL as clean expects filepaths that are not URL-encoded while LSP supplies URL encoded filepaths
+	# (mbLines, world) = readFileLines (urlDecode uri.uriPath) world
 	| isError mbLines =
 		('Data.Error'.Error $
 			errorResponse id ContentModified (concat3 "The file located at " uri.uriPath "was not found.")
@@ -1133,7 +1135,16 @@ isSpecialSymbol uc = IsMember uc specialSymbols
 
 fileAndLineToLocation :: !(!String, !Int) -> ?Location
 fileAndLineToLocation (filePath, lineNr)
-	# fileUri = parseURI $ "file://" </> filePath
+	# fileUri =
+		parseURI $ "file://" </>
+			replaceFileName
+				filePath
+				// The filename is URL encoded as this is expected by LSP.
+				(concat3
+					(urlEncode $ dropExtension $ takeFileName filePath)
+					extSeparatorString
+					(takeExtension filePath)
+				)
 	| isNone fileUri = ?None
 	= ?Just $
 		{ Location
@@ -1180,6 +1191,8 @@ diagnosticsFor ::
 	!TextDocumentIdentifier !EastwoodState !*World
 	-> (!MaybeError String ([!NotificationMessage], [!'LSP.PublishDiagnosticsParams'.PublishDiagnosticsParams]), !*World)
 diagnosticsFor {TextDocumentIdentifier| uri = uri=:{uriPath}} {EastwoodState|workspaceFolders} world
+	// Decode url since Clean expects filepaths that are not URL encoded while LSP supplies URL encoded filepaths.
+	# uriPath = urlDecode uriPath
 	# (mbCompilerSettingsConfig, world) = fetchConfig workspaceFolders world
 	| 'Data.Error'.isError mbCompilerSettingsConfig
 		= ('Data.Error'.Ok $ ([!errorLogMessage $ 'Data.Error'.fromError mbCompilerSettingsConfig], [!]), world)

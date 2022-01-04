@@ -12,12 +12,9 @@ import System.FilePath
 from Text import class Text(split), instance Text String, concat3, concat4
 
 resolveModuleName :: !FilePath ![FilePath] !*World -> (!MaybeError String String, !*World)
-resolveModuleName file searchPaths w =
-	appFst (check file searchPaths <=< scanHeader <=< mapError toString) $
-	readFile file w
-where
-	mapError f (Error e) = Error $ f e
-	mapError _ (Ok a) = Ok a
+resolveModuleName file searchPaths w
+	=	appFst (check file searchPaths <=< scanHeader <=< mapError toString) $
+		readFile file w
 
 // Perform a final check that the module name in the file matches the file name.
 check :: !FilePath ![FilePath] !String -> MaybeError String String
