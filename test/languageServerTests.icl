@@ -52,6 +52,7 @@ FILE_GO_TO_DCL_1 :== "GoToModule1.dcl"
 FILE_GO_TO_ICL_1 :== "GoToModule1.icl"
 FILE_GO_TO_DCL_2 :== "GoToModule2.dcl"
 FILE_GO_TO_ICL_2 :== "GoToModule2.icl"
+FILE_URL_ENCODED_MODULE_NAME_DCL :== "UrlEncodedModuleName%60.dcl"
 
 Start :: *World -> *World
 Start world = exposeProperties [OutputTestEvents] [Bent] properties world
@@ -193,6 +194,8 @@ properties =:
 		as "go to declaration of a record field access type specification is correctly handled"
 	, goToDeclarationOfTypeDoesNotFindNewTypeWhenNameOfTypeIsInfixOfButDoesNotEqualNewTypeName
 		as "go to declaration of a type does not find a newtype when the type name is infix of the newtype name."
+	, goToDeclarationOfTypeInModuleWithNameForWhichUrlEncodingAltersName
+		as "go to declaration of a type located within a module that has a name for which url encoding alters the name."
 	, goToDefinitionOfRecordFieldPrecededByBraceOnPreviousLineCorrectlyHandledFor
 		as "go to definition of record field preceded by { on the previous line is correctly handled"
 	, goToDefinitionOfRecordFieldPrecededByCommaOnPreviousLineCorrectlyHandledFor
@@ -569,7 +572,7 @@ where
 					}
 
 goToDeclarationOfTypeSingleResultIsCorrectlyHandledFor :: Property
-goToDeclarationOfTypeSingleResultIsCorrectlyHandledFor =
+goToDeclarationOfTypeSingleResultIsCorrectlyHandledFor =:
 	goToTest
 		Declaration
 		SUITE_DEFAULT
@@ -581,7 +584,7 @@ where
 	typeSingleResultPosition = {line=uint 6, character=uint 6}
 
 goToDeclarationOfTypeMultipleResultsIsCorrectlyHandledFor :: Property
-goToDeclarationOfTypeMultipleResultsIsCorrectlyHandledFor =
+goToDeclarationOfTypeMultipleResultsIsCorrectlyHandledFor =:
 	goToTest
 		Declaration
 		SUITE_DEFAULT
@@ -593,7 +596,7 @@ where
 	typeMultipleResultsPosition = {line=uint 4, character=uint 12}
 
 goToDeclarationOfFuncSingleResultIsCorrectlyHandledFor :: Property
-goToDeclarationOfFuncSingleResultIsCorrectlyHandledFor =
+goToDeclarationOfFuncSingleResultIsCorrectlyHandledFor =:
 	goToTest
 		Declaration
 		SUITE_DEFAULT
@@ -605,7 +608,7 @@ where
 	funcSingleResultPosition = {line=uint 8, character=uint 5}
 
 goToDeclarationOfFuncMultipleResultsIsCorrectlyHandledFor :: Property
-goToDeclarationOfFuncMultipleResultsIsCorrectlyHandledFor =
+goToDeclarationOfFuncMultipleResultsIsCorrectlyHandledFor =:
 	goToTest
 		Declaration
 		SUITE_DEFAULT
@@ -617,7 +620,7 @@ where
 	funcMultipleResultsPosition = {line=uint 6, character=uint 5}
 
 goToDeclarationOfInfixlFuncSingleResultIsCorrectlyHandledFor :: Property
-goToDeclarationOfInfixlFuncSingleResultIsCorrectlyHandledFor =
+goToDeclarationOfInfixlFuncSingleResultIsCorrectlyHandledFor =:
 	goToTest
 		Declaration
 		SUITE_DEFAULT
@@ -629,7 +632,7 @@ where
 	infixFuncSingleResultPosition = {line=uint 9, character = uint 56}
 
 goToDeclarationOfInfixrFuncSingleResultIsCorrectlyHandledFor :: Property
-goToDeclarationOfInfixrFuncSingleResultIsCorrectlyHandledFor =
+goToDeclarationOfInfixrFuncSingleResultIsCorrectlyHandledFor =:
 	goToTest
 		Declaration
 		SUITE_DEFAULT
@@ -641,7 +644,7 @@ where
 	infixrFuncSingleResultPosition = {line=uint 3, character = uint 36}
 
 goToDeclarationOfInfixFuncSingleResultIsCorrectlyHandledFor :: Property
-goToDeclarationOfInfixFuncSingleResultIsCorrectlyHandledFor =
+goToDeclarationOfInfixFuncSingleResultIsCorrectlyHandledFor =:
 	goToTest
 		Declaration
 		SUITE_DEFAULT
@@ -653,7 +656,7 @@ where
 	infixFuncSingleResultPosition = {line=uint 3, character = uint 27}
 
 goToDeclarationOfInfixlFuncMultipleResultsIsCorrectlyHandledFor :: Property
-goToDeclarationOfInfixlFuncMultipleResultsIsCorrectlyHandledFor =
+goToDeclarationOfInfixlFuncMultipleResultsIsCorrectlyHandledFor =:
 	goToTest
 		Declaration
 		SUITE_DEFAULT
@@ -665,7 +668,7 @@ where
 	infixFuncMultipleResultsPosition = {line=uint 6, character = uint 41}
 
 goToDeclarationOfInfixlFuncUsedPrefixSingleResultIsCorrectlyHandledFor :: Property
-goToDeclarationOfInfixlFuncUsedPrefixSingleResultIsCorrectlyHandledFor =
+goToDeclarationOfInfixlFuncUsedPrefixSingleResultIsCorrectlyHandledFor =:
 	goToTest
 		Declaration
 		SUITE_DEFAULT
@@ -677,7 +680,7 @@ where
 	infixFuncSingleResultPosition = {line=uint 9, character = uint 41}
 
 goToDeclarationOfInfixlFuncUsedPrefixMultipleResultsIsCorrectlyHandledFor :: Property
-goToDeclarationOfInfixlFuncUsedPrefixMultipleResultsIsCorrectlyHandledFor =
+goToDeclarationOfInfixlFuncUsedPrefixMultipleResultsIsCorrectlyHandledFor =:
 	goToTest
 		Declaration
 		SUITE_DEFAULT
@@ -689,7 +692,7 @@ where
 	infixFuncMultipleResultsPosition = {line=uint 6, character = uint 25}
 
 goToDeclarationOfFuncThatStartsWithUppercaseIsCorrectlyHandledFor :: Property
-goToDeclarationOfFuncThatStartsWithUppercaseIsCorrectlyHandledFor =
+goToDeclarationOfFuncThatStartsWithUppercaseIsCorrectlyHandledFor =:
 	goToTest
 		Declaration
 		SUITE_DEFAULT
@@ -701,7 +704,7 @@ where
 	funcThatStartsWithUppercasePosition = {line=uint 12, character=uint 6}
 
 goToDeclarationOfDeriveGenericFuncSingleResultIsCorrectlyHandledFor :: Property
-goToDeclarationOfDeriveGenericFuncSingleResultIsCorrectlyHandledFor =
+goToDeclarationOfDeriveGenericFuncSingleResultIsCorrectlyHandledFor =:
 	goToTest
 		Declaration
 		SUITE_DEFAULT
@@ -713,7 +716,7 @@ where
 	genericDeriveSingleResultPosition = {line=uint 14, character=uint 12}
 
 goToDeclarationOfDeriveGenericFuncMultipleResultsIsCorrectlyHandledFor :: Property
-goToDeclarationOfDeriveGenericFuncMultipleResultsIsCorrectlyHandledFor =
+goToDeclarationOfDeriveGenericFuncMultipleResultsIsCorrectlyHandledFor =:
 	goToTest
 		Declaration
 		SUITE_DEFAULT
@@ -725,7 +728,7 @@ where
 	genericDeriveMultipleResultsPosition = {line=uint 8, character=uint 12}
 
 goToDeclarationOfUsageOfMonoKindedGenericFuncSelectingKindSpecificationIsCorrectlyHandledFor :: Property
-goToDeclarationOfUsageOfMonoKindedGenericFuncSelectingKindSpecificationIsCorrectlyHandledFor =
+goToDeclarationOfUsageOfMonoKindedGenericFuncSelectingKindSpecificationIsCorrectlyHandledFor =:
 	goToTest
 		Declaration
 		SUITE_DEFAULT
@@ -739,7 +742,7 @@ where
 goToDeclarationOfUsageOfMonoKindedGenericFuncSelectingSpecialSyntaxSymbolOfKindSpecificationIsCorrectlyHandledFor
 	:: Property
 goToDeclarationOfUsageOfMonoKindedGenericFuncSelectingSpecialSyntaxSymbolOfKindSpecificationIsCorrectlyHandledFor
-	=	goToTest
+	=:	goToTest
 			Declaration
 			SUITE_DEFAULT
 			FILE_GO_TO_ICL_1
@@ -750,7 +753,7 @@ where
 	genericFuncUsagePosition = {line=uint 26, character=uint 34}
 
 goToDeclarationOfUsageOfHigherKindedGenericFuncSelectingKindSpecificationIsCorrectlyHandledFor :: Property
-goToDeclarationOfUsageOfHigherKindedGenericFuncSelectingKindSpecificationIsCorrectlyHandledFor =
+goToDeclarationOfUsageOfHigherKindedGenericFuncSelectingKindSpecificationIsCorrectlyHandledFor =:
 	goToTest
 		Declaration
 		SUITE_DEFAULT
@@ -764,7 +767,7 @@ where
 goToDeclarationOfUsageOfHigherKindedGenericFuncSelectingSpecialSyntaxSymbolWithinKindSpecificationIsCorrectlyHandledFor
 	:: Property
 goToDeclarationOfUsageOfHigherKindedGenericFuncSelectingSpecialSyntaxSymbolWithinKindSpecificationIsCorrectlyHandledFor
-	=	goToTest
+	=:	goToTest
 			Declaration
 			SUITE_DEFAULT
 			FILE_GO_TO_ICL_1
@@ -776,7 +779,7 @@ where
 
 
 goToDeclarationOfRecordFieldSingleResultIsCorrectlyHandledFor :: Property
-goToDeclarationOfRecordFieldSingleResultIsCorrectlyHandledFor =
+goToDeclarationOfRecordFieldSingleResultIsCorrectlyHandledFor =:
 	goToTest
 		Declaration
 		SUITE_DEFAULT
@@ -788,7 +791,7 @@ where
 	recordFieldSingleResultPosition = {line=uint 19, character=uint 6}
 
 goToDeclarationOfRecordFieldMultipleResultsIsCorrectlyHandledFor :: Property
-goToDeclarationOfRecordFieldMultipleResultsIsCorrectlyHandledFor =
+goToDeclarationOfRecordFieldMultipleResultsIsCorrectlyHandledFor =:
 	goToTest
 		Declaration
 		SUITE_DEFAULT
@@ -800,7 +803,7 @@ where
 	recordFieldMultipleResultsPosition = {line=uint 25, character=uint 6}
 
 goToDeclarationOfClassFuncSingleResultIsCorrectlyHandledFor :: Property
-goToDeclarationOfClassFuncSingleResultIsCorrectlyHandledFor =
+goToDeclarationOfClassFuncSingleResultIsCorrectlyHandledFor =:
 	goToTest
 		Declaration
 		SUITE_DEFAULT
@@ -812,7 +815,7 @@ where
 	classFuncSingleResultPosition = {line=uint 29, character = uint 6}
 
 goToDeclarationOfClassFuncMultipleResultsIsCorrectlyHandledFor :: Property
-goToDeclarationOfClassFuncMultipleResultsIsCorrectlyHandledFor =
+goToDeclarationOfClassFuncMultipleResultsIsCorrectlyHandledFor =:
 	goToTest
 		Declaration
 		SUITE_DEFAULT
@@ -824,7 +827,7 @@ where
 	classFuncMultipleResultsPosition = {line=uint 16, character = uint 6}
 
 goToDeclarationOfClassSingleResultIsCorrectlyHandledFor :: Property
-goToDeclarationOfClassSingleResultIsCorrectlyHandledFor =
+goToDeclarationOfClassSingleResultIsCorrectlyHandledFor =:
 	goToTest
 		Declaration
 		SUITE_DEFAULT
@@ -836,7 +839,7 @@ where
 	classSingleResultPosition = {line=uint 28, character=uint 12}
 
 goToDeclarationOfClassMultipleResultsIsCorrectlyHandledFor :: Property
-goToDeclarationOfClassMultipleResultsIsCorrectlyHandledFor =
+goToDeclarationOfClassMultipleResultsIsCorrectlyHandledFor =:
 	goToTest
 		Declaration
 		SUITE_DEFAULT
@@ -848,7 +851,7 @@ where
 	classMultipleResultsPosition = {line=uint 15, character=uint 12}
 
 goToDeclarationOfFirstConstructorSameLineAsTypeDefCorrectlyHandledFor :: Property
-goToDeclarationOfFirstConstructorSameLineAsTypeDefCorrectlyHandledFor =
+goToDeclarationOfFirstConstructorSameLineAsTypeDefCorrectlyHandledFor =:
 	goToTest
 		Declaration
 		SUITE_DEFAULT
@@ -860,7 +863,7 @@ where
 	constructorPosition = {line=uint 43, character=uint 39}
 
 goToDeclarationOfSecondConstructorSameLineAsTypeDefCorrectlyHandledFor :: Property
-goToDeclarationOfSecondConstructorSameLineAsTypeDefCorrectlyHandledFor =
+goToDeclarationOfSecondConstructorSameLineAsTypeDefCorrectlyHandledFor =:
 	goToTest
 		Declaration
 		SUITE_DEFAULT
@@ -872,7 +875,7 @@ where
 	constructorPosition = {line=uint 43, character=uint 47}
 
 goToDeclarationOfConstructorPrecededByPipeOnPreviousLineWithTypeDefCorrectlyHandledFor :: Property
-goToDeclarationOfConstructorPrecededByPipeOnPreviousLineWithTypeDefCorrectlyHandledFor =
+goToDeclarationOfConstructorPrecededByPipeOnPreviousLineWithTypeDefCorrectlyHandledFor =:
 	goToTest
 		Declaration
 		SUITE_DEFAULT
@@ -884,7 +887,7 @@ where
 	constructorPosition = {line=uint 44, character=uint 7}
 
 goToDeclarationOfConstructorPrecededByPipeOnPreviousLineWithoutTypeDefCorrectlyHandledFor :: Property
-goToDeclarationOfConstructorPrecededByPipeOnPreviousLineWithoutTypeDefCorrectlyHandledFor =
+goToDeclarationOfConstructorPrecededByPipeOnPreviousLineWithoutTypeDefCorrectlyHandledFor =:
 	goToTest
 		Declaration
 		SUITE_DEFAULT
@@ -896,7 +899,7 @@ where
 	constructorPosition = {line=uint 45, character=uint 7}
 
 goToDeclarationOfConstructorPrecededByPipeOnSameLineWithoutTypeDefCorrectlyHandledFor :: Property
-goToDeclarationOfConstructorPrecededByPipeOnSameLineWithoutTypeDefCorrectlyHandledFor =
+goToDeclarationOfConstructorPrecededByPipeOnSameLineWithoutTypeDefCorrectlyHandledFor =:
 	goToTest
 		Declaration
 		SUITE_DEFAULT
@@ -908,7 +911,7 @@ where
 	constructorPosition = {line=uint 46, character=uint 7}
 
 goToDeclarationOfConstructorWithArgsPrecededByPipeOnSameLineWithoutTypeDefCorrectlyHandledFor :: Property
-goToDeclarationOfConstructorWithArgsPrecededByPipeOnSameLineWithoutTypeDefCorrectlyHandledFor =
+goToDeclarationOfConstructorWithArgsPrecededByPipeOnSameLineWithoutTypeDefCorrectlyHandledFor =:
 	goToTest
 		Declaration
 		SUITE_DEFAULT
@@ -920,7 +923,7 @@ where
 	constructorPosition = {line=uint 47, character=uint 7}
 
 goToDeclarationOfConstructorWithArgsPrecededByOtherConstructorOnSameLineWithoutTypeDefCorrectlyHandledFor :: Property
-goToDeclarationOfConstructorWithArgsPrecededByOtherConstructorOnSameLineWithoutTypeDefCorrectlyHandledFor =
+goToDeclarationOfConstructorWithArgsPrecededByOtherConstructorOnSameLineWithoutTypeDefCorrectlyHandledFor =:
 	goToTest
 		Declaration
 		SUITE_DEFAULT
@@ -932,7 +935,7 @@ where
 	constructorPosition = {line=uint 47, character=uint 30}
 
 goToDeclarationOfConstructorPrecededByEqualsOnSameLineWithoutTypeDefCorrectlyHandledFor :: Property
-goToDeclarationOfConstructorPrecededByEqualsOnSameLineWithoutTypeDefCorrectlyHandledFor =
+goToDeclarationOfConstructorPrecededByEqualsOnSameLineWithoutTypeDefCorrectlyHandledFor =:
 	goToTest
 		Declaration
 		SUITE_DEFAULT
@@ -944,7 +947,7 @@ where
 	constructorPosition = {line=uint 50, character=uint 10}
 
 goToDeclarationOfConstructorPrecededByEqualsOnPreviousLineWithTypeDefCorrectlyHandledFor :: Property
-goToDeclarationOfConstructorPrecededByEqualsOnPreviousLineWithTypeDefCorrectlyHandledFor =
+goToDeclarationOfConstructorPrecededByEqualsOnPreviousLineWithTypeDefCorrectlyHandledFor =:
 	goToTest
 		Declaration
 		SUITE_DEFAULT
@@ -956,7 +959,7 @@ where
 	constructorPosition = {line=uint 53, character=uint 7}
 
 goToDeclarationOfMacroWithArgsCorrectlyHandledFor :: Property
-goToDeclarationOfMacroWithArgsCorrectlyHandledFor =
+goToDeclarationOfMacroWithArgsCorrectlyHandledFor =:
 	goToTest
 		Declaration
 		SUITE_DEFAULT
@@ -968,7 +971,7 @@ where
 	macroPosition = {line=uint 81, character=uint 7}
 
 goToDeclarationOfMacroWithoutArgsCorrectlyHandledFor :: Property
-goToDeclarationOfMacroWithoutArgsCorrectlyHandledFor =
+goToDeclarationOfMacroWithoutArgsCorrectlyHandledFor =:
 	goToTest
 		Declaration
 		SUITE_DEFAULT
@@ -980,7 +983,7 @@ where
 	macroPosition = {line=uint 83, character=uint 5}
 
 goToDeclarationOfStdEnvFuncWhenLibraryIsPartOfConfig :: Property
-goToDeclarationOfStdEnvFuncWhenLibraryIsPartOfConfig =
+goToDeclarationOfStdEnvFuncWhenLibraryIsPartOfConfig =:
 	accUnsafe \w
 	# (currentDirectory, w) = appFst fromOk $ getCurrentDirectory w
 	# (cleanHomePath, w) = appFst fromJust $ getEnvironmentVariable CLEAN_HOME_ENV_VAR w
@@ -997,7 +1000,7 @@ where
 	stdEnvFuncPosition = {line=uint 64, character=uint 15}
 
 goToDeclarationOfStdEnvFuncWhenLibraryIsMissingInConfig :: Property
-goToDeclarationOfStdEnvFuncWhenLibraryIsMissingInConfig =
+goToDeclarationOfStdEnvFuncWhenLibraryIsMissingInConfig =:
 	accUnsafe \w
 	# (currentDirectory, w) = appFst fromOk $ getCurrentDirectory w
 	# (cleanHomePath, w) = appFst fromJust $ getEnvironmentVariable CLEAN_HOME_ENV_VAR w
@@ -1014,7 +1017,7 @@ where
 	stdEnvFuncPosition = {line=uint 5, character=uint 15}
 
 goToDeclarationOfTypeSynonymCorrectlyHandledFor :: Property
-goToDeclarationOfTypeSynonymCorrectlyHandledFor =
+goToDeclarationOfTypeSynonymCorrectlyHandledFor =:
 	goToTest
 		Declaration
 		SUITE_DEFAULT
@@ -1026,7 +1029,7 @@ where
 	typeSynonymPosition = {line=uint 87, character=uint 10}
 
 goToDeclarationOfAbstractTypeSynonymCorrectlyHandledFor :: Property
-goToDeclarationOfAbstractTypeSynonymCorrectlyHandledFor =
+goToDeclarationOfAbstractTypeSynonymCorrectlyHandledFor =:
 	goToTest
 		Declaration
 		SUITE_DEFAULT
@@ -1038,7 +1041,7 @@ where
 	typeSynonymPosition = {line=uint 88, character=uint 10}
 
 goToDeclarationOfNewTypeCorrectlyHandledFor :: Property
-goToDeclarationOfNewTypeCorrectlyHandledFor =
+goToDeclarationOfNewTypeCorrectlyHandledFor =:
 	goToTest
 		Declaration
 		SUITE_DEFAULT
@@ -1050,7 +1053,7 @@ where
 	newtypePosition = {line=uint 90, character=uint 8}
 
 goToDeclarationOfAbstractNewTypeCorrectlyHandledFor :: Property
-goToDeclarationOfAbstractNewTypeCorrectlyHandledFor =
+goToDeclarationOfAbstractNewTypeCorrectlyHandledFor =:
 	goToTest
 		Declaration
 		SUITE_DEFAULT
@@ -1062,7 +1065,7 @@ where
 	newtypePosition = {line=uint 91, character=uint 8}
 
 goToDeclarationOfRecordTypeInTypeSpecificationForRecordFieldCorrectlyHandledFor :: Property
-goToDeclarationOfRecordTypeInTypeSpecificationForRecordFieldCorrectlyHandledFor =
+goToDeclarationOfRecordTypeInTypeSpecificationForRecordFieldCorrectlyHandledFor =:
 	goToTest
 		Declaration
 		SUITE_DEFAULT
@@ -1074,7 +1077,7 @@ where
 	recordFieldTypeSpecificationPosition = {line=uint 106, character=uint 37}
 
 goToDeclarationOfTypeDoesNotFindNewTypeWhenNameOfTypeIsInfixOfButDoesNotEqualNewTypeName :: Property
-goToDeclarationOfTypeDoesNotFindNewTypeWhenNameOfTypeIsInfixOfButDoesNotEqualNewTypeName =
+goToDeclarationOfTypeDoesNotFindNewTypeWhenNameOfTypeIsInfixOfButDoesNotEqualNewTypeName =:
 	goToTest
 		Declaration
 		SUITE_DEFAULT
@@ -1085,8 +1088,20 @@ where
 	typeDefPosition :: Position
 	typeDefPosition = {line=uint 93, character=uint 6}
 
+goToDeclarationOfTypeInModuleWithNameForWhichUrlEncodingAltersName :: Property
+goToDeclarationOfTypeInModuleWithNameForWhichUrlEncodingAltersName =:
+	goToTest
+		Declaration
+		SUITE_DEFAULT
+		FILE_URL_ENCODED_MODULE_NAME_DCL
+		typeDefPosition
+		[!(FILE_URL_ENCODED_MODULE_NAME_DCL, uint 2)!]
+where
+	typeDefPosition :: Position
+	typeDefPosition = {line=uint 2, character=uint 7}
+
 goToDefinitionOfRecordFieldPrecededByBraceOnPreviousLineCorrectlyHandledFor :: Property
-goToDefinitionOfRecordFieldPrecededByBraceOnPreviousLineCorrectlyHandledFor =
+goToDefinitionOfRecordFieldPrecededByBraceOnPreviousLineCorrectlyHandledFor =:
 	goToTest
 		Definition
 		SUITE_DEFAULT
@@ -1098,7 +1113,7 @@ where
 	recordFieldPosition = {line=uint 71, character=uint 13}
 
 goToDefinitionOfRecordFieldPrecededByCommaOnPreviousLineCorrectlyHandledFor :: Property
-goToDefinitionOfRecordFieldPrecededByCommaOnPreviousLineCorrectlyHandledFor =
+goToDefinitionOfRecordFieldPrecededByCommaOnPreviousLineCorrectlyHandledFor =:
 	goToTest
 		Definition
 		SUITE_DEFAULT
@@ -1110,7 +1125,7 @@ where
 	recordFieldPosition = {line=uint 72, character=uint 13}
 
 goToDefinitionOfRecordFieldPrecededByCommaOnSameLineCorrectlyHandledFor :: Property
-goToDefinitionOfRecordFieldPrecededByCommaOnSameLineCorrectlyHandledFor =
+goToDefinitionOfRecordFieldPrecededByCommaOnSameLineCorrectlyHandledFor =:
 	goToTest
 		Definition
 		SUITE_DEFAULT
@@ -1122,7 +1137,7 @@ where
 	recordFieldPosition = {line=uint 73, character=uint 13}
 
 goToDefinitionOfRecordFieldPrecededByBraceAndRecordDefinitionOnSameLineCorrectlyHandledFor :: Property
-goToDefinitionOfRecordFieldPrecededByBraceAndRecordDefinitionOnSameLineCorrectlyHandledFor =
+goToDefinitionOfRecordFieldPrecededByBraceAndRecordDefinitionOnSameLineCorrectlyHandledFor =:
 	goToTest
 		Definition
 		SUITE_DEFAULT
@@ -1134,7 +1149,7 @@ where
 	recordFieldPosition = {line=uint 76, character=uint 25}
 
 goToDefinitionOfRecordFieldPrecededByCommaAndRecordDefinitionOnSameLineCorrectlyHandledFor :: Property
-goToDefinitionOfRecordFieldPrecededByCommaAndRecordDefinitionOnSameLineCorrectlyHandledFor =
+goToDefinitionOfRecordFieldPrecededByCommaAndRecordDefinitionOnSameLineCorrectlyHandledFor =:
 	goToTest
 		Definition
 		SUITE_DEFAULT
@@ -1148,7 +1163,7 @@ where
 goToDefinitionStopParsingSymbolsOfPrefixFunctionWhenSearchTermDoesNotContainGenericKindSpecificationCorrectlyRemovedFor
 	:: Property
 goToDefinitionStopParsingSymbolsOfPrefixFunctionWhenSearchTermDoesNotContainGenericKindSpecificationCorrectlyRemovedFor
-	=
+	=:
 		goToTest
 			Definition
 			SUITE_DEFAULT
@@ -1160,7 +1175,7 @@ where
 	recordFieldPosition = {line=uint 79, character=uint 34}
 
 goToDefinitionOfTypeAlsoDefinedInOtherIclCorrectlyHandledFor :: Property
-goToDefinitionOfTypeAlsoDefinedInOtherIclCorrectlyHandledFor =
+goToDefinitionOfTypeAlsoDefinedInOtherIclCorrectlyHandledFor =:
 	goToTest
 		Definition
 		SUITE_DEFAULT
@@ -1172,7 +1187,7 @@ where
 	typePosition = {line=uint 76, character=uint 10}
 
 goToDefinitionOfGenericCorrectlyHandledFor :: Property
-goToDefinitionOfGenericCorrectlyHandledFor =
+goToDefinitionOfGenericCorrectlyHandledFor =:
 	goToTest
 		Definition
 		SUITE_DEFAULT
@@ -1184,7 +1199,7 @@ where
 	genericPosition = {line=uint 34, character=uint 11}
 
 goToDefinitionOfNewtypeCorrectlyHandledFor :: Property
-goToDefinitionOfNewtypeCorrectlyHandledFor =
+goToDefinitionOfNewtypeCorrectlyHandledFor =:
 	goToTest
 		Definition
 		SUITE_DEFAULT
@@ -1196,7 +1211,7 @@ where
 	newtypePosition = {line=uint 82, character=uint 8}
 
 goToDefinitionOfMacroCorrectlyHandledFor :: Property
-goToDefinitionOfMacroCorrectlyHandledFor =
+goToDefinitionOfMacroCorrectlyHandledFor =:
 	goToTest
 		Definition
 		SUITE_DEFAULT
@@ -1208,7 +1223,7 @@ where
 	macroPosition = {line=uint 84, character=uint 1}
 
 goToDefinitionOfTypeSynonymCorrectlyHandledFor :: Property
-goToDefinitionOfTypeSynonymCorrectlyHandledFor =
+goToDefinitionOfTypeSynonymCorrectlyHandledFor =:
 	goToTest
 		Definition
 		SUITE_DEFAULT
@@ -1220,7 +1235,7 @@ where
 	typeSynonymPosition = {line=uint 86, character=uint 8}
 
 goToDefinitionOfClassCorrectlyHandledFor :: Property
-goToDefinitionOfClassCorrectlyHandledFor =
+goToDefinitionOfClassCorrectlyHandledFor =:
 	goToTest
 		Definition
 		SUITE_DEFAULT
@@ -1232,7 +1247,7 @@ where
 	classPosition = {line=uint 88, character=uint 11}
 
 goToDefinitionOfClassSingleFunctionSyntaxCorrectlyHandledFor :: Property
-goToDefinitionOfClassSingleFunctionSyntaxCorrectlyHandledFor =
+goToDefinitionOfClassSingleFunctionSyntaxCorrectlyHandledFor =:
 	goToTest
 		Definition
 		SUITE_DEFAULT
@@ -1244,7 +1259,7 @@ where
 	classPosition = {line=uint 91, character=uint 11}
 
 goToDefinitionOfConstructorPrecededByTypeDefCorrectlyHandledFor :: Property
-goToDefinitionOfConstructorPrecededByTypeDefCorrectlyHandledFor =
+goToDefinitionOfConstructorPrecededByTypeDefCorrectlyHandledFor =:
 	goToTest
 		Definition
 		SUITE_DEFAULT
@@ -1256,7 +1271,7 @@ where
 	constructorPosition = {line=uint 93, character=uint 34}
 
 goToDefinitionOfConstructorPrecededByTypeDefAndOtherConstructorCorrectlyHandledFor :: Property
-goToDefinitionOfConstructorPrecededByTypeDefAndOtherConstructorCorrectlyHandledFor =
+goToDefinitionOfConstructorPrecededByTypeDefAndOtherConstructorCorrectlyHandledFor =:
 	goToTest
 		Definition
 		SUITE_DEFAULT
@@ -1268,7 +1283,7 @@ where
 	constructorPosition = {line=uint 93, character=uint 47}
 
 goToDefinitionOfConstructorPrecededByTypeDefAndPipeOnPreviousLineCorrectlyHandledFor :: Property
-goToDefinitionOfConstructorPrecededByTypeDefAndPipeOnPreviousLineCorrectlyHandledFor =
+goToDefinitionOfConstructorPrecededByTypeDefAndPipeOnPreviousLineCorrectlyHandledFor =:
 	goToTest
 		Definition
 		SUITE_DEFAULT
@@ -1280,7 +1295,7 @@ where
 	constructorPosition = {line=uint 94, character=uint 8}
 
 goToDefinitionOfConstructorPrecededByPipeOnPreviousLineCorrectlyHandledFor :: Property
-goToDefinitionOfConstructorPrecededByPipeOnPreviousLineCorrectlyHandledFor =
+goToDefinitionOfConstructorPrecededByPipeOnPreviousLineCorrectlyHandledFor =:
 	goToTest
 		Definition
 		SUITE_DEFAULT
@@ -1292,7 +1307,7 @@ where
 	constructorPosition = {line=uint 95, character=uint 8}
 
 goToDefinitionOfConstructorPrecededByPipeOnSameLineCorrectlyHandledFor :: Property
-goToDefinitionOfConstructorPrecededByPipeOnSameLineCorrectlyHandledFor =
+goToDefinitionOfConstructorPrecededByPipeOnSameLineCorrectlyHandledFor =:
 	goToTest
 		Definition
 		SUITE_DEFAULT
@@ -1304,7 +1319,7 @@ where
 	constructorPosition = {line=uint 96, character=uint 8}
 
 goToDefinitionOfConstructorWithArgsPrecededByPipeOnSameLineCorrectlyHandledFor :: Property
-goToDefinitionOfConstructorWithArgsPrecededByPipeOnSameLineCorrectlyHandledFor =
+goToDefinitionOfConstructorWithArgsPrecededByPipeOnSameLineCorrectlyHandledFor =:
 	goToTest
 		Definition
 		SUITE_DEFAULT
@@ -1316,7 +1331,7 @@ where
 	constructorPosition = {line=uint 97, character=uint 8}
 
 goToDefinitionOfConstructorWithArgsPrecededByPipeAndOtherConstructorOnSameLineCorrectlyHandledFor :: Property
-goToDefinitionOfConstructorWithArgsPrecededByPipeAndOtherConstructorOnSameLineCorrectlyHandledFor =
+goToDefinitionOfConstructorWithArgsPrecededByPipeAndOtherConstructorOnSameLineCorrectlyHandledFor =:
 	goToTest
 		Definition
 		SUITE_DEFAULT
@@ -1328,7 +1343,7 @@ where
 	constructorPosition = {line=uint 97, character=uint 36}
 
 goToDefinitionOfConstructorPrecededByEqualsOnSameLineCorrectlyHandledFor :: Property
-goToDefinitionOfConstructorPrecededByEqualsOnSameLineCorrectlyHandledFor =
+goToDefinitionOfConstructorPrecededByEqualsOnSameLineCorrectlyHandledFor =:
 	goToTest
 		Definition
 		SUITE_DEFAULT
@@ -1340,7 +1355,7 @@ where
 	constructorPosition = {line=uint 100, character=uint 8}
 
 goToDefinitionOfConstructorPrecededByEqualsOnPreviousLineCorrectlyHandledFor :: Property
-goToDefinitionOfConstructorPrecededByEqualsOnPreviousLineCorrectlyHandledFor =
+goToDefinitionOfConstructorPrecededByEqualsOnPreviousLineCorrectlyHandledFor =:
 	goToTest
 		Definition
 		SUITE_DEFAULT
