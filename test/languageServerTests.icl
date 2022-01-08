@@ -1169,7 +1169,7 @@ goToDefinitionStopParsingSymbolsOfPrefixFunctionWhenSearchTermDoesNotContainGene
 			SUITE_DEFAULT
 			FILE_GO_TO_ICL_1
 			recordFieldPosition
-			[!(FILE_GO_TO_ICL_1, uint 79), (FILE_GO_TO_ICL_1, uint 80)!]
+			[!(FILE_GO_TO_ICL_1, uint 78)!]
 where
 	recordFieldPosition :: Position
 	recordFieldPosition = {line=uint 79, character=uint 34}

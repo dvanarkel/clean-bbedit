@@ -404,7 +404,7 @@ onGotoDefinition req=:{RequestMessage|id, params = ?Just json} st world
 	// There is a special search term for finding record fields in .icl files that are preceded by
 	// { or , on the previous line.
 	# {	generalSearchTerm , ctorPrecededByPipeOrEqualsOnPrecedingLineSearchTerm
-		, requestFileSearchTerm, fieldPrecededByBraceOrCommaOnPrecedingLineSearchTerm}
+		, requestFileSearchTerm, requestFileFuncDefSearchTerm, requestFileFuncDefWithoutTypeAnnotationSearchTerm}
 		= fromOk mbSearchTerms
 	// Call grep using the regular (non special constructor case) search term to find the matching declarations.
 	// -P enables perl regexp, -r recurses through all files, -n gives line number, -H includes file name.
@@ -492,37 +492,70 @@ onGotoDefinition req=:{RequestMessage|id, params = ?Just json} st world
 				# {stdout} = fromOk mbGrepResultLocalSearchTerm
 				= (Ok $ ?Just stdout, world)
 	| isError mbStdoutLocalSearchTerm = (fromError mbStdoutLocalSearchTerm, st, world)
-	// Extra search term to detect record fields preceded by a , or { on the previous line.
-	# (mbStdoutLocalRecordFieldSearchTerm, world) =
+	// The stdout for the file from which the request was made
+	// Tries to find a type annotated func definition in the .icl
+	# (mbStdoutLocalFuncSearchTerm, world) =
 		case requestMadeFromIcl of
 			False = (Ok ?None, world)
 			True
-				# (mbGrepResultLocalRecordFieldSearchTerm, world)
+				# (mbGrepResultLocalFuncSearchTerm, world)
 					= callProcessWithOutput
 						"grep"
 						(
-							[ "-P", fieldPrecededByBraceOrCommaOnPrecedingLineSearchTerm
-							// -B 1 also selects the previous line.
-							, "-B", "1"
+							[ "-P", requestFileFuncDefSearchTerm
 							, "-r"
 							, "-n"
 							, "-H"
 							, "-w"
-							, "--include", "*.icl"
-							, rootPath
-							] ++ cleanHomeLibs
+							// Only apply this search term to the .icl file from which the request is made,
+							// if applicable.
+							, "--include", requestFileBaseName +++ ".icl"
+							, requestPath
+							]
 						)
 						?None
 						world
-				| isError mbGrepResultLocalRecordFieldSearchTerm
+				| isError mbGrepResultLocalFuncSearchTerm
 					=
 						('Data.Error'.Error
 							$ errorResponse id InternalError "grep failed when searching for type definitions."
 					 	, world
 						)
-				# {stdout} = fromOk mbGrepResultLocalRecordFieldSearchTerm
+				# {stdout} = fromOk mbGrepResultLocalFuncSearchTerm
 				= (Ok $ ?Just stdout, world)
-	| isError mbStdoutLocalRecordFieldSearchTerm = (fromError mbStdoutLocalSearchTerm, st, world)
+	| isError mbStdoutLocalFuncSearchTerm = (fromError mbStdoutLocalFuncSearchTerm, st, world)
+	# (mbStdoutLocalNonTypeAnnotedFuncSearchTerm, world) =
+		// If the request was not made from a .icl or we found a type annotated function in the .icl we do not search.
+		case requestMadeFromIcl && mbStdoutLocalFuncSearchTerm =: (Ok (?Just "")) of
+			False = (Ok ?None, world)
+			True
+				# (mbGrepResultLocalFuncSearchTerm, world)
+					= callProcessWithOutput
+						"grep"
+						(
+							[ "-P", requestFileFuncDefWithoutTypeAnnotationSearchTerm
+							, "-r"
+							, "-n"
+							, "-H"
+							, "-w"
+							// Only apply this search term to the .icl file from which the request is made,
+							// if applicable.
+							, "--include", requestFileBaseName +++ ".icl"
+							, requestPath
+							]
+						)
+						?None
+						world
+				| isError mbGrepResultLocalFuncSearchTerm
+					=
+						('Data.Error'.Error
+							$ errorResponse id InternalError "grep failed when searching for type definitions."
+					 	, world
+						)
+				# {stdout} = fromOk mbGrepResultLocalFuncSearchTerm
+				= (Ok $ ?Just stdout, world)
+	| isError mbStdoutLocalNonTypeAnnotedFuncSearchTerm =
+		(fromError mbStdoutLocalNonTypeAnnotedFuncSearchTerm, st, world)
 	// List of lists of string containing the results, grep separates file name/line number by : and results by \n.
 	// grep adds an empty newline at the end of the results which is removed by init.
 	// The first two results are the file name and line number.
@@ -555,20 +588,23 @@ onGotoDefinition req=:{RequestMessage|id, params = ?Just json} st world
 			)
 			(fromOk mbStdoutLocalSearchTerm)
 		++
-		// This case is the same as stdoutSpecialConstructorCase, with a different search term and a different
-		// predicate for which characters should be on the previous line.
 		maybe
 			[]
-			(\stdoutLocalRecordFieldSearchTerm ->
-				(	(\[lineNr:fileName] ->([(join "-" $ reverse $ fileName, toInt lineNr + 1)]))
-						o drop 1 o reverse o split "-"
-					<$>
-					(filterPreviousLineEndsWith [!'{', ',' ] $ replaceSubString "->" ""
-						<$> (init $ split "\n" stdoutLocalRecordFieldSearchTerm)
-					)
+			(\stdoutLocalFuncSearchTerm ->
+				(	(\[fileName, lineNr] -> ([(fileName, toInt lineNr)])) o take 2 o split ":" <$>
+						(init $ split "\n" stdoutLocalFuncSearchTerm)
 				)
 			)
-			(fromOk mbStdoutLocalRecordFieldSearchTerm)
+			(fromOk mbStdoutLocalFuncSearchTerm)
+		++
+		maybe
+			[]
+			(\stdoutLocalNonTypeAnnotatedFuncSearchTerm ->
+				(	(\[fileName, lineNr] -> ([(fileName, toInt lineNr)])) o take 2 o split ":" <$>
+						(init $ split "\n" stdoutLocalNonTypeAnnotatedFuncSearchTerm)
+				)
+			)
+			(fromOk mbStdoutLocalNonTypeAnnotedFuncSearchTerm)
 	// For every tuple of fileName and lineNumber, a Location is generated to be sent back to the client.
 	# locations = [! l \\ l <- catMaybes $ fileAndLineToLocation <$> flatten results !]
 	= (locationResponse id locations, st, world)
@@ -630,14 +666,12 @@ where
 				{ generalSearchTerm = concat3 commonGrepTerms "|" (grepFuncSearchTerm searchTerm)
 				, ctorPrecededByPipeOrEqualsOnPrecedingLineSearchTerm =
 					grepConstructorSearchTermSpecialCase searchTerm
-				, requestFileSearchTerm = concat5
+				, requestFileSearchTerm =
 					commonGrepTerms
-					"|"
-					(grepLocalFuncSearchTerm searchTerm)
-					"|"
-					(grepLocalRecordFieldSearchTerm searchTerm)
-				, fieldPrecededByBraceOrCommaOnPrecedingLineSearchTerm
-					= grepLocalRecordFieldSearchTermCommaOrBraceOnPrecedingLine searchTerm
+					// "|"
+					// (grepLocalRecordFieldSearchTerm searchTerm)
+				, requestFileFuncDefSearchTerm = grepFuncSearchTerm searchTerm
+				, requestFileFuncDefWithoutTypeAnnotationSearchTerm = grepNoTypeAnnotationFuncSearchTerm searchTerm
 				}
 		= 'Data.Error'.Error $
 			errorResponse
@@ -655,9 +689,17 @@ where
 	, requestFileSearchTerm :: !String
 		//* The search term applied to the .icl from which the request was made if applicable.
 		//* Used to find local definitions.
-	, fieldPrecededByBraceOrCommaOnPrecedingLineSearchTerm :: !String
-		//* Used to find record fields in the .icl file from which a request was made that are preceded by
-		//* { or , on the preceding line.
+	, requestFileFuncDefSearchTerm :: !String
+		//* The search term applied to the .icl from which the request was made if applicable.
+		//* Used to find function definitions within the local file. Separate search term to only look for
+		//* For func definitions without a type annotation if no function with a type definition could be found.
+	, requestFileFuncDefWithoutTypeAnnotationSearchTerm :: !String
+		//* The search term applied to the .icl from which the request was made if applicable.
+		//* Used to find func definitions within the local file.
+		//* Only used if no function with a type definition could be found.
+	// , fieldPrecededByBraceOrCommaOnPrecedingLineSearchTerm :: !String
+	// 	//* Used to find record fields in the .icl file from which a request was made that are preceded by
+	// 	//* { or , on the preceding line.
 	}
 
 :: GotoPrerequisites =
@@ -821,10 +863,10 @@ removeUnwantedSymbolsFromSearchTerm searchTerm =
 	}
 
 /**
- * This function is used to check the previous lines included in a grep result ending on a provided symbol
+ * This function is used to check the surrounding lines included in a grep result ending on a provided symbol
  * (possibly followed by whitespace)
  *
- * @param The symbols which the previous lines should end with.
+ * @param The symbols which the surrounding lines should end with.
  * @param The lines to check
  * @result The resulting lines.
  */
@@ -842,7 +884,9 @@ filterPreviousLineEndsWith symbols lines =
 				// We already filter out function arrows -> before this function is evaluated.
 				// This filter has problems when - or : are added as comments in the same line as the previous line
 				// of the constructor, this can be the case due to comments.
-				-> if (lastLineNumberSeparator == -1) False (if (indexOf ":" line == -1) True (lastLineNumberSeparator <= firstColon - 1))
+				-> if (lastLineNumberSeparator == -1)
+					False
+					(if (indexOf ":" line == -1) True (lastLineNumberSeparator <= firstColon - 1))
 			)
 			lines
 	| hasSymbolsAtEndOfLine symbols previousLine
@@ -967,8 +1011,8 @@ grepFuncSearchTerm searchTerm =
 
 //* The grep func definition search pattern is adjusted based on
 //* whether an infix function or a prefix function was parsed.
-grepLocalFuncSearchTerm :: !String -> String
-grepLocalFuncSearchTerm searchTerm
+grepNoTypeAnnotationFuncSearchTerm :: !String -> String
+grepNoTypeAnnotationFuncSearchTerm searchTerm
 	# maybeLetSymbol = "#?"
 	=
 		if (isInfix searchTerm)
@@ -992,46 +1036,11 @@ grepLocalFuncSearchTerm searchTerm
 				, searchTerm
 				, atleastOneWhiteSpace
 				, anyAmountOfCharacters
+				// Not preceded by :, := or = (so macros are not found)
+				, "(?<!:|:=|=)"
 				, "="
 				]
 			)
-
-//* This search term does not deal with the case where the record field is preceded by , or { on the previous line.
-grepLocalRecordFieldSearchTerm :: !String -> String
-grepLocalRecordFieldSearchTerm searchTerm =
-	(concat
-		[ lineStartsWith
-		, anyAmountOfWhitespace
-		, "("
-		, ","
-		, "|" // OR.
-		, "\\{"
-		, "|" // OR.
-		, "::"
-		, anyAmountOfCharacters
-		, "="
-		, anyAmountOfWhitespace
-		, "{"
-		, anyAmountOfCharacters
-		, ")"
-		, anyAmountOfWhitespace
-		, searchTerm
-		, anyAmountOfCharacters
-		, "::"
-		]
-	)
-
-grepLocalRecordFieldSearchTermCommaOrBraceOnPrecedingLine :: !String -> String
-grepLocalRecordFieldSearchTermCommaOrBraceOnPrecedingLine searchTerm =
-	(concat
-		[ lineStartsWith
-		, anyAmountOfWhitespace
-		, searchTerm
-		, atleastOneWhiteSpace
-		, anyAmountOfCharacters
-		, "::"
-		]
-	)
 
 grepGenericSearchTerm :: !String -> String
 grepGenericSearchTerm searchTerm = concat4 lineStartsWith "generic" atleastOneWhiteSpace searchTerm
