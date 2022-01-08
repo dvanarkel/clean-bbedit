@@ -315,7 +315,13 @@ onGotoDeclaration req=:{RequestMessage|id} st world
 		// concatenated form the filename, this does not account for the match containing -.
 		// So if the constructor definition itself contains hyphens in comments this breaks.
 		(	(\[lineNr:fileName] -> ([(join "-" $ reverse $ fileName, toInt lineNr + 1)])) o drop 1 o reverse o split "-"
-				<$> (filterPreviousLineEndsWith [!'=', '|'] $ init $ split "\n" stdoutSpecialConstructorCase)
+			<$>
+			(filterSurroundingLinesForPredUntilStopSymbol
+				(flip IsMember whitespaceChars)
+				[!'=', '|']
+				True
+				(init $ split "\n" stdoutSpecialConstructorCase)
+			)
 		)
 	// For every tuple of fileName and lineNumber, a Location is generated to be sent back to the client.
 	# locations = [! l \\ l <- catMaybes $ fileAndLineToLocation <$> flatten results !]
@@ -573,9 +579,15 @@ onGotoDefinition req=:{RequestMessage|id, params = ?Just json} st world
 		// concatenated form the filename, this does not account for the match containing -.
 		// So if the constructor definition itself contains hyphens in comments this breaks.
 		(
-			  (\[lineNr:fileName] -> ([(join "-" $ reverse $ fileName, toInt lineNr + 1)]))
-			  	o drop 1 o reverse o split "-"
-				<$> (filterPreviousLineEndsWith [!'=', '|'] $ init $ split "\n" stdoutSpecialConstructorCase)
+			(\[lineNr:fileName] -> ([(join "-" $ reverse $ fileName, toInt lineNr + 1)]))
+			o drop 1 o reverse o split "-"
+			<$>
+			(filterSurroundingLinesForPredUntilStopSymbol
+				(flip IsMember whitespaceChars)
+				[!'=', '|']
+				True
+				(init $ split "\n" stdoutSpecialConstructorCase)
+			)
 		)
 		++
 		// This case is the same as for stdoutRegSearchTerm, with a different search term.
@@ -866,14 +878,17 @@ removeUnwantedSymbolsFromSearchTerm searchTerm =
  * This function is used to check the surrounding lines included in a grep result ending on a provided symbol
  * (possibly followed by whitespace)
  *
- * @param The symbols which the surrounding lines should end with.
+ * @param The predicate that should hold for the characters that are found before finding a stop symbol.
+ * @param The stop symbols which should lead to short circuiting as the symbol which is searched for is found.
+ * @param Whether the line should be reversed (check for stop symbol reading from end of line to front)
  * @param The lines to check
- * @result The resulting lines.
+ * @result The resulting lines that pass the filter.
  */
-filterPreviousLineEndsWith :: ![!Char] ![String] -> [String]
-filterPreviousLineEndsWith symbols lines =
-	[previousLine
-	\\ previousLine
+filterSurroundingLinesForPredUntilStopSymbol :: !(Char -> Bool) ![!Char] !Bool ![String] -> [String]
+filterSurroundingLinesForPredUntilStopSymbol pred stopSymbols filterInReverse lines =
+	[surroundingLine
+	\\ surroundingLine
+		// Filter to only find the surrounding lines, not the grep result itself.
 		<- filter
 			(\line
 				# lastLineNumberSeparator = indexOfLastHyphenLineNumberSeperator line
@@ -889,20 +904,20 @@ filterPreviousLineEndsWith symbols lines =
 					(if (indexOf ":" line == -1) True (lastLineNumberSeparator <= firstColon - 1))
 			)
 			lines
-	| hasSymbolsAtEndOfLine symbols previousLine
+	// For the surrounding lines, the pred should hold until the stop symbol is found.
+	// TODO: once the pred holds, short circuit instead of going through more surrounding lines.
+	| predHoldsUntilStopSymbolIsFound pred stopSymbols filterInReverse surroundingLine
 	]
 where
-	hasSymbolsAtEndOfLine :: ![!Char] !String -> Bool
-	hasSymbolsAtEndOfLine symbols line = hasOnlyWhiteSpaceBeforeSymbol symbols $ reverse [c \\ c <-:line]
+	predHoldsUntilStopSymbolIsFound :: !(Char -> Bool) ![!Char] !Bool !String -> Bool
+	predHoldsUntilStopSymbolIsFound pred stopSymbols filterInReverse line
+		=  predHoldsUntilStopSymbolIsFound` pred stopSymbols $ if filterInReverse reverse id $ [c \\ c <-:line]
 	where
-		hasOnlyWhiteSpaceBeforeSymbol :: ![!Char] ![Char] -> Bool
-		hasOnlyWhiteSpaceBeforeSymbol symbols [' ':cs] = hasOnlyWhiteSpaceBeforeSymbol symbols cs
-		hasOnlyWhiteSpaceBeforeSymbol symbols ['\t':cs] = hasOnlyWhiteSpaceBeforeSymbol symbols cs
-		hasOnlyWhiteSpaceBeforeSymbol symbols ['\n':cs] = hasOnlyWhiteSpaceBeforeSymbol symbols cs
-		hasOnlyWhiteSpaceBeforeSymbol symbols [char:_]
-			| IsMember char symbols = True
+		predHoldsUntilStopSymbolIsFound` :: !(Char -> Bool) [!Char] ![Char] -> Bool
+		predHoldsUntilStopSymbolIsFound` pred stopSymbols [c:line]
+			| IsMember c stopSymbols = True
+			| pred c = predHoldsUntilStopSymbolIsFound` pred stopSymbols line
 			= False
-		hasOnlyWhiteSpaceBeforeSymbol _ _ = False
 
 	// Assumption made: the grep result does not contain -linenumber- after the actual line number.
 	// The format is file-lineNumber-match. so if match contains -onlynumbers- this fails.
@@ -1138,6 +1153,12 @@ grepConstructorSearchTermSpecialCase searchTerm =
 // {, } are not included because they can occur in a generic kind specification e.g: {|*|}
 specialSymbols :: [!UChar]
 specialSymbols = Map fromChar ['[', ']', ';', '\"', '\'', ',']
+
+whitespaceChars :: [!Char]
+whitespaceChars = [!' ', '\t', '\r', '\n', '\v', '\f']
+
+alphabeticAndWhitespaceChars :: [!Char]
+alphabeticAndWhitespaceChars = [!'a'..'z'] ++| whitespaceChars
 
 isSpecialSymbol :: !UChar -> Bool
 isSpecialSymbol uc = IsMember uc specialSymbols
