@@ -105,3 +105,16 @@ class classIcl2 a :: !a -> Bool
 
 goToRecordFieldTest :: RecordFieldsSingleResult -> Bool
 goToRecordFieldTest rf = rf.RecordFieldsSingleResult.foo
+
+funcWithoutTypeAnnotationTest1 = True
+
+funcWithoutTypeAnnotationTest2
+	= True
+
+funcWithoutTypeAnnotationTest3 a b c d e f
+	# a = True
+	= a
+
+funcWithoutTypeAnnotationTest4
+	| True = True
+	= False

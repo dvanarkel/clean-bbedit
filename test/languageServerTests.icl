@@ -241,6 +241,17 @@ properties =:
 		as "go to definition of a constructor that is preceded by = (no type def) on the previous line is correctly handled for"
 	, goToDefinitionOfConstructorPrecededByEqualsOnSameLineCorrectlyHandledFor
 		as "go to definition of a constructor that is preceded by = (no type def) on the same line is correctly handled for"
+	, goToDefinitionOfFuncNoTypeAnnotationEqualsSameLineCorrectlyHandledFor
+		as "go to definition of a function without a type annotation with the = on the same line is correctly handled for"
+	, goToDefinitionOfFuncNoTypeAnnotationEqualsNextLineCorrectlyHandledFor
+		as "go to definition of a function without a type annotation with the = on the next line is correctly handled for"
+	, goToDefinitionOfFuncNoTypeAnnotationLetNextLineCorrectlyHandledFor
+		as "go to definition of a function without a type annotation with a # on the next line is correctly handled for"
+	, goToDefinitionOfFuncNoTypeAnnotationGuardNextLineCorrectlyHandledFor
+		as "go to definition of a function without a type annotation with a | on the next line is correctly handled for"
+	// Copy of a different test but this test was added to describe the behavior of the current implementation.
+	, goToDefinitionOfFuncWithTypeAnnotationResultsInTypeDefinitionLineOnly
+		as "go to definition of a function with a type annotation only yields a result for the line containing the type definition"
 	]
 where
 	diagnosticsForErrors =
@@ -1365,3 +1376,63 @@ goToDefinitionOfConstructorPrecededByEqualsOnPreviousLineCorrectlyHandledFor =:
 where
 	constructorPosition :: Position
 	constructorPosition = {line=uint 103, character=uint 8}
+
+goToDefinitionOfFuncNoTypeAnnotationEqualsSameLineCorrectlyHandledFor :: Property
+goToDefinitionOfFuncNoTypeAnnotationEqualsSameLineCorrectlyHandledFor =:
+	goToTest
+		Definition
+		SUITE_DEFAULT
+		FILE_GO_TO_ICL_1
+		funcPosition
+		[!(FILE_GO_TO_ICL_1, uint 108)!]
+where
+	funcPosition :: Position
+	funcPosition = {line=uint 108, character=uint 5}
+
+goToDefinitionOfFuncNoTypeAnnotationEqualsNextLineCorrectlyHandledFor :: Property
+goToDefinitionOfFuncNoTypeAnnotationEqualsNextLineCorrectlyHandledFor =:
+	goToTest
+		Definition
+		SUITE_DEFAULT
+		FILE_GO_TO_ICL_1
+		funcPosition
+		[!(FILE_GO_TO_ICL_1, uint 110)!]
+where
+	funcPosition :: Position
+	funcPosition = {line=uint 110, character=uint 5}
+
+goToDefinitionOfFuncNoTypeAnnotationLetNextLineCorrectlyHandledFor :: Property
+goToDefinitionOfFuncNoTypeAnnotationLetNextLineCorrectlyHandledFor =:
+	goToTest
+		Definition
+		SUITE_DEFAULT
+		FILE_GO_TO_ICL_1
+		funcPosition
+		[!(FILE_GO_TO_ICL_1, uint 113)!]
+where
+	funcPosition :: Position
+	funcPosition = {line=uint 113, character=uint 5}
+
+goToDefinitionOfFuncNoTypeAnnotationGuardNextLineCorrectlyHandledFor :: Property
+goToDefinitionOfFuncNoTypeAnnotationGuardNextLineCorrectlyHandledFor =:
+	goToTest
+		Definition
+		SUITE_DEFAULT
+		FILE_GO_TO_ICL_1
+		funcPosition
+		[!(FILE_GO_TO_ICL_1, uint 117)!]
+where
+	funcPosition :: Position
+	funcPosition = {line=uint 117, character=uint 5}
+
+goToDefinitionOfFuncWithTypeAnnotationResultsInTypeDefinitionLineOnly :: Property
+goToDefinitionOfFuncWithTypeAnnotationResultsInTypeDefinitionLineOnly =:
+	goToTest
+		Definition
+		SUITE_DEFAULT
+		FILE_GO_TO_ICL_1
+		funcPosition
+		[!(FILE_GO_TO_ICL_1, uint 78)!]
+where
+	funcPosition :: Position
+	funcPosition = {line=uint 79, character=uint 5}
