@@ -1,6 +1,7 @@
 module EastwoodCleanLanguageServer
 
 import StdEnv
+import StdOverloaded
 import StdOverloadedList
 
 from Data.Error import fromOk, isError, :: MaybeError (Ok), fromError
@@ -410,7 +411,8 @@ onGotoDefinition req=:{RequestMessage|id, params = ?Just json} st world
 	// There is a special search term for finding record fields in .icl files that are preceded by
 	// { or , on the previous line.
 	# {	generalSearchTerm , ctorPrecededByPipeOrEqualsOnPrecedingLineSearchTerm
-		, requestFileSearchTerm, requestFileFuncDefSearchTerm, requestFileFuncDefWithoutTypeAnnotationSearchTerm}
+		, requestFileSearchTerm, requestFileFuncDefSearchTerm, requestFileFuncDefWithoutTypeAnnotationSearchTerm
+		, requestFileFuncDefWithoutTypeAnnotationSearchTermSpecialCase}
 		= fromOk mbSearchTerms
 	// Call grep using the regular (non special constructor case) search term to find the matching declarations.
 	// -P enables perl regexp, -r recurses through all files, -n gives line number, -H includes file name.
@@ -562,6 +564,41 @@ onGotoDefinition req=:{RequestMessage|id, params = ?Just json} st world
 				= (Ok $ ?Just stdout, world)
 	| isError mbStdoutLocalNonTypeAnnotedFuncSearchTerm =
 		(fromError mbStdoutLocalNonTypeAnnotedFuncSearchTerm, st, world)
+	# (mbStdoutLocalNonTypeAnnotedFuncSearchTermSpecialCase, world) =
+		// If the request was not made from a .icl or we found a type annotated function in the .icl we do not search.
+		case requestMadeFromIcl
+			&& mbStdoutLocalFuncSearchTerm =: (Ok (?Just ""))
+			&& stdoutSpecialConstructorCase == "" of
+			False = (Ok ?None, world)
+			True
+				# (mbGrepResultLocalFuncSearchTermSpecialCase, world)
+					= callProcessWithOutput
+						"grep"
+						(
+							[ "-P", requestFileFuncDefWithoutTypeAnnotationSearchTermSpecialCase
+							, "-A", "1" // Get next line as well.
+							, "-r"
+							, "-n"
+							, "-H"
+							, "-w"
+							// Only apply this search term to the .icl file from which the request is made,
+							// if applicable.
+							, "--include", requestFileBaseName +++ ".icl"
+							, requestPath
+							]
+						)
+						?None
+						world
+				| isError mbGrepResultLocalFuncSearchTermSpecialCase
+					=
+						('Data.Error'.Error
+							$ errorResponse id InternalError "grep failed when searching for type definitions."
+					 	, world
+						)
+				# {stdout} = fromOk mbGrepResultLocalFuncSearchTermSpecialCase
+				= (Ok $ ?Just stdout, world)
+	| isError mbStdoutLocalNonTypeAnnotedFuncSearchTermSpecialCase =
+		(fromError mbStdoutLocalNonTypeAnnotedFuncSearchTermSpecialCase, st, world)
 	// List of lists of string containing the results, grep separates file name/line number by : and results by \n.
 	// grep adds an empty newline at the end of the results which is removed by init.
 	// The first two results are the file name and line number.
@@ -585,7 +622,7 @@ onGotoDefinition req=:{RequestMessage|id, params = ?Just json} st world
 			(filterSurroundingLinesForPredUntilStopSymbol
 				(flip IsMember whitespaceChars)
 				[!'=', '|']
-				True
+				True // Read from end to front of line.
 				(init $ split "\n" stdoutSpecialConstructorCase)
 			)
 		)
@@ -617,6 +654,28 @@ onGotoDefinition req=:{RequestMessage|id, params = ?Just json} st world
 				)
 			)
 			(fromOk mbStdoutLocalNonTypeAnnotedFuncSearchTerm)
+		++
+		// - is used as a seperator for the results, as grep uses - as a group seperator
+		// when previous lines are shown instead of :.
+		// Filename can contain - itself so this is accounted for.
+		// the stop symbol is found is used to return the actual result line.
+		// The actual match is at the end so this is dropped, this is followed by the lineNr and strs that when
+		// concatenated form the filename, this does not account for the match containing -.
+		// So if the constructor definition itself contains hyphens in comments this breaks.
+		maybe
+			[]
+			(\stdoutLocalNonTypeAnnotatedFuncSearchTermSpecialCase ->
+				(\([lineNr:fileName]) -> ([(join "-" $ reverse $ fileName, toInt lineNr - 1)]))
+				o drop 1 o reverse o split "-"
+				<$>
+				(filterSurroundingLinesForPredUntilStopSymbol
+					(flip IsMember alphabeticAndWhitespaceChars)
+					[!'=', '|', '#']
+					False // Read from front to end of line.
+					(init $ split "\n" stdoutLocalNonTypeAnnotatedFuncSearchTermSpecialCase)
+				)
+			)
+			(fromOk mbStdoutLocalNonTypeAnnotedFuncSearchTermSpecialCase)
 	// For every tuple of fileName and lineNumber, a Location is generated to be sent back to the client.
 	# locations = [! l \\ l <- catMaybes $ fileAndLineToLocation <$> flatten results !]
 	= (locationResponse id locations, st, world)
@@ -680,10 +739,10 @@ where
 					grepConstructorSearchTermSpecialCase searchTerm
 				, requestFileSearchTerm =
 					commonGrepTerms
-					// "|"
-					// (grepLocalRecordFieldSearchTerm searchTerm)
 				, requestFileFuncDefSearchTerm = grepFuncSearchTerm searchTerm
 				, requestFileFuncDefWithoutTypeAnnotationSearchTerm = grepNoTypeAnnotationFuncSearchTerm searchTerm
+				, requestFileFuncDefWithoutTypeAnnotationSearchTermSpecialCase
+					= grepNoTypeAnnotationFuncSearchTermSpecialCase searchTerm
 				}
 		= 'Data.Error'.Error $
 			errorResponse
@@ -709,9 +768,7 @@ where
 		//* The search term applied to the .icl from which the request was made if applicable.
 		//* Used to find func definitions within the local file.
 		//* Only used if no function with a type definition could be found.
-	// , fieldPrecededByBraceOrCommaOnPrecedingLineSearchTerm :: !String
-	// 	//* Used to find record fields in the .icl file from which a request was made that are preceded by
-	// 	//* { or , on the preceding line.
+	, requestFileFuncDefWithoutTypeAnnotationSearchTermSpecialCase :: !String
 	}
 
 :: GotoPrerequisites =
@@ -891,7 +948,6 @@ filterSurroundingLinesForPredUntilStopSymbol pred stopSymbols filterInReverse li
 		// Filter to only find the surrounding lines, not the grep result itself.
 		<- filter
 			(\line
-				# lastLineNumberSeparator = indexOfLastHyphenLineNumberSeperator line
 				# firstColon = indexOf ":" line
 				// If the string does not contain a hyphen at all we filter it since it cannot be the previous line.
 				// If the string does not contain a column then it is a result.
@@ -899,25 +955,31 @@ filterSurroundingLinesForPredUntilStopSymbol pred stopSymbols filterInReverse li
 				// We already filter out function arrows -> before this function is evaluated.
 				// This filter has problems when - or : are added as comments in the same line as the previous line
 				// of the constructor, this can be the case due to comments.
-				-> if (lastLineNumberSeparator == -1)
+				-> if (lastLineNumberSeparator line == -1)
 					False
-					(if (indexOf ":" line == -1) True (lastLineNumberSeparator <= firstColon - 1))
+					(if (indexOf ":" line == -1) True (lastLineNumberSeparator line <= firstColon - 1))
 			)
 			lines
 	// For the surrounding lines, the pred should hold until the stop symbol is found.
-	// TODO: once the pred holds, short circuit instead of going through more surrounding lines.
-	| predHoldsUntilStopSymbolIsFound pred stopSymbols filterInReverse surroundingLine
+	| predHoldsUntilStopSymbolIsFound
+		pred
+		stopSymbols
+		filterInReverse
+		(dropChars (lastLineNumberSeparator surroundingLine + 1) surroundingLine)
 	]
 where
+	lastLineNumberSeparator line = indexOfLastHyphenLineNumberSeperator line
+
 	predHoldsUntilStopSymbolIsFound :: !(Char -> Bool) ![!Char] !Bool !String -> Bool
 	predHoldsUntilStopSymbolIsFound pred stopSymbols filterInReverse line
-		=  predHoldsUntilStopSymbolIsFound` pred stopSymbols $ if filterInReverse reverse id $ [c \\ c <-:line]
+		= predHoldsUntilStopSymbolIsFound` pred stopSymbols $ if filterInReverse reverse id $ [c \\ c <-:line]
 	where
 		predHoldsUntilStopSymbolIsFound` :: !(Char -> Bool) [!Char] ![Char] -> Bool
 		predHoldsUntilStopSymbolIsFound` pred stopSymbols [c:line]
 			| IsMember c stopSymbols = True
 			| pred c = predHoldsUntilStopSymbolIsFound` pred stopSymbols line
 			= False
+		predHoldsUntilStopSymbolIsFound` _ _ [] = False
 
 	// Assumption made: the grep result does not contain -linenumber- after the actual line number.
 	// The format is file-lineNumber-match. so if match contains -onlynumbers- this fails.
@@ -1028,7 +1090,6 @@ grepFuncSearchTerm searchTerm =
 //* whether an infix function or a prefix function was parsed.
 grepNoTypeAnnotationFuncSearchTerm :: !String -> String
 grepNoTypeAnnotationFuncSearchTerm searchTerm
-	# maybeLetSymbol = "#?"
 	=
 		if (isInfix searchTerm)
 			(	let
@@ -1054,6 +1115,33 @@ grepNoTypeAnnotationFuncSearchTerm searchTerm
 				// Not preceded by :, := or = (so macros are not found)
 				, "(?<!:|:=|=)"
 				, "="
+				]
+			)
+
+//* The grep func definition search pattern is adjusted based on
+//* whether an infix function or a prefix function was parsed.
+grepNoTypeAnnotationFuncSearchTermSpecialCase :: !String -> String
+grepNoTypeAnnotationFuncSearchTermSpecialCase searchTerm
+	=
+		if (isInfix searchTerm)
+			(	let
+					// Characters which should be escaped to avoid them being seen as regex..
+					// See https://riptutorial.com/regex/example/15848/what-characters-need-to-be-escaped.
+					charactersToEscape
+						= [!'[', ']', '(', ')', '{', '}', '*', '+', '?', '|', '^', '$', '.', '\\']
+					// Every character that should be escaped results in 2 characters (one for the \)
+					escapedSearchTerm
+						= concat $
+							[ if (IsMember c charactersToEscape) ("\\" +++ toString c) (toString c)
+								\\ c <-: searchTerm
+							]
+				// infix[lr]? indicates infix followed by l, r, or nothing.
+				in concat4 "\\(?" escapedSearchTerm "\\)?" anyAmountOfCharacters
+			)
+			(concat
+				[ lineStartsWith
+				, anyAmountOfWhitespace
+				, searchTerm
 				]
 			)
 
