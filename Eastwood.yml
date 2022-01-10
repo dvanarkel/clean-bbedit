@@ -4,18 +4,17 @@ libraries:
   - Platform
   - Gast
 paths:
+  - src
   - src/languageServer
   - src/linter
   - src/lib
   - src/lib/yaml/src
   - src/lib/clean-lsp/src
   - test
-  - test/suite-default
-  - test/suite-001
-  - test/suite-without-config
   - test/suite-config-empty-paths
-  - test/suite-config-no-paths-key
   - test/suite-config-missing-paths
   - test/suite-config-missing-stdenv
+  - test/suite-config-no-paths-key
   - test/suite-config-non-existing-paths
-
+  - test/suite-default
+  - test/suite-without-config
