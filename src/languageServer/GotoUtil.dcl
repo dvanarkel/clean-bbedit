@@ -37,11 +37,10 @@ derive gLSPJSONDecode GotoDeclarationOrDefinitionParams
  * @param The eastwood state
  * @param World
  * @result ResponseMessage in case of error, the prerequisites in case of success
- * @result The eastwood state
  * @result World
  */
 gotoPrerequisitesFor
-	:: !RequestMessage !EastwoodState !*World -> (MaybeError ResponseMessage GotoPrerequisites, EastwoodState, !*World)
+	:: !RequestMessage !EastwoodState !*World -> (MaybeError ResponseMessage GotoPrerequisites, !*World)
 
 /**
  * This function is used to check the surrounding lines included in a grep result ending on a provided symbol

@@ -43,13 +43,13 @@ import GotoUtil
 import Util
 
 onGotoDeclaration
-    :: !RequestMessage !EastwoodState !*World -> (!ResponseMessage, !EastwoodState, !*World)
+    :: !RequestMessage !EastwoodState !*World -> (!ResponseMessage, !*World)
 onGotoDeclaration req=:{RequestMessage|id} st world
-	# (mbPrerequisites, st, world) = gotoPrerequisitesFor req st world
-	| isError mbPrerequisites = (fromError mbPrerequisites, st, world)
+	# (mbPrerequisites, world) = gotoPrerequisitesFor req st world
+	| isError mbPrerequisites = (fromError mbPrerequisites, world)
     # {line, charNr, rootPath, cleanHomeLibs} = fromOk mbPrerequisites
 	# mbSearchTerms = grepSearchTermFor line charNr
-	| isError mbSearchTerms = (fromError mbSearchTerms, st, world)
+	| isError mbSearchTerms = (fromError mbSearchTerms, world)
 	// Using the searchString, grep is executed to find the file names and line numbers of the definitions that match.
 	// There is a special case for constructors which have the preceding | or = on the preceding line.
 	// This requires checking the previous line, hence there is a seperate search term for efficiency reasons.
@@ -77,7 +77,7 @@ onGotoDeclaration req=:{RequestMessage|id} st world
 			?None
 			world
 	| isError mbGrepResultRegSearchTerm
-		= (errorResponse id InternalError "grep failed when searching for type definitions.", st, world)
+		= (errorResponse id InternalError "grep failed when searching for type definitions.", world)
 	# {stdout} = fromOk mbGrepResultRegSearchTerm
 	# stdoutRegSearchTerm = stdout
 	// The stdout for the special constructor case is processed using grep again to find the locations of the
@@ -102,7 +102,7 @@ onGotoDeclaration req=:{RequestMessage|id} st world
 					?None
 					world
 	| isJust mbGrepResultSpecialConstructorCase && (isError $ fromJust mbGrepResultSpecialConstructorCase)
-		= (errorResponse id InternalError "grep failed when searching for special constructor case.", st, world)
+		= (errorResponse id InternalError "grep failed when searching for special constructor case.", world)
 	# stdoutSpecialConstructorCase = case mbGrepResultSpecialConstructorCase of
 		// No need to search for a constructor since the searchTerm can not be a constructor.
 		?None = ""
@@ -135,7 +135,7 @@ onGotoDeclaration req=:{RequestMessage|id} st world
 		)
 	// For every tuple of fileName and lineNumber, a Location is generated to be sent back to the client.
 	# locations = [! l \\ l <- catMaybes $ fileAndLineToLocation <$> flatten results !]
-	= (locationResponse id locations, st, world)
+	= (locationResponse id locations, world)
 where
 	/**
 	 * This function retrieves the search term that is passed to grep which is used for finding the declaration.

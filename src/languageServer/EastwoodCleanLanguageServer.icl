@@ -106,8 +106,12 @@ where
 onRequest :: !RequestMessage !EastwoodState !*World -> (!ResponseMessage, !EastwoodState, !*World)
 onRequest msg=:{RequestMessage | id, method} st world =
 	case method of
-		"textDocument/declaration" = onGotoDeclaration msg st world
-		"textDocument/definition" = onGotoDefinition msg st world
+		"textDocument/declaration"
+			# (response, world) = onGotoDeclaration msg st world
+			= (response, st, world)
+		"textDocument/definition"
+			# (response, world) = onGotoDefinition msg st world
+			= (response, st, world)
 		_ = (errorResponse id, st, world)
 where
 	errorResponse :: !RequestId -> ResponseMessage

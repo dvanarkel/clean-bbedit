@@ -42,11 +42,11 @@ import Util
 derive gLSPJSONDecode GotoDeclarationOrDefinitionParams
 
 gotoPrerequisitesFor
-	:: !RequestMessage !EastwoodState !*World -> (MaybeError ResponseMessage GotoPrerequisites, EastwoodState, !*World)
+	:: !RequestMessage !EastwoodState !*World -> (MaybeError ResponseMessage GotoPrerequisites, !*World)
 gotoPrerequisitesFor req=:{RequestMessage|id, params= ?Just json} st=:{EastwoodState|workspaceFolders} world
 	# {GotoDeclarationOrDefinitionParams|textDocument={TextDocumentIdentifier|uri}, position} = deserialize json
 	# (mbLine, world) = getLineOfDeclarationRequest id uri position world
-	| isError mbLine = (liftError mbLine, st, world)
+	| isError mbLine = (liftError mbLine, world)
 	# line = fromOk mbLine
 	// NB: charNr does not mean column number, it is the number of the character within the line.
 	// E.g tab = x cols 1 char.
@@ -57,7 +57,6 @@ gotoPrerequisitesFor req=:{RequestMessage|id, params= ?Just json} st=:{EastwoodS
 	# (mbConfigPath, world) = findSearchPath PROJECT_FILENAME workspaceFolders world
 	| isNone mbConfigPath =
 		(Error $ errorResponse id InternalError ("Could not find absolute path of " +++ PROJECT_FILENAME)
-		, st
 		, world
 		)
 	# searchPath = fromJust mbConfigPath
@@ -65,7 +64,6 @@ gotoPrerequisitesFor req=:{RequestMessage|id, params= ?Just json} st=:{EastwoodS
 	# (mbRootPath, world) = getFullPathName searchPath world
 	| isError mbRootPath =
 		( Error $ errorResponse id InternalError ("Could not find absolute path of " +++ PROJECT_FILENAME)
-		, st
 		, world
 		)
 	# rootPath = fromOk mbRootPath
@@ -74,25 +72,23 @@ gotoPrerequisitesFor req=:{RequestMessage|id, params= ?Just json} st=:{EastwoodS
 	# (mbCleanHome, world) = getEnvironmentVariable CLEAN_HOME_ENV_VAR world
 	| isNone mbCleanHome =
 		( Error $ errorResponse id UnknownErrorCode "Could not find CLEAN_HOME environment variable."
-		, st
 		, world
 		)
 	# cleanHomePath = fromJust mbCleanHome
 	// The CLEAN_HOME libraries included in Eastwood.yml are searched by grep so Eastwood.yml is fetched.
 	# (mbConfig, world) = fetchConfig workspaceFolders world
 	| isError mbConfig
-		= (Error $ errorResponse id UnknownErrorCode (fromError mbConfig), st, world)
+		= (Error $ errorResponse id UnknownErrorCode (fromError mbConfig), world)
 	# {libraries} = fromOk mbConfig
 	// The libraries in Eastwood.yml are transformed to their full paths.
 	# (mbCleanHomeLibs, world)
 		= mapSt (\l -> getFullPathName (cleanHomePath </> LIBS_PATH </> l)) libraries world
 	| any isError mbCleanHomeLibs =
 		( Error $ errorResponse id UnknownErrorCode "Could not get full path of library included in Eastwood.yml."
-		, st
 		, world
 		)
 	# cleanHomeLibs = map fromOk mbCleanHomeLibs
-	= (Ok {line=line, charNr=charNr,rootPath=rootPath, cleanHomeLibs=cleanHomeLibs}, st, world)
+	= (Ok {line=line, charNr=charNr,rootPath=rootPath, cleanHomeLibs=cleanHomeLibs}, world)
 
 /**
  * This function returns the line for which a go to declaration request was made in string form.

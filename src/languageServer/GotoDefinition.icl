@@ -25,17 +25,17 @@ import LSP.Internal.Serialize
 import GotoUtil
 import Util
 
-onGotoDefinition :: !RequestMessage !EastwoodState !*World -> (!ResponseMessage, !EastwoodState, !*World)
+onGotoDefinition :: !RequestMessage !EastwoodState !*World -> (!ResponseMessage, !*World)
 onGotoDefinition req=:{RequestMessage|id, params = ?Just json} st world
 	# {GotoDeclarationOrDefinitionParams|textDocument={TextDocumentIdentifier|uri}} = deserialize json
 	# requestPath = uri.uriPath
 	# requestMadeFromIcl = takeExtension requestPath == "icl"
 	# requestFileBaseName = (dropExtension $ takeFileName requestPath)
-	# (mbPrerequisites, st, world) = gotoPrerequisitesFor req st world
-	| isError mbPrerequisites = (fromError mbPrerequisites, st, world)
+	# (mbPrerequisites, world) = gotoPrerequisitesFor req st world
+	| isError mbPrerequisites = (fromError mbPrerequisites, world)
 	# {line, charNr, rootPath, cleanHomeLibs} = fromOk mbPrerequisites
 	# mbSearchTerms = grepSearchTermFor line charNr
-	| isError mbSearchTerms = (fromError mbSearchTerms, st, world)
+	| isError mbSearchTerms = (fromError mbSearchTerms, world)
 	// Using the searchString, grep is executed to find the file names and line numbers of the definitions that match.
 	// There is a special case for constructors which have the preceding | or = on the preceding line.
 	// This requires checking the previous line, hence there is a seperate search term for efficiency reasons.
@@ -70,7 +70,7 @@ onGotoDefinition req=:{RequestMessage|id, params = ?Just json} st world
 				?None
 				world
 	| isError mbGrepResultRegSearchTerm
-		= (errorResponse id InternalError "grep failed when searching for type definitions.", st, world)
+		= (errorResponse id InternalError "grep failed when searching for type definitions.", world)
 	# {stdout} = fromOk mbGrepResultRegSearchTerm
 	# stdoutRegSearchTerm = stdout
 	// The stdout for the special constructor case is processed using grep again to find the locations of the
@@ -95,7 +95,7 @@ onGotoDefinition req=:{RequestMessage|id, params = ?Just json} st world
 					?None
 					world
 	| isJust mbGrepResultSpecialConstructorCase && (isError $ fromJust mbGrepResultSpecialConstructorCase)
-		= (errorResponse id InternalError "grep failed when searching for special constructor case.", st, world)
+		= (errorResponse id InternalError "grep failed when searching for special constructor case.", world)
 	# stdoutSpecialConstructorCase = case mbGrepResultSpecialConstructorCase of
 		// No need to search for a constructor since the searchTerm can not be a constructor.
 		?None = ""
@@ -132,7 +132,7 @@ onGotoDefinition req=:{RequestMessage|id, params = ?Just json} st world
 						)
 				# {stdout} = fromOk mbGrepResultLocalSearchTerm
 				= (Ok $ ?Just stdout, world)
-	| isError mbStdoutLocalSearchTerm = (fromError mbStdoutLocalSearchTerm, st, world)
+	| isError mbStdoutLocalSearchTerm = (fromError mbStdoutLocalSearchTerm, world)
 	// The stdout for the file from which the request was made
 	// Tries to find a type annotated func definition in the .icl
 	# (mbStdoutLocalFuncSearchTerm, world) =
@@ -164,7 +164,7 @@ onGotoDefinition req=:{RequestMessage|id, params = ?Just json} st world
 						)
 				# {stdout} = fromOk mbGrepResultLocalFuncSearchTerm
 				= (Ok $ ?Just stdout, world)
-	| isError mbStdoutLocalFuncSearchTerm = (fromError mbStdoutLocalFuncSearchTerm, st, world)
+	| isError mbStdoutLocalFuncSearchTerm = (fromError mbStdoutLocalFuncSearchTerm, world)
 	# (mbStdoutLocalNonTypeAnnotedFuncSearchTerm, world) =
 		// If the request was not made from a .icl or we found a type annotated function in the .icl we do not search.
 		case requestMadeFromIcl && mbStdoutLocalFuncSearchTerm =: (Ok (?Just "")) of
@@ -196,7 +196,7 @@ onGotoDefinition req=:{RequestMessage|id, params = ?Just json} st world
 				# {stdout} = fromOk mbGrepResultLocalFuncSearchTerm
 				= (Ok $ ?Just stdout, world)
 	| isError mbStdoutLocalNonTypeAnnotedFuncSearchTerm =
-		(fromError mbStdoutLocalNonTypeAnnotedFuncSearchTerm, st, world)
+		(fromError mbStdoutLocalNonTypeAnnotedFuncSearchTerm, world)
 	# (mbStdoutLocalNonTypeAnnotedFuncSearchTermSpecialCase, world) =
 		// If the request was not made from a .icl or we found a type annotated function in the .icl we do not search.
 		case requestMadeFromIcl
@@ -231,7 +231,7 @@ onGotoDefinition req=:{RequestMessage|id, params = ?Just json} st world
 				# {stdout} = fromOk mbGrepResultLocalFuncSearchTermSpecialCase
 				= (Ok $ ?Just stdout, world)
 	| isError mbStdoutLocalNonTypeAnnotedFuncSearchTermSpecialCase =
-		(fromError mbStdoutLocalNonTypeAnnotedFuncSearchTermSpecialCase, st, world)
+		(fromError mbStdoutLocalNonTypeAnnotedFuncSearchTermSpecialCase, world)
 	// List of lists of string containing the results, grep separates file name/line number by : and results by \n.
 	// grep adds an empty newline at the end of the results which is removed by init.
 	// The first two results are the file name and line number.
@@ -311,7 +311,7 @@ onGotoDefinition req=:{RequestMessage|id, params = ?Just json} st world
 			(fromOk mbStdoutLocalNonTypeAnnotedFuncSearchTermSpecialCase)
 	// For every tuple of fileName and lineNumber, a Location is generated to be sent back to the client.
 	# locations = [! l \\ l <- catMaybes $ fileAndLineToLocation <$> flatten results !]
-	= (locationResponse id locations, st, world)
+	= (locationResponse id locations, world)
 where
 	/**
 	 * This function retrieves the search term that is passed to grep which is used for finding the definition.
