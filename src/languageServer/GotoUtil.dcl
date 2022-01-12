@@ -8,7 +8,7 @@ from Text.Unicode.UChar import :: UChar
 from LSP.BasicTypes import :: UInt
 from LSP.Internal.Serialize import generic gLSPJSONDecode
 from LSP.Location import :: Location
-import qualified LSP.Position
+from LSP.Position import :: Position
 from LSP.RequestId import :: RequestId
 from LSP.RequestMessage import :: RequestMessage
 from LSP.ResponseMessage import :: ResponseMessage
@@ -27,7 +27,7 @@ from Config import :: EastwoodState
 //* Parameters for goto declaration or goto definition requests.
 :: GotoDeclarationOrDefinitionParams =
 	{ textDocument :: !TextDocumentIdentifier //* The document.
-	, position :: !'LSP.Position'.Position //* The position within the document.
+	, position :: !Position //* The position within the document.
 	}
 
 derive gLSPJSONDecode GotoDeclarationOrDefinitionParams

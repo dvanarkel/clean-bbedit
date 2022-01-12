@@ -1,6 +1,6 @@
 definition module Util
 
-import StdEnv
+from StdEnv import class toString
 from Eastwood.Range import qualified :: Range, :: Position
 from LSP.Range import qualified :: Range
 from LSP.RequestId import :: RequestId
