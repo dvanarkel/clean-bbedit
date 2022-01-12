@@ -93,7 +93,7 @@ isSpecialCharacter :: !UChar -> Bool
 //* A regex matching at least one white space.
 atleastOneWhiteSpace :: String
 
-//* A regex matching any amount white space.
+//* A regex matching any amount of white space.
 anyAmountOfWhitespace :: String
 
 //* A regex matching any amount of characters.
@@ -108,7 +108,8 @@ lineStartsWith :: String
  */
 stopPredicate :: !UChar -> (UChar -> Bool)
 
-//* A predicate that indicates when to stop parsing, that also handles generic kind specification syntax.
+//* A predicate that indicates when to stop parsing, that also includes symbols used within the generic kind
+//* specification syntax.
 stopPredicateAfterGenericKindSpecificationWasNotFound :: !UChar -> Bool
 
 /**
@@ -145,55 +146,55 @@ retrieveSearchTerm :: !(UChar -> Bool) !String !UInt -> String
 startsWithUpper :: !String -> Bool
 
 /** A grep search term for types.
- * @param The type name.
+ * @param The raw seach term.
  * @result The grep search term.
  */
 grepTypeSearchTerm :: !String -> String
 
 /** A grep search term for functions.
- * @param The function name.
+ * @param The raw seach term.
  * @result The grep search term.
  */
 grepFuncSearchTerm :: !String -> String
 
 /** A grep search term for generics.
- * @param The generic name.
+ * @param The raw seach term.
  * @result The grep search term.
  */
 grepGenericSearchTerm :: !String -> String
 
 /** A grep search term for classes.
- * @param The class name.
+ * @param The raw seach term.
  * @result The grep search term.
  */
 grepClassSearchTerm :: !String -> String
 
 /** A grep search term for macros.
- * @param The macro name.
+ * @param The raw seach term.
  * @result The grep search term.
  */
 grepMacroSearchTerm :: !String -> String
 
 /** A grep search term for new or abstract types.
- * @param The new or abstract type name.
+ * @param The raw seach term.
  * @result The grep search term.
  */
 grepNewOrAbstractTypeSearchTerm :: !String -> String
 
 /** A grep search term for type synonyms.
- * @param The type synonym name.
+ * @param The raw seach term.
  * @result The grep search term.
  */
 grepTypeSynonymSearchTerm :: !String -> String
 
 /** A grep search term for constructors.
- * @param The constructor name.
+ * @param The raw seach term.
  * @result The grep search term.
  */
 grepConstructorSearchTerm :: !String -> String
 
 /** A special case grep search term for constructors that have the | or = on the previous line.
- * @param The constructor name.
+ * @param The raw seach term.
  * @result The grep search term.
  */
 grepConstructorSearchTermSpecialCase :: !String -> ?String
