@@ -332,14 +332,13 @@ where
 		// and selecting the ( character.
 		| firstUnicodeChar == lookForwardCharacter = grepSearchTermFor line (UInt (charNr + 1))
 		// It should not be attempted to go the declaration of special syntax symbols.
-		| isSpecialSymbol firstUnicodeChar =
+		| isSpecialCharacter firstUnicodeChar =
 			Error $
 				errorResponse id ParseError "it is not possible to go to the definition of a special syntax symbol."
 		// This is the general case.
 		| isSymbol firstUnicodeChar || isAlphaNum firstUnicodeChar || isPunctuation firstUnicodeChar
-			# stopPredicate = if (isAlphaNum firstUnicodeChar) stopPredicatePrefix stopPredicateInfixOrGenericKindSpec
 			# searchTerm =
-				removeUnwantedSymbolsFromSearchTerm $ retrieveSearchTerm stopPredicate line uIntChar
+				removeUnwantedSymbolsFromSearchTerm $ retrieveSearchTerm (stopPredicate firstUnicodeChar) line uIntChar
 			# searchTerm =
 				if (isInfixOf [c \\ c <-:"{|"] [c \\ c <-: searchTerm])
 					searchTerm

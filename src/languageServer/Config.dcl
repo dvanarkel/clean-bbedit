@@ -21,6 +21,15 @@ from Text.YAML.Schemas import :: YAMLSchema, failsafeSchema, jsonSchema, coreSch
 
 derive gConstructFromYAML CompilerSettingsConfig
 
+/**
+ * Reads the compiler settings from the configuration file.
+ * @param The workspace folders in which to look for the configuration file.
+ * @result The compiler settings, or an error.
+ */
 fetchConfig :: ![!FilePath] !*World -> (!MaybeError String CompilerSettingsConfig, !*World)
 
-:: EastwoodState = {workspaceFolders :: ![!FilePath]}
+//* The Eastwood state.
+:: EastwoodState = 
+	{ workspaceFolders :: ![!FilePath]
+		//* Eastwood's workspace folders.
+	}

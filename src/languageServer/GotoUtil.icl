@@ -236,23 +236,24 @@ lookBackCharacters =: Map fromChar [' ', ',', '\n', '\t', ')']
 lookForwardCharacter :: UChar
 lookForwardCharacter =: fromChar '('
 
-// Not possible to retrieve a declaration for these symbols are they are special syntax characters.
-// {, } are not included because they can occur in a generic kind specification e.g: {|*|}
-specialSymbols :: [!UChar]
-specialSymbols = Map fromChar ['[', ']', ';', '\"', '\'', ',']
-
-isSpecialSymbol :: !UChar -> Bool
-isSpecialSymbol uc = IsMember uc specialSymbols
+isSpecialCharacter :: !UChar -> Bool
+isSpecialCharacter uc = IsMember uc specialCharacters
+where
+	specialCharacters :: [!UChar]
+	specialCharacters = Map fromChar ['[', ']', ';', '\"', '\'', ',']
 
 genericKindSpecificationSymbols :: [UChar]
 genericKindSpecificationSymbols = (map fromChar ['{', '|', '*', '|', '}', '(', ')'])
 
+stopPredicate :: !UChar -> (UChar -> Bool)
+stopPredicate uc = if (isAlphaNum uc) stopPredicatePrefix stopPredicateInfixOrGenericKindSpec
+where
+	stopPredicateInfixOrGenericKindSpec :: !UChar -> Bool
+	stopPredicateInfixOrGenericKindSpec uc = 
+		not (isAlphaNum uc) && not (isSymbol uc || isPunctuation uc) || isSpecialCharacter uc
+
 stopPredicatePrefix :: !UChar -> Bool
 stopPredicatePrefix uc = not (isAlphaNum uc) && not (isMember uc [fromChar '_':genericKindSpecificationSymbols])
-
-stopPredicateInfixOrGenericKindSpec :: !UChar -> Bool
-stopPredicateInfixOrGenericKindSpec uc =
-	not (isAlphaNum uc) && not (isSymbol uc || isPunctuation uc) || isSpecialSymbol uc
 
 removeUnwantedSymbolsFromSearchTerm :: !String -> String
 removeUnwantedSymbolsFromSearchTerm searchTerm =
@@ -299,7 +300,7 @@ stopPredicateAfterGenericKindSpecificationWasNotFound :: !UChar -> Bool
 stopPredicateAfterGenericKindSpecificationWasNotFound uc
 	= stopPredicatePrefix uc || isMember uc (map fromChar ['{', '|', '*', '|', '}', '(', ')'])
 
-//* Types always start with a uppercase character.
+//* Types always start with an uppercase character.
 grepTypeSearchTerm :: !String -> String
 grepTypeSearchTerm searchTerm = if (startsWithUpper searchTerm) (concat3 lineStartsWith ":: " searchTerm) ""
 
@@ -309,12 +310,17 @@ lineStartsWith :: String
 lineStartsWith = "^"
 
 startsWithUpper :: !String -> Bool
-startsWithUpper searchTerm = isUpper $ select searchTerm 0
+startsWithUpper s = isUpper $ select s 0
 
+// Further processing has to be done for constructors that have the | or = on the previous line.
+// In this case, the constructor has to be preceded by at least one whitespace only.
+// For this we return a seperate search term since we have to process the previous line.
 grepConstructorSearchTermSpecialCase :: !String -> ?String
 grepConstructorSearchTermSpecialCase searchTerm =
 	if (startsWithUpper searchTerm) (?Just $ concat3 lineStartsWith atleastOneWhiteSpace searchTerm) ?None
 
+//* The grep func definition search pattern is adjusted based on
+//* whether an infix function or a prefix function was parsed.
 grepFuncSearchTerm :: !String -> String
 grepFuncSearchTerm searchTerm =
 	if (isInfix searchTerm)

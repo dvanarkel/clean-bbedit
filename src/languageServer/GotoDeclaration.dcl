@@ -10,5 +10,4 @@ from Config import :: EastwoodState
  * @param The Eastwood state.
  * @result The response.
  */
-onGotoDeclaration
-	:: !RequestMessage !EastwoodState !*World -> (!ResponseMessage, !*World)
+onGotoDeclaration :: !RequestMessage !EastwoodState !*World -> (!ResponseMessage, !*World)
