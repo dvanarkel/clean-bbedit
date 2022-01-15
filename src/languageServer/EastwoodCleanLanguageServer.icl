@@ -149,6 +149,8 @@ onNotification {NotificationMessage| method, params} st world
 		= ([!], st, world)
 	| method == "$/setTrace"
 		= ([!], st, world)
+	| method == "$/cancelRequest"
+		= ([!], st, world)
 	| otherwise
 		= ([!errorLogMessage $ concat3 "Unknown notification '" method "'."], st, world)
 

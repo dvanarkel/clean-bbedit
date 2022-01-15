@@ -151,6 +151,10 @@ where
 	 */
 	grepSearchTermFor :: !String !UInt -> MaybeError ResponseMessage (String,?String)
 	grepSearchTermFor line uIntChar=:(UInt charNr)
+		| size line - 1 < charNr || charNr < 0 =
+			Error $
+				errorResponse id ParseError
+					"Go to definition failed, file was not saved or empty line was selected."
 		# firstUnicodeChar = fromChar $ select line charNr
 		// If the first char is a space, comma, \n, or \t, go backwards
 		// When a declaration is requested when a whole term is selected the character ends up being the first char
