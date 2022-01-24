@@ -20,16 +20,14 @@ compiler: cocl-itasks
 libraries:
   - StdEnv
   - Platform
-paths:
-  - .
+paths: []
 ```
 
 It is required to specify a compiler.
 
 It is required to specify a YAML list for the libraries key (use "libraries: []" for an empty list).
 
-It is required to specify a YAML list for the paths key (use "paths: []" for an empty list). If the directory in which
-`Eastwood.yml` is placed also contains source code, add `.` to paths.
+It is required to specify a YAML list for the paths key (use "paths: []" for an empty list).
 
 ## Usage in Neovim
 
