@@ -10,3 +10,4 @@
 [submodule "src/lib/yaml"]
 	path = src/lib/yaml
 	url = https://gitlab.com/camilstaps/yaml.git
+	branch = main
