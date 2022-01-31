@@ -249,7 +249,7 @@ stopPredicate :: !UChar -> (UChar -> Bool)
 stopPredicate uc = if (isAlphaNum uc) stopPredicatePrefix stopPredicateInfixOrGenericKindSpec
 where
 	stopPredicateInfixOrGenericKindSpec :: !UChar -> Bool
-	stopPredicateInfixOrGenericKindSpec uc = 
+	stopPredicateInfixOrGenericKindSpec uc =
 		not (isAlphaNum uc) && not (isSymbol uc || isPunctuation uc) || isSpecialCharacter uc
 
 stopPredicatePrefix :: !UChar -> Bool
@@ -302,7 +302,10 @@ stopPredicateAfterGenericKindSpecificationWasNotFound uc
 
 //* Types always start with an uppercase character.
 grepTypeSearchTerm :: !String -> String
-grepTypeSearchTerm searchTerm = if (startsWithUpper searchTerm) (concat3 lineStartsWith ":: " searchTerm) ""
+grepTypeSearchTerm searchTerm =
+	if (startsWithUpper searchTerm)
+		(concat5 lineStartsWith "::" anyAmountOfWhitespace maybeAsterisk searchTerm)
+		""
 
 // The ^ indicates that the term that follows should not be preceded by any characters.
 // This is used to avoid finding imports as declarations terms are never preceded by characters.
@@ -439,6 +442,9 @@ anyAmountOfCharacters = ".*"
 //* Optional ! character.
 maybeBang :: String
 maybeBang = "(!?)"
+
+maybeAsterisk :: String
+maybeAsterisk = "(\\*?)"
 
 //* Optional * or . character.
 maybeUniqOrCoercible :: String
