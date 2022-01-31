@@ -198,6 +198,8 @@ properties =:
 		as "go to declaration of a type located within a module that has a name for which url encoding alters the name."
 	, goToDeclarationOfUniqueTypeCorrectlyHandled
 		as "go to declaration of a unique type is correctly handled"
+	, goToDeclarationOfInfixFunctionContainingGenericKindSpecificationSymbolCorrectlyHandled
+		as "go to declaration of an infix function which contains a generic kind specification symbol is correctly handled"
 	, goToDefinitionOfRecordFieldPrecededByBraceOnPreviousLineCorrectlyHandled
 		as "go to definition of record field preceded by { on the previous line is correctly handled"
 	, goToDefinitionOfRecordFieldPrecededByCommaOnPreviousLineCorrectlyHandled
@@ -256,6 +258,8 @@ properties =:
 		as "go to definition of a function with a type annotation only yields a result for the line containing the type definition"
 	, goToDefinitionOfUniqueTypeCorrectlyHandled
 		as "go to definition of a unique type is correctly handled"
+	, goToDefinitionOfInfixFunctionContainingGenericKindSpecificationSymbolCorrectlyHandled
+		as "go to definition of an infix function which contains a generic kind specification symbol"
 	]
 where
 	diagnosticsForErrors =
@@ -1115,6 +1119,18 @@ where
 	typeDefPosition :: Position
 	typeDefPosition = {line=uint 2, character=uint 7}
 
+goToDeclarationOfInfixFunctionContainingGenericKindSpecificationSymbolCorrectlyHandled :: Property
+goToDeclarationOfInfixFunctionContainingGenericKindSpecificationSymbolCorrectlyHandled =:
+	goToTest
+		Declaration
+		SUITE_DEFAULT
+		FILE_GO_TO_DCL_1
+		funcPosition
+		[!(FILE_GO_TO_DCL_1, uint 99)!]
+where
+	funcPosition :: Position
+	funcPosition = {line=uint 99, character=uint 3}
+
 goToDeclarationOfUniqueTypeCorrectlyHandled :: Property
 goToDeclarationOfUniqueTypeCorrectlyHandled =:
 	goToTest
@@ -1464,3 +1480,15 @@ goToDefinitionOfUniqueTypeCorrectlyHandled =:
 where
 	uniqueTypePosition :: Position
 	uniqueTypePosition = {line=uint 121, character=uint 10}
+
+goToDefinitionOfInfixFunctionContainingGenericKindSpecificationSymbolCorrectlyHandled :: Property
+goToDefinitionOfInfixFunctionContainingGenericKindSpecificationSymbolCorrectlyHandled =:
+	goToTest
+		Definition
+		SUITE_DEFAULT
+		FILE_GO_TO_ICL_1
+		funcPosition
+		[!(FILE_GO_TO_ICL_1, uint 123)!]
+where
+	funcPosition :: Position
+	funcPosition = {line=uint 123, character=uint 3}

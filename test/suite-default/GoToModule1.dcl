@@ -96,3 +96,5 @@ stdEnvFunc :: Bool
 :: UserList =: UserList Int
 
 :: *UniqueType = { fooBool :: !Bool }
+
+(<#|) infixl 4 :: !Bool !Bool -> Bool

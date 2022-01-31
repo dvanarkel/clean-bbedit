@@ -120,3 +120,5 @@ funcWithoutTypeAnnotationTest4
 	= False
 
 :: *UniqueType = { fooBool :: !Bool }
+
+(<#|) infixl 4 :: !Bool !Bool -> Bool
