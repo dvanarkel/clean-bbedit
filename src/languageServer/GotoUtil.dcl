@@ -146,55 +146,65 @@ retrieveSearchTerm :: !(UChar -> Bool) !String !UInt -> String
 startsWithUpper :: !String -> Bool
 
 /** A grep search term for types.
- * @param The raw seach term.
+ * @param The raw search term (with regex characters escaped).
  * @result The grep search term.
  */
 grepTypeSearchTerm :: !String -> String
 
 /** A grep search term for functions.
- * @param The raw seach term.
+ * @param The raw search term (with regex characters escaped).
  * @result The grep search term.
  */
 grepFuncSearchTerm :: !String -> String
 
 /** A grep search term for generics.
- * @param The raw seach term.
+ * @param The raw search term (with regex characters escaped).
  * @result The grep search term.
  */
 grepGenericSearchTerm :: !String -> String
 
 /** A grep search term for classes.
- * @param The raw seach term.
+ * @param The raw search term (with regex characters escaped).
  * @result The grep search term.
  */
 grepClassSearchTerm :: !String -> String
 
 /** A grep search term for macros.
- * @param The raw seach term.
+ * @param The raw search term (with regex characters escaped).
  * @result The grep search term.
  */
 grepMacroSearchTerm :: !String -> String
 
 /** A grep search term for new or abstract types.
- * @param The raw seach term.
+ * @param The raw search term (with regex characters escaped).
  * @result The grep search term.
  */
 grepNewOrAbstractTypeSearchTerm :: !String -> String
 
 /** A grep search term for type synonyms.
- * @param The raw seach term.
+ * @param The raw search term (with regex characters escaped).
  * @result The grep search term.
  */
 grepTypeSynonymSearchTerm :: !String -> String
 
 /** A grep search term for constructors.
- * @param The raw seach term.
+ * @param The raw search term (with regex characters escaped).
  * @result The grep search term.
  */
 grepConstructorSearchTerm :: !String -> String
 
 /** A special case grep search term for constructors that have the | or = on the previous line.
- * @param The raw seach term.
+ * @param The raw search term (with regex characters escaped).
  * @result The grep search term.
  */
 grepConstructorSearchTermSpecialCase :: !String -> ?String
+
+/**
+ * This function escapes regex characters that can be found within the search term infix functions
+ * E.g: a search term of ++| needs to become \+\+\| since otherwise the + and | have meaning in regex, causing the
+ * grep search term to be misinterpreted.
+ *
+ * @param The raw search term.
+ * @result The search term with the regex characters escaped.
+ */
+escapeRegexCharactersInSearchTerm :: !String -> String

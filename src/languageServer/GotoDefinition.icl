@@ -43,10 +43,10 @@ onGotoDefinition req=:{RequestMessage|id, params = ?Just json} st world
 	// made, if applicable.
 	// There is a special search term for finding record fields in .icl files that are preceded by
 	// { or , on the previous line.
-	# {	generalSearchTerm , ctorPrecededByPipeOrEqualsOnPrecedingLineSearchTerm
+	# {	  generalSearchTerm , ctorPrecededByPipeOrEqualsOnPrecedingLineSearchTerm
 		, requestFileSearchTerm, requestFileFuncDefSearchTerm, requestFileFuncDefWithoutTypeAnnotationSearchTerm
-		, requestFileFuncDefWithoutTypeAnnotationSearchTermSpecialCase}
-		= fromOk mbSearchTerms
+		, requestFileFuncDefWithoutTypeAnnotationSearchTermSpecialCase
+		} = fromOk mbSearchTerms
 	// Call grep using the regular (non special constructor case) search term to find the matching declarations.
 	// -P enables perl regexp, -r recurses through all files, -n gives line number, -H includes file name.
 	// -w matches whole words only (e.g: :: Maybe matches :: Maybe but not :: MaybeOSError).
@@ -344,7 +344,7 @@ where
 			# searchTerm =
 				removeUnwantedSymbolsFromSearchTerm $ retrieveSearchTerm (stopPredicate firstUnicodeChar) line uIntChar
 			# searchTerm =
-				if (isInfixOf [c \\ c <-:"{|"] [c \\ c <-: searchTerm])
+				if (isInfixOf [c \\ c <-:"{|"] [c \\ c <-: searchTerm] || isInfix searchTerm)
 					searchTerm
 					// If the search term does not contain a generic kind specification, we parse again using a
 					// more strict predicate to avoid a problem with [(a,b):f].
@@ -352,6 +352,7 @@ where
 					(removeUnwantedSymbolsFromSearchTerm
 						$ retrieveSearchTerm stopPredicateAfterGenericKindSpecificationWasNotFound line uIntChar
 					)
+			# searchTerm = escapeRegexCharactersInSearchTerm searchTerm
 			// Grep terms which should be applied to both local .icl search term and any other icl.
 			# commonGrepTerms =
 				concat

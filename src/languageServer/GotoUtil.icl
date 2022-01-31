@@ -327,20 +327,8 @@ grepConstructorSearchTermSpecialCase searchTerm =
 grepFuncSearchTerm :: !String -> String
 grepFuncSearchTerm searchTerm =
 	if (isInfix searchTerm)
-		(	let
-				// Characters which should be escaped to avoid them being seen as regex..
-				// See https://riptutorial.com/regex/example/15848/what-characters-need-to-be-escaped.
-				charactersToEscape
-					= [!'[', ']', '(', ')', '{', '}', '*', '+', '?', '|', '^', '$', '.', '\\']
-				// Every character that should be escaped results in 2 characters (one for the \)
-				escapedSearchTerm
-					= concat $
-						[ if (IsMember c charactersToEscape) ("\\" +++ toString c) (toString c)
-							\\ c <-: searchTerm
-						]
-			// infix[lr]? indicates infix followed by l, r, or nothing.
-			in concat5 "\\(" escapedSearchTerm "\\)" atleastOneWhiteSpace "infix[lr]?"
-		)
+		// infix[lr]? indicates infix followed by l, r, or nothing.
+		(concat5  "\\(" searchTerm "\\)" atleastOneWhiteSpace "infix[lr]?")
 		(concat3 searchTerm anyAmountOfWhitespace "::" )
 
 grepGenericSearchTerm :: !String -> String
@@ -455,3 +443,11 @@ atleastOneCharacter = ".+"
 
 pipeOrEquals :: String
 pipeOrEquals ="\\||="
+
+escapeRegexCharactersInSearchTerm :: !String -> String
+escapeRegexCharactersInSearchTerm searchTerm
+	# charactersToEscape = [!'[', ']', '(', ')', '{', '}', '*', '+', '?', '|', '^', '$', '.', '\\']
+	= concat $
+		[ if (IsMember c charactersToEscape) ("\\" +++ toString c) (toString c)
+			\\ c <-: searchTerm
+		]

@@ -180,6 +180,7 @@ where
 					(removeUnwantedSymbolsFromSearchTerm
 						$ retrieveSearchTerm stopPredicateAfterGenericKindSpecificationWasNotFound line uIntChar
 					)
+			# searchTerm = escapeRegexCharactersInSearchTerm searchTerm
 			= Ok $
 				(concat
 					// Only search for types when the term starts with an uppercase character.
