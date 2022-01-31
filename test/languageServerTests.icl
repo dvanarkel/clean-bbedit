@@ -196,6 +196,8 @@ properties =:
 		as "go to declaration of a type does not find a newtype when the type name is infix of the newtype name."
 	, goToDeclarationOfTypeInModuleWithNameForWhichUrlEncodingAltersName
 		as "go to declaration of a type located within a module that has a name for which url encoding alters the name."
+	, goToDeclarationOfUniqueTypeCorrectlyHandledFor
+		as "go to declaration of a unique type is correctly handled for."
 	, goToDefinitionOfRecordFieldPrecededByBraceOnPreviousLineCorrectlyHandledFor
 		as "go to definition of record field preceded by { on the previous line is correctly handled"
 	, goToDefinitionOfRecordFieldPrecededByCommaOnPreviousLineCorrectlyHandledFor
@@ -1110,6 +1112,18 @@ goToDeclarationOfTypeInModuleWithNameForWhichUrlEncodingAltersName =:
 where
 	typeDefPosition :: Position
 	typeDefPosition = {line=uint 2, character=uint 7}
+
+goToDeclarationOfUniqueTypeCorrectlyHandledFor :: Property
+goToDeclarationOfUniqueTypeCorrectlyHandledFor =:
+	goToTest
+		Declaration
+		SUITE_DEFAULT
+		FILE_GO_TO_DCL_1
+		uniqueTypePosition
+		[!(FILE_GO_TO_DCL_1, uint 97)!]
+where
+	uniqueTypePosition :: Position
+	uniqueTypePosition = {line=uint 97, character=uint 10}
 
 goToDefinitionOfRecordFieldPrecededByBraceOnPreviousLineCorrectlyHandledFor :: Property
 goToDefinitionOfRecordFieldPrecededByBraceOnPreviousLineCorrectlyHandledFor =:

@@ -94,3 +94,5 @@ stdEnvFunc :: Bool
 :: User = FooUser
 
 :: UserList =: UserList Int
+
+:: *UniqueType = { fooBool :: !Bool }
