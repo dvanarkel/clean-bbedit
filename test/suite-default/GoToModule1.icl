@@ -118,3 +118,5 @@ funcWithoutTypeAnnotationTest3 a b c d e f
 funcWithoutTypeAnnotationTest4
 	| True = True
 	= False
+
+:: *UniqueType = { fooBool :: !Bool }

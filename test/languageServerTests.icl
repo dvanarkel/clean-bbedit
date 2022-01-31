@@ -1450,3 +1450,15 @@ goToDefinitionOfFuncWithTypeAnnotationResultsInTypeDefinitionLineOnly =:
 where
 	funcPosition :: Position
 	funcPosition = {line=uint 79, character=uint 5}
+
+goToDefinitionOfUniqueTypeCorrectlyHandledFor :: Property
+goToDefinitionOfUniqueTypeCorrectlyHandledFor =:
+	goToTest
+		Definition
+		SUITE_DEFAULT
+		FILE_GO_TO_ICL_1
+		uniqueTypePosition
+		[!(FILE_GO_TO_ICL_1, uint 121)!]
+where
+	uniqueTypePosition :: Position
+	uniqueTypePosition = {line=uint 121, character=uint 10}
