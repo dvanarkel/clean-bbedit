@@ -6,13 +6,9 @@ stages:
   - test
 
 linux-x64:
-  image: 'itasks/clean:nightly'
+  image: 'itasks/clean:bundle-complete-no-itasks-2022-03-11'
   stage: build
   needs: []
-  before_script:
-    - install_clean_nightly.sh base lib-platform test
-    - apt-get update -qq
-    - apt-get install make
   script:
     - make -C src/lib compiler
     - make -C src/linter eastwood-lint
@@ -24,12 +20,8 @@ linux-x64:
       - src/languageServer/eastwood-cls
 
 test:
-  image: 'itasks/clean:nightly'
+  image: 'itasks/clean:bundle-complete-no-itasks-2022-03-11'
   stage: test
-  before_script:
-    - install_clean_nightly.sh bundle-complete
-    - apt-get update -qq
-    - apt-get install make
   script:
     - make -C test runTests
   artifacts:
