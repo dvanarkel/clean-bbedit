@@ -1,13 +1,8 @@
 variables:
   GIT_SUBMODULE_STRATEGY: recursive
 
-stages:
-  - build
-  - test
-
 linux-x64:
   image: 'itasks/clean:bundle-complete-no-itasks-2022-03-11'
-  stage: build
   needs: []
   script:
     - make -C src/lib compiler
@@ -21,7 +16,6 @@ linux-x64:
 
 test:
   image: 'itasks/clean:bundle-complete-no-itasks-2022-03-11'
-  stage: test
   script:
     - make -C test runTests
   artifacts:
