@@ -2,7 +2,7 @@ variables:
   GIT_SUBMODULE_STRATEGY: recursive
 
 linux-x64:
-  image: 'itasks/clean:bundle-complete-no-itasks-2022-03-11'
+  image: 'itasks/clean:bundle-complete-2022-03-11'
   needs: []
   script:
     - make -C src/lib compiler
@@ -15,7 +15,7 @@ linux-x64:
       - src/languageServer/eastwood-cls
 
 test:
-  image: 'itasks/clean:bundle-complete-no-itasks-2022-03-11'
+  image: 'itasks/clean:bundle-complete-2022-03-11'
   script:
     - make -C test runTests
   artifacts:
