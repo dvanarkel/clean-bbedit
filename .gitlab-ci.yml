@@ -1,8 +1,9 @@
 variables:
+  CLEAN_DATE: "2022-03-11"
   GIT_SUBMODULE_STRATEGY: recursive
 
 build:
-  image: 'itasks/clean:bundle-complete-2022-03-11'
+  image: 'itasks/clean:bundle-complete-$CLEAN_DATE'
   needs: []
   script:
     - make -C src/lib compiler
@@ -17,7 +18,7 @@ build:
 test:
   needs:
     - build
-  image: 'itasks/clean:bundle-complete-2022-03-11'
+  image: 'itasks/clean:bundle-complete-$CLEAN_DATE'
   script:
     - make -C test runTests
   artifacts:
