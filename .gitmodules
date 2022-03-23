@@ -9,5 +9,5 @@
 	branch = main
 [submodule "src/lib/yaml"]
 	path = src/lib/yaml
-	url = https://gitlab.com/camilstaps/yaml.git
+	url = https://gitlab.com/top-software/yaml.git
 	branch = main
