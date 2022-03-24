@@ -3,6 +3,7 @@ variables:
   GIT_SUBMODULE_STRATEGY: recursive
 
 build:
+  interruptible: true
   image: 'itasks/clean:bundle-complete-$CLEAN_DATE'
   needs: []
   script:
@@ -16,6 +17,7 @@ build:
       - src/languageServer/eastwood-cls
 
 test:
+  interruptible: true
   needs:
     - build
   image: 'itasks/clean:bundle-complete-$CLEAN_DATE'
