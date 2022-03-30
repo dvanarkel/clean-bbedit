@@ -1,5 +1,5 @@
 variables:
-  CLEAN_DATE: "2022-03-11"
+  CLEAN_DATE: "2022-03-30"
   GIT_SUBMODULE_STRATEGY: recursive
 
 build:
@@ -7,7 +7,6 @@ build:
   image: 'itasks/clean:bundle-complete-$CLEAN_DATE'
   needs: []
   script:
-    - make -C src/lib compiler
     - make -C src/linter eastwood-lint
     - make -C src/languageServer eastwood-cls
   artifacts:

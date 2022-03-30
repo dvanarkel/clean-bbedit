@@ -51,8 +51,8 @@ Global
 		Path:	{Project}
 		Path:	{Project}*..*lib
 		Path:	{Project}*..*lib*clean-lsp*src
-		Path:	{Project}*..*lib*compiler*frontend
-		Path:	{Project}*..*lib*compiler*main*Unix
+		Path:	{Application}*lib*compiler-itask*frontend
+		Path:	{Application}*lib*compiler-itask*main*Unix
 		Path:	{Project}*..*lib*yaml*src
 		Path:	{Application}*lib*Platform
 	Precompile:	
