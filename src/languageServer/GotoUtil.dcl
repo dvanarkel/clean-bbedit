@@ -30,31 +30,67 @@ from Config import :: EastwoodState
 	, position :: !Position //* The position within the document.
 	}
 
+:: SearchType = Definition | Declaration | SingleFile !FilePath
+
 derive gLSPJSONDecode GotoDeclarationOrDefinitionParams
 
 /**
  * Retrieves the prerequisites for being able to go to definitions/declarations.
  *
- * @param The go to definition/declaration request
- * @param The eastwood state
- * @param World
- * @result ResponseMessage in case of error, the prerequisites in case of success
- * @result World
+ * @param The go to definition/declaration request.
+ * @param The eastwood state.
+ * @param World.
+ * @result ResponseMessage in case of error, the prerequisites in case of success.
+ * @result World.
  */
 gotoPrerequisitesFor
 	:: !RequestMessage !EastwoodState !*World -> (MaybeError ResponseMessage GotoPrerequisites, !*World)
 
 /**
- * This function is used to check the surrounding lines included in a grep result ending on a provided symbol
- * (possibly followed by whitespace)
+ * This function is used to check the surrounding lines included in a grep result ending on a provided stop symbol
+ * A predicate which much hold before a stop symbol is found may be provided.
  *
  * @param The predicate that should hold for the characters that are found before finding a stop symbol.
  * @param The stop symbols which should lead to short circuiting as the symbol which is searched for is found.
- * @param Whether the line should be reversed (check for stop symbol reading from end of line to front)
- * @param The lines to check
+ * @param Whether the line should be reversed (check for stop symbol reading from end of line to front).
+ * @param The lines to check.
  * @result The resulting lines that pass the filter.
  */
 filterSurroundingLinesForPredUntilStopSymbol :: !(Char -> Bool) ![!Char] !Bool ![String] -> [String]
+
+/**
+ * Performs and processes grep results for search terms.
+ *
+ * @param The type of the search: any declaration module (.dcl), any definition (.icl) or single file.
+ * @param Optionally, a file to exclude when searching.
+ * @param The regex search term for which results should be found.
+ * @param The root path to search.
+ * @param The paths to the CLEAN_HOME libraries.
+ * @param The id of the request
+ * @param World.
+ * @result Error: an error response to send back to the client.
+ * @result Success: The filenames and line numbers of the lines that match the search term.
+ * @result World.
+ */
+grepResultsForSearchTerm ::
+	!SearchType !(?FilePath) !String !FilePath ![FilePath] ![String] !(String -> [(String, Int)]) !RequestId !*World
+	-> (!MaybeError ResponseMessage [(String, Int)], !*World)
+
+//* Transforms the grep stdout output to a list of filepaths and lineNumbers for which results were found.
+singleLineGrepStdoutToFilePathAndLineNr :: !String -> [(FilePath, Int)]
+
+/**
+ * Transforms the grep stdout which involves a surrounding line to a list of file paths and linenumbers.
+ * E.g: when finding a constructor with a | or = on the preceding line 1 line
+ * should be added to reach the constructor itself so the first argument should be 1.
+ *
+ * @param The predicate that should hold for the characters that are found before finding a stop symbol.
+ * @param The stop symbols which should lead to short circuiting as the symbol which is searched for is found.
+ * @param Whether the line should be reversed (check for stop symbol reading from end of line to front).
+ * @param The amount of line numbers to add or substract from the line number found.
+ * @param The stdout of grep.
+ */
+surroundingLineGrepStdoutToFilePathAndLineNr :: !(Char -> Bool) [!Char] !Bool !Int !String -> [(FilePath, Int)]
 
 //* A list of whitespace characters.
 whitespaceChars :: [!Char]
@@ -87,7 +123,7 @@ lookForwardCharacter :: UChar
 
 //* Not all characters belong to a searchable symbol. If a goto request is received for one of these "special"
 //* characters, Eastwood will not attempt to search.
-//* {, } are not included because they can occur in a generic kind specification e.g: {|*|}
+//* {, } are not included because they can occur in a generic kind specification e.g: {|*|}.
 isSpecialCharacter :: !UChar -> Bool
 
 //* A regex matching at least one white space.
@@ -116,7 +152,7 @@ stopPredicateAfterGenericKindSpecificationWasNotFound :: !UChar -> Bool
  * Unless an infix function is being parsed this function removes the symbols surrounding the function from the string.
  * If an infix function is being parsed we remove the parenthesis surrounding the infix function if used prefix.
  *
- * @param the search term for which unwanted symbols should be removed
+ * @param the search term for which unwanted symbols should be removed.
  * @result the search term without the unwanted symbols.
  */
 removeUnwantedSymbolsFromSearchTerm :: !String -> String

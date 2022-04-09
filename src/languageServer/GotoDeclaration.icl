@@ -1,45 +1,49 @@
 implementation module GotoDeclaration
 
-import StdEnv
-import StdOverloadedList
+import Config
+import Constants
 
 import Data.Array
 import Data.Bool
 import Data.Error
+import qualified Data.Foldable
 import Data.Func
 import Data.Functor
 import Data.List
 import Data.Maybe
 import Data.Tuple
+
+import qualified Eastwood.Range
+from Eastwood.Range import qualified :: Range {..}, :: CharacterRange, :: Position {..}
+import Eastwood.Util.FileFinder
+
+import GotoUtil
+
 import Text
 import Text.Encodings.UrlEncoding
 from Text.Unicode.UChar import isSymbol, :: UChar, instance fromChar UChar, instance toChar UChar, instance == UChar
 	, instance toInt UChar, isAlphaNum, isPunctuation
 import Text.URI
+
+import StdEnv
+import StdOverloadedList
+
 import System.Environment
 import System.File
 import System.FilePath
 from System.Process import :: ProcessResult {..}, callProcessWithOutput
 
 import LSP.BasicTypes
-import LSP.Location
-import LSP.RequestMessage
-import LSP.ResponseMessage
 import LSP.Internal.Serialize
-import LSP.TextDocumentIdentifier
+import LSP.Location
 import qualified LSP.Position
 from LSP.Position import :: Position {..}
-import qualified Eastwood.Range
-from LSP.Range import :: Range {..}
-from Eastwood.Range import qualified :: Range {..}, :: CharacterRange, :: Position {..}
 from LSP.Position import qualified :: Position {..}
 import qualified LSP.Range
-
-import Eastwood.Util.FileFinder
-
-import Config
-import Constants
-import GotoUtil
+from LSP.Range import :: Range {..}
+import LSP.RequestMessage
+import LSP.ResponseMessage
+import LSP.TextDocumentIdentifier
 import Util
 
 onGotoDeclaration
@@ -50,91 +54,32 @@ onGotoDeclaration req=:{RequestMessage|id} st world
     # {line, charNr, rootPath, cleanHomeLibs} = fromOk mbPrerequisites
 	# mbSearchTerms = grepSearchTermFor line charNr
 	| isError mbSearchTerms = (fromError mbSearchTerms, world)
-	// Using the searchString, grep is executed to find the file names and line numbers of the definitions that match.
-	// There is a special case for constructors which have the preceding | or = on the preceding line.
-	// This requires checking the previous line, hence there is a seperate search term for efficiency reasons.
+	// Using the searchString, grep is executed to find the file names and line numbers of the declarations that match.
 	# (searchTermReg, searchTermConstructorSpecialCase)  = fromOk mbSearchTerms
-	// Call grep using the regular (non special constructor case) search term to find the matching declarations.
-	// -P enables perl regexp, -r recurses through all files, -n gives line number,
-	// -w matches whole words only (e.g: :: Maybe matches :: Maybe but not :: MaybeOSError).
-	//--include \*.dcl makes sure only dcl files are examined by grep.
-	// rootPath and cleanHomeLibs are searched for matches.
-	# (mbGrepResultRegSearchTerm, world)
-		= callProcessWithOutput
-			"grep"
-			(
-				[ "-P"
-				, searchTermReg
-				, "-r"
-				, "-n"
-				, "-w"
-				, "--include"
-				, "\*.dcl"
-				, rootPath
-				]
-				++ cleanHomeLibs
+	# (mbResultsGeneralCase, world) =
+		grepResultsForSearchTerm
+			Declaration ?None searchTermReg rootPath cleanHomeLibs [] singleLineGrepStdoutToFilePathAndLineNr id world
+	| isError mbResultsGeneralCase = (fromError mbResultsGeneralCase, world)
+	// There is a special case for constructors which have the preceding | or = on the preceding line.
+	// This requires checking the previous line, hence there is a seperate search term.
+	# (mbResultsCtorWithPipeOrEqOnPrevLine, world) =
+		'Data.Foldable'.foldl`
+			(\(_, world) searchTerm ->
+				grepResultsForSearchTerm Declaration ?None searchTerm rootPath cleanHomeLibs ["-B", "1"]
+					(surroundingLineGrepStdoutToFilePathAndLineNr
+						(flip IsMember whitespaceChars)
+						[!'=', '|']
+						True
+						1
+					)
+					id world
 			)
-			?None
-			world
-	| isError mbGrepResultRegSearchTerm
-		= (errorResponse id InternalError "grep failed when searching for type definitions.", world)
-	# {stdout} = fromOk mbGrepResultRegSearchTerm
-	# stdoutRegSearchTerm = stdout
-	// The stdout for the special constructor case is processed using grep again to find the locations of the
-	// Constructors which are preceded by | and = on the preceding line.
-	# (mbGrepResultSpecialConstructorCase, world) = case searchTermConstructorSpecialCase of
-		?None = (?None, world)
-		?Just searchTerm =
-			appFst ?Just $
-				callProcessWithOutput
-					"grep"
-						([ "-P", searchTerm
-						// -B 1 also selects the previous line.
-						, "-B", "1"
-						, "-r"
-						, "-n"
-						, "-w"
-						, "--include", "\*.dcl"
-						, rootPath
-						]
-						++ cleanHomeLibs
-						)
-					?None
-					world
-	| isJust mbGrepResultSpecialConstructorCase && (isError $ fromJust mbGrepResultSpecialConstructorCase)
-		= (errorResponse id InternalError "grep failed when searching for special constructor case.", world)
-	# stdoutSpecialConstructorCase = case mbGrepResultSpecialConstructorCase of
-		// No need to search for a constructor since the searchTerm can not be a constructor.
-		?None = ""
-		// There is a need to search for a constructor since the searchTerm could be a constructor.
-		?Just grepResult = (fromOk grepResult).ProcessResult.stdout
-	// List of lists of string containing the results, grep separates file name/line number by : and results by \n.
-	// grep adds an empty newline at the end of the results which is removed by init.
-	// The first two results are the file name and line number.
-	// This is transformed into a list of tuples of filename and linenumber for convenience.
-	# results =
-		(	(\[fileName, lineNr] -> ([(fileName, toInt lineNr)])) o take 2 o split ":" <$>
-				(init $ split "\n" stdoutRegSearchTerm)
-		)
-		++
-		// - is used as a seperator for the specialConstructorCase results, as grep uses - as a group seperator.
-		// when previous lines are shown instead of :.
-		// In the special constructor case the previous line will be found so +1 is added to the line number.
-		// Filename can contain - itself so this is accounted for.
-		// The actual match is at the end so this is dropped, this is followed by the lineNr and strs that when
-		// concatenated form the filename, this does not account for the match containing -.
-		// So if the constructor definition itself contains hyphens in comments this breaks.
-		(	(\[lineNr:fileName] -> ([(join "-" $ reverse $ fileName, toInt lineNr + 1)])) o drop 1 o reverse o split "-"
-			<$>
-			(filterSurroundingLinesForPredUntilStopSymbol
-				(flip IsMember whitespaceChars)
-				[!'=', '|']
-				True
-				(init $ split "\n" stdoutSpecialConstructorCase)
-			)
-		)
+			(Ok [], world)
+			searchTermConstructorSpecialCase
+	| isError mbResultsCtorWithPipeOrEqOnPrevLine = (fromError mbResultsCtorWithPipeOrEqOnPrevLine, world)
+	# results = fromOk mbResultsGeneralCase ++ fromOk mbResultsCtorWithPipeOrEqOnPrevLine
 	// For every tuple of fileName and lineNumber, a Location is generated to be sent back to the client.
-	# locations = [! l \\ l <- catMaybes $ fileAndLineToLocation <$> flatten results !]
+	# locations = [! l \\ l <- catMaybes $ fileAndLineToLocation <$> results !]
 	= (locationResponse id locations, world)
 where
 	/**

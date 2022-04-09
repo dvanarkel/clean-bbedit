@@ -1,17 +1,21 @@
 implementation module GotoUtil
 
 import StdEnv
-import StdMaybe
 import StdOverloadedList
 
 import Data.Array
 import Data.Bool
 import Data.Error
 import Data.Func
+import Data.Functor
+import Data.GenEq
 import Data.List
+import Data.Maybe
+import Data.Tuple
 import System.Environment
 import System.File
 import System.FilePath
+import System.Process
 import Text
 import Text.Encodings.UrlEncoding
 from Text.Unicode.UChar import :: UChar, isAlphaNum, isSymbol, isPunctuation, instance fromChar UChar, instance == UChar
@@ -169,7 +173,7 @@ where
 	indexOfLastHyphenLineNumberSeperator :: !String -> Int
 	indexOfLastHyphenLineNumberSeperator line
 		// We parse in reverse because it makes it easier because file names can contain hyphens themselves.
-		= indexOfLastHyphenLineNumberSeperator` (reverseArr line)
+		= indexOfLastHyphenLineNumberSeperator` $ reverseArr line
 	where
 		indexOfLastHyphenLineNumberSeperator` reversedLine
 			// Get the first hyphen in the reversed line.
@@ -178,19 +182,99 @@ where
 			// always includes a line number indication of the form -lineNumber-
 			| indexFirstHyphen == -1 = -1
 			// We read from the first hyphen and discard it to find the next hyphen.
-			# lineFromFirstHyphen = (dropChars (indexFirstHyphen + 1) reversedLine)
+			# lineFromFirstHyphen = dropChars (indexFirstHyphen + 1) reversedLine
 			# indexFollowingHyphen = indexOf "-" lineFromFirstHyphen
 			| indexFollowingHyphen == -1 = -1
-			# charactersBetweenHyphens = takeArr (indexFollowingHyphen) lineFromFirstHyphen
+			# charactersBetweenHyphens = takeArr indexFollowingHyphen lineFromFirstHyphen
 			// Look if all characters between the hyphens are numbers.
 			# allCharactersBetweenHyphensAreNumbers
-				= Any ((flip IsMember) [!'0'..'9']) [c \\ c <-: charactersBetweenHyphens]
+				= Any isDigit [c \\ c <-: charactersBetweenHyphens]
 			// Found the linenumber seperator hyphen (assumption, the line does not include -number- before the
 			// line number seperator).
 			| allCharactersBetweenHyphensAreNumbers
 				= lastIndexOf "-" (reverseArr reversedLine)
-			// Look for line number seperator starting at the following hyphen.
-			= -1 // indexOfLastHyphenLineNumberSeperator` (dropChars indexFollowingHyphen reversedLine)
+			= -1
+
+grepResultsForSearchTerm ::
+	!SearchType !(?FilePath) !String !FilePath ![FilePath] ![String] !(String -> [(String, Int)]) !RequestId !*World
+	-> (!MaybeError ResponseMessage [(String, Int)], !*World)
+grepResultsForSearchTerm searchType mbFileToExclude searchTerm rootPath cleanHomeLibs additionalArgs
+	grepOutputToResults id world
+	# (mbGrepResult, world) =
+		executeGrep mbFileToExclude (searchTypeToSearchPattern searchType) searchTerm rootPath
+			cleanHomeLibs additionalArgs world
+	| isError mbGrepResult
+		= (Error $ errorResponse id InternalError "grep failed when searching for single line results.", world)
+	# {stdout} = fromOk mbGrepResult
+	# results = grepOutputToResults stdout
+	= (Ok results, world)
+
+executeGrep ::
+	!(?FilePath) !String !String !FilePath ![FilePath] ![String] !*World -> (!MaybeOSError ProcessResult, !*World)
+executeGrep mbFileToExclude searchPattern searchTerm rootPath cleanHomeLibs additionalArgs world =
+	// Call grep using the regular search term to find the matching declarations.
+	// -P enables perl regexp, -r recurses through all files, -n gives line number,
+	// -H prints the filename for each match.
+	// -w matches whole words only (e.g: :: Maybe matches :: Maybe but not :: MaybeOSError).
+	// --include \*.dcl or \*.icl makes sure only dcl/icls files are examined by grep, respectively.
+	// --exclude excludes a file from the search.
+	// rootPath and cleanHomeLibs are searched for matches.
+	callProcessWithOutput
+		"grep"
+		(	additionalArgs ++
+			["-P", searchTerm
+			, "-r"
+			, "-n"
+			, "-H"
+			, "-w"
+			, "--include", searchPattern
+			, rootPath
+			]
+			++ maybe [] (\fileToExclude -> ["--exclude", fileToExclude]) mbFileToExclude
+			++ cleanHomeLibs
+		)
+		?None
+		world
+
+// Example grep output (stdout):
+// src/languageServer/GotoUtil.dcl:59:resultsForCtorWithPipeOrEqualsOnThePrecedingLine ::
+// <empty line at end>
+singleLineGrepStdoutToFilePathAndLineNr :: !String -> [(FilePath, Int)]
+singleLineGrepStdoutToFilePathAndLineNr stdout =
+	(	(\[fileName, lineNr] -> ((fileName, toInt lineNr))) o take 2 o split ":" <$>
+			(init $ split "\n" stdout)
+	)
+
+// Example grep output:
+// src/languageServer/GotoUtil.dcl-58-
+// src/languageServer/GotoUtil.dcl:59:resultsForCtorWithPipeOrEqualsOnThePrecedingLine ::
+// <empty line at end>
+//
+// - is used as a seperator for the results, as grep uses `-` as a group seperator.
+// when previous lines are shown instead of `:`.
+// In this case, the previous line will be found so +1 is added to the line number to return the line
+// where the actual constructor is located.
+// The filename can contain - itself so this is accounted for.
+// The actual match is at the end so this is dropped, this is followed by the lineNr and strs that when
+// concatenated form the filename, this does not account for the match containing -.
+// So if the constructor definition itself contains hyphens in comments this breaks.
+surroundingLineGrepStdoutToFilePathAndLineNr :: !(Char -> Bool) [!Char] !Bool !Int !String -> [(FilePath, Int)]
+surroundingLineGrepStdoutToFilePathAndLineNr holdsBeforeStop stopSymbols reverseStdoutLine addToLineNr stdout =
+	(	(\[lineNr:fileName] -> (join "-" $ reverse $ fileName, toInt lineNr + addToLineNr))
+		o drop 1 o reverse o split "-"
+		<$>
+		(filterSurroundingLinesForPredUntilStopSymbol
+			holdsBeforeStop
+			stopSymbols
+			reverseStdoutLine
+			(init $ split "\n" stdout)
+		)
+	)
+
+searchTypeToSearchPattern :: !SearchType -> String
+searchTypeToSearchPattern Declaration = "\*.dcl"
+searchTypeToSearchPattern Definition = "\*.icl"
+searchTypeToSearchPattern (SingleFile filePath) = filePath
 
 whitespaceChars :: [!Char]
 whitespaceChars = [!' ', '\t', '\r', '\n', '\v', '\f']
@@ -451,3 +535,5 @@ escapeRegexCharactersInSearchTerm searchTerm
 		[ if (IsMember c charactersToEscape) ("\\" +++ toString c) (toString c)
 			\\ c <-: searchTerm
 		]
+
+instance == SearchType derive gEq

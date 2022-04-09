@@ -6,6 +6,7 @@ import StdOverloadedList
 import Data.Error
 import Data.Func
 import Data.Functor
+import qualified Data.Foldable
 import Data.List
 import Data.Maybe
 import Data.Tuple
@@ -36,281 +37,90 @@ onGotoDefinition req=:{RequestMessage|id, params = ?Just json} st world
 	# {line, charNr, rootPath, cleanHomeLibs} = fromOk mbPrerequisites
 	# mbSearchTerms = grepSearchTermFor line charNr
 	| isError mbSearchTerms = (fromError mbSearchTerms, world)
-	// Using the searchString, grep is executed to find the file names and line numbers of the definitions that match.
-	// There is a special case for constructors which have the preceding | or = on the preceding line.
-	// This requires checking the previous line, hence there is a seperate search term for efficiency reasons.
-	// There is also a special search term for finding where functions in the .icl file from which the request is
-	// made, if applicable.
-	// There is a special search term for finding record fields in .icl files that are preceded by
-	// { or , on the previous line.
+	// Using the search terms, grep is executed to find the file names and line numbers of the definitions that match.
 	# {	  generalSearchTerm , ctorPrecededByPipeOrEqualsOnPrecedingLineSearchTerm
 		, requestFileSearchTerm, requestFileFuncDefSearchTerm, requestFileFuncDefWithoutTypeAnnotationSearchTerm
 		, requestFileFuncDefWithoutTypeAnnotationSearchTermSpecialCase
 		} = fromOk mbSearchTerms
-	// Call grep using the regular (non special constructor case) search term to find the matching declarations.
-	// -P enables perl regexp, -r recurses through all files, -n gives line number, -H includes file name.
-	// -w matches whole words only (e.g: :: Maybe matches :: Maybe but not :: MaybeOSError).
-	// --include \*.icl makes sure only icl files are examined by grep.
-	# (mbGrepResultRegSearchTerm, world)
-		= callProcessWithOutput
-				"grep"
-				(
-					[ "-P", generalSearchTerm
-					, "-r"
-					, "-n"
-					, "-H"
-					, "-w"
-					, "--include", "*.icl"
-					, rootPath
-					]
-					// Exclude the .icl file from which request is being made if applicable.
-					++ if requestMadeFromIcl ["--exclude", requestFileBaseName +++ ".icl"] []
-					++ cleanHomeLibs
-				)
-				?None
-				world
-	| isError mbGrepResultRegSearchTerm
-		= (errorResponse id InternalError "grep failed when searching for type definitions.", world)
-	# {stdout} = fromOk mbGrepResultRegSearchTerm
-	# stdoutRegSearchTerm = stdout
-	// The stdout for the special constructor case is processed using grep again to find the locations of the
-	// Constructors which are preceded by | and = on the preceding line.
-	# (mbGrepResultSpecialConstructorCase, world) = case ctorPrecededByPipeOrEqualsOnPrecedingLineSearchTerm of
-		?None = (?None, world)
-		?Just searchTerm =
-			appFst ?Just $
-				callProcessWithOutput
-					"grep"
-						(
-							[ "-P", searchTerm
-							// -B 1 also selects the previous line.
-							, "-B", "1"
-							, "-r"
-							, "-n"
-							, "-w"
-							, "--include", "*.icl"
-							, rootPath
-							] ++ cleanHomeLibs
-						)
-					?None
-					world
-	| isJust mbGrepResultSpecialConstructorCase && (isError $ fromJust mbGrepResultSpecialConstructorCase)
-		= (errorResponse id InternalError "grep failed when searching for special constructor case.", world)
-	# stdoutSpecialConstructorCase = case mbGrepResultSpecialConstructorCase of
-		// No need to search for a constructor since the searchTerm can not be a constructor.
-		?None = ""
-		// There is a need to search for a constructor since the searchTerm could be a constructor.
-		?Just grepResult
-			= (fromOk grepResult).ProcessResult.stdout
-	// The stdout for the file from which the request was made.
-	# (mbStdoutLocalSearchTerm, world) =
-		case requestMadeFromIcl of
-			False = (Ok ?None, world)
-			True
-				# (mbGrepResultLocalSearchTerm, world)
-					= callProcessWithOutput
-						"grep"
-						(
-							[ "-P", requestFileSearchTerm
-							, "-r"
-							, "-n"
-							, "-H"
-							, "-w"
-							// Only apply this search term to the .icl file from which the request is made,
-							// if applicable.
-							, "--include", requestFileBaseName +++ ".icl"
-							, requestPath
-							]
-						)
-						?None
-						world
-				| isError mbGrepResultLocalSearchTerm
-					=
-						(Error
-							$ errorResponse id InternalError "grep failed when searching for type definitions."
-					 	, world
-						)
-				# {stdout} = fromOk mbGrepResultLocalSearchTerm
-				= (Ok $ ?Just stdout, world)
-	| isError mbStdoutLocalSearchTerm = (fromError mbStdoutLocalSearchTerm, world)
-	// The stdout for the file from which the request was made
+	# (mbResGeneralCase, world) =
+		grepResultsForSearchTerm
+			Definition (?Just $ takeFileName requestPath) generalSearchTerm rootPath cleanHomeLibs []
+			singleLineGrepStdoutToFilePathAndLineNr id world
+	| isError mbResGeneralCase = (fromError mbResGeneralCase, world)
+	# (mbResCtorPipeOrEqualsSameLine, world)
+		= 'Data.Foldable'.foldl`
+			(\(_, world) searchTerm ->
+				grepResultsForSearchTerm Definition ?None searchTerm rootPath cleanHomeLibs ["-B", "1"]
+					(surroundingLineGrepStdoutToFilePathAndLineNr
+						(flip IsMember whitespaceChars)
+						[!'=', '|']
+						True
+						1
+					)
+					id world
+			)
+			(Ok [], world)
+			ctorPrecededByPipeOrEqualsOnPrecedingLineSearchTerm
+	| isError mbResCtorPipeOrEqualsSameLine = (fromError mbResCtorPipeOrEqualsSameLine, world)
+	# (mbResLocalSearch, world) =
+		if requestMadeFromIcl
+			(grepResultsForSearchTerm
+				(SingleFile $ takeFileName requestPath) ?None requestFileSearchTerm requestPath [] []
+				 singleLineGrepStdoutToFilePathAndLineNr id world
+			)
+			(Ok [], world)
+	| isError mbResLocalSearch = (fromError mbResLocalSearch, world)
 	// Tries to find a type annotated func definition in the .icl
-	# (mbStdoutLocalFuncSearchTerm, world) =
-		case requestMadeFromIcl of
-			False = (Ok ?None, world)
-			True
-				# (mbGrepResultLocalFuncSearchTerm, world)
-					= callProcessWithOutput
-						"grep"
-						(
-							[ "-P", requestFileFuncDefSearchTerm
-							, "-r"
-							, "-n"
-							, "-H"
-							, "-w"
-							// Only apply this search term to the .icl file from which the request is made,
-							// if applicable.
-							, "--include", requestFileBaseName +++ ".icl"
-							, requestPath
-							]
-						)
-						?None
-						world
-				| isError mbGrepResultLocalFuncSearchTerm
-					=
-						(Error
-							$ errorResponse id InternalError "grep failed when searching for type definitions."
-					 	, world
-						)
-				# {stdout} = fromOk mbGrepResultLocalFuncSearchTerm
-				= (Ok $ ?Just stdout, world)
-	| isError mbStdoutLocalFuncSearchTerm = (fromError mbStdoutLocalFuncSearchTerm, world)
-	# (mbStdoutLocalNonTypeAnnotedFuncSearchTerm, world) =
+	# (mbResLocalTypeAnnotatedFunc, world) =
+		if requestMadeFromIcl
+			(grepResultsForSearchTerm
+				(SingleFile $ takeFileName requestPath) ?None requestFileFuncDefSearchTerm requestPath [] []
+				singleLineGrepStdoutToFilePathAndLineNr id world
+			)
+			(Ok [], world)
+	| isError mbResLocalSearch = (fromError mbResLocalSearch, world)
+	// Tries to find a type annotated func definition in the .icl
+	# (mbResLocalNonTypeAnnotatedFunc, world) =
+		if (requestMadeFromIcl && mbResLocalTypeAnnotatedFunc=:(Ok []))
+			(grepResultsForSearchTerm
+				(SingleFile $ requestFileBaseName +++ ".icl") ?None
+				requestFileFuncDefWithoutTypeAnnotationSearchTerm requestPath [] []
+				singleLineGrepStdoutToFilePathAndLineNr id world
+			)
+			(Ok [], world)
+	| isError mbResLocalNonTypeAnnotatedFunc = (fromError mbResLocalNonTypeAnnotatedFunc, world)
+	// Finds a local non type annotated function where the function args are included in the succeeding line.
+	# (mbResLocalNonTypeAnnotatedFuncArgsNextLine, world) =
 		// If the request was not made from a .icl or we found a type annotated function in the .icl we do not search.
-		case requestMadeFromIcl && mbStdoutLocalFuncSearchTerm =: (Ok (?Just "")) of
-			False = (Ok ?None, world)
-			True
-				# (mbGrepResultLocalFuncSearchTerm, world)
-					= callProcessWithOutput
-						"grep"
-						(
-							[ "-P", requestFileFuncDefWithoutTypeAnnotationSearchTerm
-							, "-r"
-							, "-n"
-							, "-H"
-							, "-w"
-							// Only apply this search term to the .icl file from which the request is made,
-							// if applicable.
-							, "--include", requestFileBaseName +++ ".icl"
-							, requestPath
-							]
-						)
-						?None
-						world
-				| isError mbGrepResultLocalFuncSearchTerm
-					=
-						(Error
-							$ errorResponse id InternalError "grep failed when searching for type definitions."
-					 	, world
-						)
-				# {stdout} = fromOk mbGrepResultLocalFuncSearchTerm
-				= (Ok $ ?Just stdout, world)
-	| isError mbStdoutLocalNonTypeAnnotedFuncSearchTerm =
-		(fromError mbStdoutLocalNonTypeAnnotedFuncSearchTerm, world)
-	# (mbStdoutLocalNonTypeAnnotedFuncSearchTermSpecialCase, world) =
-		// If the request was not made from a .icl or we found a type annotated function in the .icl we do not search.
-		case requestMadeFromIcl
-			&& mbStdoutLocalFuncSearchTerm =: (Ok (?Just ""))
-			&& stdoutSpecialConstructorCase == "" of
-			False = (Ok ?None, world)
-			True
-				# (mbGrepResultLocalFuncSearchTermSpecialCase, world)
-					= callProcessWithOutput
-						"grep"
-						(
-							[ "-P", requestFileFuncDefWithoutTypeAnnotationSearchTermSpecialCase
-							, "-A", "1" // Get next line as well.
-							, "-r"
-							, "-n"
-							, "-H"
-							, "-w"
-							// Only apply this search term to the .icl file from which the request is made,
-							// if applicable.
-							, "--include", requestFileBaseName +++ ".icl"
-							, requestPath
-							]
-						)
-						?None
-						world
-				| isError mbGrepResultLocalFuncSearchTermSpecialCase
-					=
-						(Error
-							$ errorResponse id InternalError "grep failed when searching for type definitions."
-					 	, world
-						)
-				# {stdout} = fromOk mbGrepResultLocalFuncSearchTermSpecialCase
-				= (Ok $ ?Just stdout, world)
-	| isError mbStdoutLocalNonTypeAnnotedFuncSearchTermSpecialCase =
-		(fromError mbStdoutLocalNonTypeAnnotedFuncSearchTermSpecialCase, world)
-	// List of lists of string containing the results, grep separates file name/line number by : and results by \n.
-	// grep adds an empty newline at the end of the results which is removed by init.
-	// The first two results are the file name and line number.
-	// This is transformed into a list of tuples of filename and linenumber for convenience.
+		if  (	requestMadeFromIcl
+				&& (mbResLocalTypeAnnotatedFunc=:(Ok []) && (mbResCtorPipeOrEqualsSameLine=:(Ok [])))
+		 	)
+			(	grepResultsForSearchTerm
+					(SingleFile $ takeFileName requestPath)
+					?None
+					requestFileFuncDefWithoutTypeAnnotationSearchTermSpecialCase
+					requestPath
+					[]
+					["-A", "1"]
+					(surroundingLineGrepStdoutToFilePathAndLineNr
+						(flip IsMember alphabeticAndWhitespaceChars)
+						[!'=', '|', '#']
+						False // Read from front to end of line.
+						(~1) // Actual results is one line above
+					)
+					id world
+			)
+			(Ok [], world)
+	| isError mbResLocalNonTypeAnnotatedFuncArgsNextLine = (fromError mbResLocalNonTypeAnnotatedFuncArgsNextLine, world)
 	# results =
-		(	(\[fileName, lineNr] -> ([(fileName, toInt lineNr)])) o take 2 o split ":" <$>
-				(init $ split "\n" stdoutRegSearchTerm)
-		)
-		++
-		// - is used as a seperator for the specialConstructorCase results, as grep uses - as a group seperator.
-		// when previous lines are shown instead of :.
-		// In the special constructor case the previous line will be found so +1 is added to the line number.
-		// Filename can contain - itself so this is accounted for.
-		// The actual match is at the end so this is dropped, this is followed by the lineNr and strs that when
-		// concatenated form the filename, this does not account for the match containing -.
-		// So if the constructor definition itself contains hyphens in comments this breaks.
-		(
-			(\[lineNr:fileName] -> ([(join "-" $ reverse $ fileName, toInt lineNr + 1)]))
-			o drop 1 o reverse o split "-"
-			<$>
-			(filterSurroundingLinesForPredUntilStopSymbol
-				(flip IsMember whitespaceChars)
-				[!'=', '|']
-				True // Read from end to front of line.
-				(init $ split "\n" stdoutSpecialConstructorCase)
-			)
-		)
-		++
-		// This case is the same as for stdoutRegSearchTerm, with a different search term.
-		maybe
-			[]
-			(\stdoutLocalSearchTerm ->
-				(	(\[fileName, lineNr] -> ([(fileName, toInt lineNr)])) o take 2 o split ":" <$>
-						(init $ split "\n" stdoutLocalSearchTerm)
-				)
-			)
-			(fromOk mbStdoutLocalSearchTerm)
-		++
-		maybe
-			[]
-			(\stdoutLocalFuncSearchTerm ->
-				(	(\[fileName, lineNr] -> ([(fileName, toInt lineNr)])) o take 2 o split ":" <$>
-						(init $ split "\n" stdoutLocalFuncSearchTerm)
-				)
-			)
-			(fromOk mbStdoutLocalFuncSearchTerm)
-		++
-		maybe
-			[]
-			(\stdoutLocalNonTypeAnnotatedFuncSearchTerm ->
-				(	(\[fileName, lineNr] -> ([(fileName, toInt lineNr)])) o take 2 o split ":" <$>
-						(init $ split "\n" stdoutLocalNonTypeAnnotatedFuncSearchTerm)
-				)
-			)
-			(fromOk mbStdoutLocalNonTypeAnnotedFuncSearchTerm)
-		++
-		// - is used as a seperator for the results, as grep uses - as a group seperator
-		// when previous lines are shown instead of :.
-		// Filename can contain - itself so this is accounted for.
-		// the stop symbol is found is used to return the actual result line.
-		// The actual match is at the end so this is dropped, this is followed by the lineNr and strs that when
-		// concatenated form the filename, this does not account for the match containing -.
-		// So if the constructor definition itself contains hyphens in comments this breaks.
-		maybe
-			[]
-			(\stdoutLocalNonTypeAnnotatedFuncSearchTermSpecialCase ->
-				(\([lineNr:fileName]) -> ([(join "-" $ reverse $ fileName, toInt lineNr - 1)]))
-				o drop 1 o reverse o split "-"
-				<$>
-				(filterSurroundingLinesForPredUntilStopSymbol
-					(flip IsMember alphabeticAndWhitespaceChars)
-					[!'=', '|', '#']
-					False // Read from front to end of line.
-					(init $ split "\n" stdoutLocalNonTypeAnnotatedFuncSearchTermSpecialCase)
-				)
-			)
-			(fromOk mbStdoutLocalNonTypeAnnotedFuncSearchTermSpecialCase)
+		fromOk mbResGeneralCase ++
+		fromOk mbResCtorPipeOrEqualsSameLine ++
+		fromOk mbResLocalSearch ++
+		fromOk mbResLocalTypeAnnotatedFunc ++
+		fromOk mbResLocalNonTypeAnnotatedFunc ++
+		fromOk mbResLocalNonTypeAnnotatedFuncArgsNextLine
 	// For every tuple of fileName and lineNumber, a Location is generated to be sent back to the client.
-	# locations = [! l \\ l <- catMaybes $ fileAndLineToLocation <$> flatten results !]
+	# locations = [! l \\ l <- catMaybes $ fileAndLineToLocation <$> results !]
 	= (locationResponse id locations, world)
 where
 	/**
