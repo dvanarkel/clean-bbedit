@@ -122,3 +122,17 @@ funcWithoutTypeAnnotationTest4
 :: *UniqueType = { fooBool :: !Bool }
 
 (<#|) infixl 4 :: !Bool !Bool -> Bool
+
+funcWithoutTypeAnnotationTest5
+	a
+	b
+	| True = True
+	= False
+
+:: ConstructorIclFour =
+
+	FooIclTen
+
+funcWithTypeAnnotationNextLine
+	:: Bool
+funcWithTypeAnnotationNextLine = True

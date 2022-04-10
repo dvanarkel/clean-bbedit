@@ -245,6 +245,8 @@ properties =:
 		as "go to definition of a constructor that is preceded by = (no type def) on the previous line is correctly handled"
 	, goToDefinitionOfConstructorPrecededByEqualsOnSameLineCorrectlyHandled
 		as "go to definition of a constructor that is preceded by = (no type def) on the same line is correctly handled"
+	, goToDefinitionOfConstructorEqualsTwoLinesUpCorrectlyHandled
+		as "go to definition of a constructor where the equals preceding the constructor is two lines up."
 	, goToDefinitionOfFuncNoTypeAnnotationEqualsSameLineCorrectlyHandled
 		as "go to definition of a function without a type annotation with the = on the same line is correctly handled"
 	, goToDefinitionOfFuncNoTypeAnnotationEqualsNextLineCorrectlyHandled
@@ -253,9 +255,13 @@ properties =:
 		as "go to definition of a function without a type annotation with a # on the next line is correctly handled"
 	, goToDefinitionOfFuncNoTypeAnnotationGuardNextLineCorrectlyHandled
 		as "go to definition of a function without a type annotation with a | on the next line is correctly handled"
+	, goToDefinitionOfFuncNoTypeAnnotationGuardTwoLinesFurtherCorrectlyHandled
+		as "go to definition of a function without a type annotation which uses 2 lines of arguments correctly handled."
 	// Copy of a different test but this test was added to describe the behavior of the current implementation.
 	, goToDefinitionOfFuncWithTypeAnnotationResultsInTypeDefinitionLineOnly
 		as "go to definition of a function with a type annotation only yields a result for the line containing the type definition"
+	, goToDefinitionOfFuncWithTypeAnnotationColonsOnNextLine
+		as "go to definition of a function with a type annotation where the colons are placed on the next line"
 	, goToDefinitionOfUniqueTypeCorrectlyHandled
 		as "go to definition of a unique type is correctly handled"
 	, goToDefinitionOfInfixFunctionContainingGenericKindSpecificationSymbolCorrectlyHandled
@@ -1433,6 +1439,30 @@ where
 	funcPosition :: Position
 	funcPosition = {line=uint 110, character=uint 5}
 
+goToDefinitionOfFuncNoTypeAnnotationGuardTwoLinesFurtherCorrectlyHandled :: Property
+goToDefinitionOfFuncNoTypeAnnotationGuardTwoLinesFurtherCorrectlyHandled =:
+	goToTest
+		Definition
+		SUITE_DEFAULT
+		FILE_GO_TO_ICL_1
+		funcPosition
+		[!(FILE_GO_TO_ICL_1, uint 125)!]
+where
+	funcPosition :: Position
+	funcPosition = {line=uint 125, character=uint 5}
+
+goToDefinitionOfConstructorEqualsTwoLinesUpCorrectlyHandled :: Property
+goToDefinitionOfConstructorEqualsTwoLinesUpCorrectlyHandled =:
+	goToTest
+		Definition
+		SUITE_DEFAULT
+		FILE_GO_TO_ICL_1
+		ctorPosition
+		[!(FILE_GO_TO_ICL_1, uint 133)!]
+where
+	ctorPosition :: Position
+	ctorPosition = {line=uint 133, character=uint 5}
+
 goToDefinitionOfFuncNoTypeAnnotationLetNextLineCorrectlyHandled :: Property
 goToDefinitionOfFuncNoTypeAnnotationLetNextLineCorrectlyHandled =:
 	goToTest
@@ -1468,6 +1498,18 @@ goToDefinitionOfFuncWithTypeAnnotationResultsInTypeDefinitionLineOnly =:
 where
 	funcPosition :: Position
 	funcPosition = {line=uint 79, character=uint 5}
+
+goToDefinitionOfFuncWithTypeAnnotationColonsOnNextLine :: Property
+goToDefinitionOfFuncWithTypeAnnotationColonsOnNextLine  =:
+	goToTest
+		Definition
+		SUITE_DEFAULT
+		FILE_GO_TO_ICL_1
+		funcPosition
+		[!(FILE_GO_TO_ICL_1, uint 135)!]
+where
+	funcPosition :: Position
+	funcPosition = {line=uint 135, character=uint 5}
 
 goToDefinitionOfUniqueTypeCorrectlyHandled :: Property
 goToDefinitionOfUniqueTypeCorrectlyHandled =:
