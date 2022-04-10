@@ -65,12 +65,11 @@ onGotoDeclaration req=:{RequestMessage|id} st world
 	# (mbResultsCtorWithPipeOrEqOnPrevLine, world) =
 		'Data.Foldable'.foldl`
 			(\(_, world) searchTerm ->
-				grepResultsForSearchTerm Declaration ?None searchTerm rootPath cleanHomeLibs ["-B", "1"]
+				grepResultsForSearchTerm Declaration ?None searchTerm rootPath cleanHomeLibs ["-B", "3"]
 					(surroundingLineGrepStdoutToFilePathAndLineNr
 						(flip IsMember whitespaceChars)
 						[!'=', '|']
 						True
-						1
 					)
 					id world
 			)

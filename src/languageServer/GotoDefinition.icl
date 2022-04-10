@@ -50,12 +50,11 @@ onGotoDefinition req=:{RequestMessage|id, params = ?Just json} st world
 	# (mbResCtorPipeOrEqualsSameLine, world)
 		= 'Data.Foldable'.foldl`
 			(\(_, world) searchTerm ->
-				grepResultsForSearchTerm Definition ?None searchTerm rootPath cleanHomeLibs ["-B", "1"]
+				grepResultsForSearchTerm Definition ?None searchTerm rootPath cleanHomeLibs ["-B", "3"]
 					(surroundingLineGrepStdoutToFilePathAndLineNr
 						(flip IsMember whitespaceChars)
 						[!'=', '|']
 						True
-						1
 					)
 					id world
 			)
@@ -79,9 +78,34 @@ onGotoDefinition req=:{RequestMessage|id, params = ?Just json} st world
 			)
 			(Ok [], world)
 	| isError mbResLocalSearch = (fromError mbResLocalSearch, world)
+	// Finds a local non type annotated function where the function args are included in the succeeding line.
+	# (mbResLocalNonTypeAnnotatedFuncArgsNextLine, world) =
+		// If the request was not made from a .icl or we found a type annotated function in the .icl we do not search.
+		if  (	requestMadeFromIcl
+				&& (mbResLocalTypeAnnotatedFunc=:(Ok []) && (mbResCtorPipeOrEqualsSameLine=:(Ok [])))
+		 	)
+			(grepResultsForSearchTerm
+					(SingleFile $ takeFileName requestPath)
+					?None
+					requestFileFuncDefWithoutTypeAnnotationSearchTermSpecialCase
+					requestPath
+					[]
+					["-A", "3"]
+					(surroundingLineGrepStdoutToFilePathAndLineNr
+						(flip IsMember alphabeticAndWhitespaceChars)
+						[!'=', '|', '#', ':']
+						False // Read from front to end of line.
+					)
+					id world
+			)
+			(Ok [], world)
+	| isError mbResLocalNonTypeAnnotatedFuncArgsNextLine = (fromError mbResLocalNonTypeAnnotatedFuncArgsNextLine, world)
 	// Tries to find a type annotated func definition in the .icl
 	# (mbResLocalNonTypeAnnotatedFunc, world) =
-		if (requestMadeFromIcl && mbResLocalTypeAnnotatedFunc=:(Ok []))
+		if	(	requestMadeFromIcl &&
+				mbResLocalTypeAnnotatedFunc=:(Ok []) &&
+				mbResLocalNonTypeAnnotatedFuncArgsNextLine=:(Ok [])
+			)
 			(grepResultsForSearchTerm
 				(SingleFile $ requestFileBaseName +++ ".icl") ?None
 				requestFileFuncDefWithoutTypeAnnotationSearchTerm requestPath [] []
@@ -89,29 +113,11 @@ onGotoDefinition req=:{RequestMessage|id, params = ?Just json} st world
 			)
 			(Ok [], world)
 	| isError mbResLocalNonTypeAnnotatedFunc = (fromError mbResLocalNonTypeAnnotatedFunc, world)
-	// Finds a local non type annotated function where the function args are included in the succeeding line.
-	# (mbResLocalNonTypeAnnotatedFuncArgsNextLine, world) =
-		// If the request was not made from a .icl or we found a type annotated function in the .icl we do not search.
-		if  (	requestMadeFromIcl
-				&& (mbResLocalTypeAnnotatedFunc=:(Ok []) && (mbResCtorPipeOrEqualsSameLine=:(Ok [])))
-		 	)
-			(	grepResultsForSearchTerm
-					(SingleFile $ takeFileName requestPath)
-					?None
-					requestFileFuncDefWithoutTypeAnnotationSearchTermSpecialCase
-					requestPath
-					[]
-					["-A", "1"]
-					(surroundingLineGrepStdoutToFilePathAndLineNr
-						(flip IsMember alphabeticAndWhitespaceChars)
-						[!'=', '|', '#']
-						False // Read from front to end of line.
-						(~1) // Actual results is one line above
-					)
-					id world
-			)
-			(Ok [], world)
-	| isError mbResLocalNonTypeAnnotatedFuncArgsNextLine = (fromError mbResLocalNonTypeAnnotatedFuncArgsNextLine, world)
+	// Only return single result.
+	# mbResLocalNonTypeAnnotatedFunc =
+		case mbResLocalNonTypeAnnotatedFunc of
+			Ok [x:xs] = Ok [x]
+			_ = Ok []
 	# results =
 		fromOk mbResGeneralCase ++
 		fromOk mbResCtorPipeOrEqualsSameLine ++

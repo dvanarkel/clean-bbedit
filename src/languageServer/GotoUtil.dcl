@@ -54,9 +54,9 @@ gotoPrerequisitesFor
  * @param The stop symbols which should lead to short circuiting as the symbol which is searched for is found.
  * @param Whether the line should be reversed (check for stop symbol reading from end of line to front).
  * @param The lines to check.
- * @result The resulting lines that pass the filter.
+ * @result The resulting lines that pass the filter along with their positon relative to the actual result.
  */
-filterSurroundingLinesForPredUntilStopSymbol :: !(Char -> Bool) ![!Char] !Bool ![String] -> [String]
+filterSurroundingLinesForPredUntilStopSymbol :: !(Char -> Bool) ![!Char] !Bool ![String] -> [(Int, String)]
 
 /**
  * Performs and processes grep results for search terms.
@@ -87,10 +87,9 @@ singleLineGrepStdoutToFilePathAndLineNr :: !String -> [(FilePath, Int)]
  * @param The predicate that should hold for the characters that are found before finding a stop symbol.
  * @param The stop symbols which should lead to short circuiting as the symbol which is searched for is found.
  * @param Whether the line should be reversed (check for stop symbol reading from end of line to front).
- * @param The amount of line numbers to add or substract from the line number found.
  * @param The stdout of grep.
  */
-surroundingLineGrepStdoutToFilePathAndLineNr :: !(Char -> Bool) [!Char] !Bool !Int !String -> [(FilePath, Int)]
+surroundingLineGrepStdoutToFilePathAndLineNr :: !(Char -> Bool) [!Char] !Bool !String -> [(FilePath, Int)]
 
 //* A list of whitespace characters.
 whitespaceChars :: [!Char]
