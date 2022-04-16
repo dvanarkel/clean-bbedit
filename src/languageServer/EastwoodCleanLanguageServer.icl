@@ -66,7 +66,7 @@ compilerSettingsConfigToCompilerSettings {compiler, libraries, paths} world
 	  cleanHome = fromJust mbCleanHome
 	| isNone mbCleanHome =
 		( 'Data.Error'.Error $ concat3 "Could not get " CLEAN_HOME_ENV_VAR " environment variable", world)
-	# searchPaths = (libPathFor cleanHome <$> libraries) ++ paths
+	# searchPaths = paths ++ (libPathFor cleanHome <$> libraries)
 	# (fullSearchPaths, world) = mapSt getFullPathName searchPaths world
 	# mbErr = firstSearchPathError searchPaths fullSearchPaths
 	| isJust mbErr = ('Data.Error'.Error $ fromJust mbErr, world)
