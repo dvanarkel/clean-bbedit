@@ -1,5 +1,5 @@
 variables:
-  CLEAN_DATE: "2022-04-11"
+  CLEAN_DATE: "2022-04-25"
   GIT_SUBMODULE_STRATEGY: recursive
 
 build:
