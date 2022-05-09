@@ -20,7 +20,7 @@ services:
       context: ../
       dockerfile: .devcontainer/develop.Dockerfile
       args:
-        CLEAN_DATE: "2022-04-25"
+        CLEAN_DATE: "2022-05-09"
 
     volumes:
       # Update this to wherever you want VS Code to mount the folder of your project
